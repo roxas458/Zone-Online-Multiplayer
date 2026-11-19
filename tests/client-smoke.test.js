@@ -289,3 +289,20 @@ test('4.13 player friend requests are handled by the server and friend UI exists
   assert.match(client,/function friendRequest/);
   assert.match(html,/id="playerFriendsPanel"/);
 });
+
+
+test('4.14 squads synchronize leader travel, field roles, journal and NPC escort', () => {
+  const server = fs.readFileSync(path.join(__dirname, '..', 'server.js'), 'utf8');
+  const client = fs.readFileSync(path.join(__dirname, '..', 'public/js/game.js'), 'utf8');
+  assert.match(server, /publishSquadMove\(squad,oldLocation,p\.location,p\.name\)/);
+  assert.match(server, /socket\.on\('squad:role'/);
+  assert.match(server, /socket\.on\('squad:escort'/);
+  assert.match(server, /escort\.location=to/);
+  assert.match(server, /emit\('squad:encounter'/); // server emits this event to both groups
+  assert.match(server, /squadJournal\(q,'encounter'/);
+  assert.match(client, /function squadRole\(/);
+  assert.match(client, /function squadEscort\(/);
+  assert.match(client, /squad:travelled/);
+  assert.match(client, /squad:encounter/);
+  assert.match(client, /Журнал отряда/);
+});

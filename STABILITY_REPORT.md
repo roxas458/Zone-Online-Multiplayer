@@ -39,3 +39,9 @@ After deploying:
 3. If the browser frontend is hosted on another domain, open Multiplayer, enter `https://YOUR-SERVER` in "Адрес игрового сервера", and press "Подключиться / переподключиться".
 4. If frontend and backend are served by the same Node service, leave that field empty.
 5. Verify two browser sessions appear in each other's online list.
+
+## 4.14.0 verification
+- `npm run check`: passed.
+- `npm test`: 46/46 passed, including squad travel, role, journal, escort, and encounter source-level integration checks.
+- ZIP integrity checked after packaging.
+- Live Render/PostgreSQL multiplayer session and physical mobile devices were not available for runtime verification.

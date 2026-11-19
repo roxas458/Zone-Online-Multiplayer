@@ -62,3 +62,11 @@
 - Добавлены отряды игроков с приглашениями и ограничением в четыре участника.
 - Созданы 16 новых мужских портретов и SVG-эмблемы девяти группировок.
 - Сохранены личные сообщения между игроками; голосовой связи нет.
+
+## 4.14.0 — SQUAD EXPEDITIONS
+- Synchronized squad travel: the leader's sector change moves online members together; members cannot silently split off while remaining in the squad.
+- Added field roles (leader, scout, medic, rifleman, technician) with leader-controlled assignment.
+- Added a persistent squad field journal for formation, joining, leaving, role changes, travel, escort and rival-group encounters.
+- Added friendly NPC escort orders; escorted NPC position follows the squad between sectors.
+- Added contextual encounters when two active squads enter the same sector, with faction-sensitive warning text and a cooldown.
+- Added mobile-friendly squad roster and journal presentation. No voice channel added.

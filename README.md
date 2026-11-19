@@ -70,3 +70,6 @@ The player dossier now includes expedition and combat statistics. NPCs have orig
 - Добавлены мужские портреты сталкеров в суровом полевом стиле по визуальному ориентиру пользователя и оригинальные эмблемы девяти группировок.
 - Добавлены сетевые отряды игроков: создание, приглашения, принятие/отклонение и выход; лимит — четыре участника.
 - Личные сообщения между игроками остаются, работают только в одном секторе и сохраняются в PostgreSQL. Голосового канала нет.
+
+### Version 4.14 — Squad Expeditions
+The multiplayer squad system now supports synchronized leader-led travel, member roles, a persistent expedition journal, friendly NPC escort, and encounters with other player squads. Squad/world state continues to use the existing shared-world persistence in PostgreSQL. No voice feature is included. Keep the existing `DATABASE_URL`; no database reset is required.
