@@ -84,3 +84,31 @@ test('WAR SYSTEM rejects premature resolution and unauthorized side deployments'
   assert.equal(resolveOperation(op).ok, false);
   assert.equal(addDeployment(op, { id: 'p2', name: 'Игрок', faction: 'Бандиты' }, 'defend', 20).ok, false);
 });
+
+
+const { createNpcRoster, tickNpcWorld, interactWithNpc } = require('../src/systems/npc-ai');
+test('NPC AI bootstraps independent NPC profiles with roles and factions', () => {
+  const roster = createNpcRoster(NPC_HOME, 100);
+  assert.equal(roster.sid.faction, 'Одиночки');
+  assert.equal(roster.voronin.role, 'командир');
+  assert.equal(roster.lebedev.location, 'swamps');
+  assert.equal(roster.sid.alive, true);
+});
+test('NPC AI advances schedules, records history and publishes shared positions', () => {
+  const world = { npcPositions: { alpha:'cordon', beta:'dump' } };
+  world.npcState = createNpcRoster({ alpha:'cordon', beta:'dump' }, 100);
+  const events = tickNpcWorld(world, new Set(['cordon','dump','bar']), () => 0, 200);
+  assert.equal(world.npcState.alpha.lastActionAt, 200);
+  assert.ok(world.npcState.alpha.history.length >= 1);
+  assert.ok(world.npcPositions.alpha);
+  assert.ok(Array.isArray(world.npcEvents));
+  assert.ok(Array.isArray(events));
+});
+test('NPC interaction requires same location and builds personal trust', () => {
+  const npc = createNpcRoster({ sid:'cordon' }, 100).sid;
+  assert.equal(interactWithNpc(npc,{id:'p1',location:'dump'},'greet').ok,false);
+  const result = interactWithNpc(npc,{id:'p1',location:'cordon'},'help',200);
+  assert.equal(result.ok,true);
+  assert.equal(result.relationship,5);
+  assert.match(result.reply,/помощь/);
+});

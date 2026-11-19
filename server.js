@@ -10,6 +10,7 @@ const {
 const { clean, validId, createSafeState } = require('./src/server/validation');
 const { initSharedWorld, initDiplomacy } = require('./src/server/world');
 const { WAR_CONFIG, createOperation, deploymentPower, addDeployment, resolveOperation } = require('./src/systems/war');
+const { tickNpcWorld, interactWithNpc } = require('./src/systems/npc-ai');
 
 const online = new Map();
 const recentChat = [];
@@ -62,7 +63,7 @@ io.on('connection', socket=>{
       const p={ id, name:s.name, faction:s.faction, location:s.loc, hp:s.hp, xp:s.xp, joinedAt:Date.now(), lastSeen:Date.now(), state:saved||s.state };
       socket.data.playerId=id; socket.data.name=p.name; online.set(id,p); socket.join('zone-world'); socket.join(id);
       socket.emit('player:ready',{id, savedState:saved, world, chat:recentChat.slice(-60), players:onlineList(), persistent:dbReady});
-      io.emit('world:npcs',world.npcPositions); io.emit('world:coop',world.coOpQuests); io.emit('war:state',{operations:world.warOperations||[],history:(world.warHistory||[]).slice(0,12)});
+      io.emit('world:npcs',world.npcPositions); io.emit('world:npc-state',{npcs:world.npcState,events:(world.npcEvents||[]).slice(-20)}); io.emit('world:coop',world.coOpQuests); io.emit('war:state',{operations:world.warOperations||[],history:(world.warHistory||[]).slice(0,12)});
       systemMessage(`${p.name} вошёл в Зону.`); broadcastOnline();
     } catch(e){ socket.emit('server:error',{message:'Не удалось загрузить профиль.'}); console.error(e); }
   });
@@ -220,6 +221,14 @@ io.on('connection', socket=>{
     for(const participant of op.participants){const pl=online.get(participant.playerId);if(!pl)continue;const st=safeState(pl.state);st.state.xp=Math.min(1e7,st.xp+35);st.state.rep=Math.max(-1000,Math.min(1000,st.rep+(participant.side===result.winner?5:-2)));if(participant.side===result.winner)st.state.money=Math.min(99999999,st.money+180);pl.state=st.state;await persistPlayer(pl.id,pl.state);io.to(pl.id).emit('war:reward',{state:pl.state,winner:result.winner,won:participant.side===result.winner});}
     await persistWorld();io.emit('war:state',{operations:world.warOperations,history:world.warHistory});io.emit('world:update',{world,notice:result.captured?`«${op.attacker}» захватили сектор ${op.location}.`:`Оборона «${op.defender}» удержала сектор ${op.location}.`});socket.emit('war:result',{ok:true,message:result.captured?'Победа! Территория перешла под контроль твоей группировки.':'Оборона удержала сектор.',world});
   });
+  socket.on('npc:interact', async input=>{
+    const p=online.get(socket.data.playerId); if(!p)return;
+    const npcId=String(input?.npcId||'').slice(0,48), action=String(input?.action||'');
+    const npc=world.npcState?.[npcId];
+    const result=interactWithNpc(npc,{id:p.id,location:p.location},action);
+    socket.emit('npc:interaction-result',result);
+    if(result.ok){ world.revision=(world.revision||0)+1; await persistWorld(); io.emit('world:npc-state',{npcs:world.npcState,events:(world.npcEvents||[]).slice(-20)}); }
+  });
   socket.on('diplomacy:action', async input=>{
     const p=online.get(socket.data.playerId);if(!p)return;
     const target=clean(input?.target,32), action=input?.action;
@@ -243,11 +252,15 @@ io.on('connection', socket=>{
 
 setInterval(async()=>{
   initSharedWorld(world, NPC_HOME, LOCATIONS, COOP_TEMPLATES);
-  const ids=Object.keys(world.npcPositions); if(!ids.length)return;
-  const id=ids[Math.floor(Math.random()*ids.length)], current=world.npcPositions[id], options=[...LOCATIONS].filter(x=>x!==current);
-  world.npcPositions[id]=options[Math.floor(Math.random()*options.length)]; world.revision=(world.revision||0)+1;
-  try{await persistWorld();io.emit('world:npcs',world.npcPositions);io.emit('world:update',{world,notice:`Сталкер ${id} замечен в новом секторе.`});}catch(e){console.error('NPC schedule:',e.message);}
-}, 5*60*1000).unref();
+  const events=tickNpcWorld(world,LOCATIONS,Math.random,Date.now());
+  if(!events.length && !Object.keys(world.npcState||{}).length)return;
+  world.revision=(world.revision||0)+1;
+  try{
+    await persistWorld(); io.emit('world:npcs',world.npcPositions);
+    io.emit('world:npc-state',{npcs:world.npcState,events:(world.npcEvents||[]).slice(-20)});
+    for(const event of events) { io.emit('world:npc-event',event); if(event.type==='npc_skirmish') systemMessage(event.text); }
+  }catch(e){console.error('NPC AI schedule:',e.message);}
+},60*1000).unref();
 setInterval(async()=>{
   const event={...ZONE_EVENTS[Math.floor(Math.random()*ZONE_EVENTS.length)],id:crypto.randomUUID(),at:Date.now()};
   world.zoneEvents ||= [];world.zoneEvents.push(event);world.zoneEvents=world.zoneEvents.slice(-30);world.revision=(world.revision||0)+1;

@@ -1,47 +1,30 @@
-# ZONE ONLINE 4.2 — project structure
+# Project structure — ZONE ONLINE 4.4
 
 ```text
 ZONE_ONLINE/
-├── client/                  # Browser presentation layer (public/)
-│   ├── interface/           # PDA views and navigation (public/index.html)
-│   ├── hud/                 # Status panels and combat overlay
-│   ├── inventory/           # Inventory, equipment and crafting UI
-│   ├── pda/                 # News, contracts, contacts and archive
-│   ├── maps/                # Sector map and points of interest
-│   └── multiplayer/         # Socket.IO client and player trading
-├── server/
-│   ├── world/               # Shared world bootstrap (src/server/world.js)
-│   ├── players/             # Player validation and persistence (server.js)
-│   ├── factions/            # Faction registry and diplomacy
-│   ├── npc/                 # NPC homes and world positions
-│   ├── patrols/             # Patrol domain rules
-│   ├── territories/         # Territory influence rules
-│   ├── economy/             # Market and player-to-player trade
-│   └── events/              # Shared world events and emissions
-├── systems/                 # Reusable game rules (src/systems/)
-│   ├── reputation.js
-│   ├── relationships.js
-│   ├── ranks.js
-│   ├── contracts.js
-│   ├── patrols.js
-│   ├── territories.js
-│   ├── emissions.js
-│   ├── rumors.js
-│   └── camp-life.js
-├── database/                # PostgreSQL schema and JSONB persistence (server.js)
-├── content/                 # Authored content (public/js/content.js, game-data.js)
-└── shared/                  # Shared constants, validation and protocols
-    ├── config/
-    ├── constants/
-    └── protocols/
+├── server.js                    # Socket.IO server and authoritative world events
+├── src/
+│   ├── shared/game-data.js      # Canonical factions, sectors, NPC homes and items
+│   ├── server/
+│   │   ├── validation.js        # Player state/input validation
+│   │   └── world.js             # Shared world bootstrap and migrations
+│   └── systems/
+│       ├── npc-ai.js            # NPC schedules, movement, encounters and interaction
+│       ├── war.js               # Faction operations and territory warfare
+│       ├── territories.js       # Territory influence and control
+│       ├── relationships.js     # Personal relationships
+│       ├── ranks.js             # Faction progression
+│       ├── contracts.js         # Contract rules
+│       ├── patrols.js           # Patrol helpers
+│       ├── emissions.js         # Emission events
+│       ├── rumors.js            # Rumor generation
+│       └── camp-life.js         # Camp activity
+├── public/
+│   ├── index.html
+│   ├── css/game.css
+│   └── js/                      # Browser client and content
+└── tests/core.test.js           # Automated domain tests
 ```
 
-The existing repository uses a compact Express/Socket.IO layout. This map shows the logical module boundaries; the existing runtime paths are retained to avoid breaking deployment.
-
-
-## 4.3 WAR SYSTEM runtime additions
-
-- `world.territoryOwners` and `world.territoryControl` store authoritative sector control.
-- `world.warOperations` stores active and recently completed operations.
-- `world.warHistory` stores the latest 30 resolved battles.
-- Socket.IO events: `war:operation:create`, `war:operation:deploy`, `war:operation:resolve`, `war:state`, `war:result`, `war:reward`.
+## NPC state model
+Each NPC record contains `id`, `name`, `faction`, `role`, `location`, `destination`, `action`, `mood`, `health`, `morale`, `supplies`, `alive`, `lastActionAt`, `relationships`, `inventory`, and a bounded `history` log. The server is authoritative; clients receive snapshots and event notifications.
