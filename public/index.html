@@ -52,7 +52,7 @@ button{background:linear-gradient(180deg,#424735,#292f23);border:1px solid #7273
 <div class="section">Что происходит рядом</div><div id="nearby" class="list"></div>
 <div class="section">Полевые действия</div><div class="grid"><button onclick="explore()">⌕ Осмотреть местность</button><button onclick="rest()">☾ Отдохнуть у костра</button><button onclick="searchAnomaly()">⌁ Поиск артефактов</button><button onclick="advance()">⏩ Продвинуть время</button></div>
 <div class="section">Последняя сводка</div><div id="homeNews" class="mutedbox small"></div></div>
-<div class="view" id="world"><div class="eyebrow">КАРТОГРАФИЯ / ТЕРРИТОРИИ</div><h1>Карта Зоны</h1><p class="muted small">Выбирай место для перехода. Путешествие расходует время и силы; в пути могут встретиться персонажи, события и опасности.</p><div class="zone-map-frame"><div class="map-legend"><span>● Текущая позиция</span><span>◆ Контроль группировок</span><span>⌖ Переходы между секторами</span></div><div id="zoneMap" class="zone-map"></div></div><div class="section">Список секторов</div><div class="map" id="map"></div><div id="locationInfo" class="dialogue">Выбери локацию.</div></div>
+<div class="view" id="world"><div class="eyebrow">КАРТОГРАФИЯ / ТЕРРИТОРИИ</div><h1>Карта Зоны</h1><p class="muted small">Выбирай место для перехода. Путешествие расходует время и силы; в пути могут встретиться персонажи, события и опасности.</p><div class="zone-map-frame"><div class="map-legend"><span>● Текущая позиция</span><span>◆ Контроль группировок</span><span>⌖ Переходы между секторами</span></div><div id="zoneMap" class="zone-map"></div></div><div class="section">Сталкеры рядом с тобой</div><div id="nearbyPlayers" class="list"><div class="mutedbox small">Загружаем данные КПК…</div></div><div class="section">Список секторов</div><div class="map" id="map"></div><div id="locationInfo" class="dialogue">Выбери локацию.</div></div>
 <div class="view" id="people"><div class="eyebrow">КОНТАКТЫ / ВСТРЕЧИ</div><h1>Персонажи Зоны</h1><p class="muted small">Не все персонажи находятся в одном месте. Перемещайся по карте, чтобы встречать новых людей.</p><div class="list" id="peopleList"></div><div class="section">Текущий разговор</div><div id="dialogueBox" class="mutedbox">Пока ты ни с кем не разговариваешь.</div></div>
 <div class="view" id="quests"><div class="eyebrow">ЖУРНАЛ / ИСТОРИИ И ПОРУЧЕНИЯ</div><h1>Задания</h1><div class="tabs"><button onclick="questFilter='all';renderQuests()">Все</button><button onclick="questFilter='active';renderQuests()">Активные</button><button onclick="questFilter='done';renderQuests()">Завершённые</button></div><div id="questList" class="list"></div></div>
 <div class="view" id="inventory"><div class="eyebrow">СНАРЯЖЕНИЕ / РЮКЗАК</div><h1>Инвентарь</h1><div class="grid three"><div class="stat"><span>Вес</span><strong id="weight">—</strong></div><div class="stat"><span>Лимит</span><strong>35 кг</strong></div><div class="stat"><span>Предметов</span><strong id="itemCount">—</strong></div></div><div class="inventory-layout"><div><div class="section">Рюкзак · сетка предметов</div><div id="items" class="inventory-grid"></div></div><div><div class="section">Экипировка сталкера</div><div id="equipment" class="equipment-panel"></div><div class="section">Состояние снаряжения</div><div id="gearStats" class="mutedbox small"></div></div></div></div>
@@ -66,19 +66,15 @@ button{background:linear-gradient(180deg,#424735,#292f23);border:1px solid #7273
 <div class="view" id="multiplayer">
 <div class="eyebrow">СЕТЬ / СОВМЕСТНАЯ ЗОНА</div><h1>Мультиплеер</h1>
 <div class="hero"><div class="eyebrow">ОНЛАЙН-СВЯЗЬ</div><b id="mpStatus">Не подключено</b><div class="muted small" id="mpStatusText">Подключись к серверу, чтобы увидеть других сталкеров.</div></div>
-<div class="section">Подключение к отряду</div>
-<div class="grid">
-<div class="item block"><label class="small">Позывной</label><input id="mpName" class="field" maxlength="20" placeholder="Например, Vagrant"></div>
-<div class="item block"><label class="small">Код комнаты</label><input id="mpRoom" class="field" maxlength="12" placeholder="Например, CORDON"></div>
-</div>
-<div class="rightbuttons" style="margin-top:8px"><button id="mpJoin" onclick="mpJoin()">Подключиться / создать комнату</button><button id="mpLeave" onclick="mpLeave()" disabled>Отключиться</button></div>
-<div class="section">Сталкеры в этой комнате</div><div id="mpPlayers" class="list"><div class="mutedbox small">Пока никого нет.</div></div>
+<div class="section">Твой сетевой профиль</div>
+<div class="item block"><label class="small">Позывной</label><input id="mpName" class="field" maxlength="24" placeholder="Позывной сталкера"><button id="mpJoin" onclick="mpRename()" style="margin-top:8px">Обновить позывной</button></div>
+<div class="section">Все сталкеры онлайн во всей Зоне</div><div id="mpPlayers" class="list"><div class="mutedbox small">Подключаемся к серверу…</div></div>
 <div class="section">Общий канал КПК</div>
 <div id="mpChat" class="log" style="max-height:260px;background:#111a13;border:1px solid var(--line);border-radius:8px"></div>
 <div class="rightbuttons" style="margin-top:8px"><input id="mpMessage" class="field" maxlength="240" placeholder="Сообщение в общий канал" style="flex:1;min-width:140px"><button onclick="mpSend()">Отправить</button></div>
-<p class="muted small">Игроки видят друг друга, общаются в чате и синхронизируют локацию. Персонажи, инвентарь, задания и экономика пока индивидуальные — совместная игровая симуляция будет следующим этапом.</p>
+<p class="muted small">Единый серверный мир: общий список игроков, глобальный КПК-чат, серверные профили, синхронизация локаций и дипломатии. Прогресс хранится на сервере, а при подключении загружается на устройство.</p>
 </div>
-<div class="view" id="settings"><div class="eyebrow">СИСТЕМА / ДАННЫЕ</div><h1>Настройки и сохранение</h1><div class="mutedbox small">Прогресс автоматически сохраняется в локальном хранилище браузера. Экспорт создает резервную копию, которую можно перенести на другое устройство.</div><div class="grid" style="margin-top:10px"><button onclick="exportSave()">⇩ Экспорт сохранения</button><button onclick="document.getElementById('importFile').click()">⇧ Импорт сохранения</button><button onclick="manualSave()">Сохранить сейчас</button><button onclick="resetGame()">Начать новую игру</button></div><input id="importFile" type="file" accept=".json,application/json" style="display:none" onchange="importSave(event)"><div class="section">Игровые правила</div><div class="mutedbox small">Время, перемещения, встречи, задания и контроль территорий работают в рамках локальной симуляции. Мультиплеер подключается через отдельный сервер: общий чат, список игроков и синхронизация локаций.</div></div>
+<div class="view" id="settings"><div class="eyebrow">СИСТЕМА / ДАННЫЕ</div><h1>Настройки и сохранение</h1><div class="mutedbox small">Прогресс синхронизируется с серверным профилем и дополнительно кэшируется в браузере. Для переноса на другое устройство используй тот же профильный ID браузера или резервный экспорт.</div><div class="grid" style="margin-top:10px"><button onclick="exportSave()">⇩ Экспорт сохранения</button><button onclick="document.getElementById('importFile').click()">⇧ Импорт сохранения</button><button onclick="manualSave()">Сохранить сейчас</button><button onclick="resetGame()">Начать новую игру</button></div><input id="importFile" type="file" accept=".json,application/json" style="display:none" onchange="importSave(event)"><div class="section">Игровые правила</div><div class="mutedbox small">Время, перемещения, встречи, задания и контроль территорий работают в рамках локальной симуляции. Мультиплеер подключается через отдельный сервер: общий чат, список игроков и синхронизация локаций.</div></div>
 </section>
 <aside class="right">
 <section class="panel"><h2>КПК / текущая ситуация</h2><div style="padding:11px" id="miniStatus"></div></section>
@@ -86,6 +82,7 @@ button{background:linear-gradient(180deg,#424735,#292f23);border:1px solid #7273
 <section class="panel"><h2>Лента КПК</h2><div class="log" id="log"></div></section>
 <section class="panel"><h2>Мировая обстановка</h2><div style="padding:11px;display:grid;gap:7px" id="worldState"></div></section>
 </aside></main><footer>Неофициальная фанатская игра. Интерфейс и графика созданы специально для ZONE ONLINE; игровые персонажи, события, цены и параметры частично симулируются. Не связан с правообладателями S.T.A.L.K.E.R.</footer>
+<script src="/socket.io/socket.io.js"></script>
 <script>
 const clone=o=>JSON.parse(JSON.stringify(o));
 const base={
@@ -250,4 +247,50 @@ function importSave(e){let f=e.target.files[0];if(!f)return;let r=new FileReader
 function manualSave(){save();alert("Игра сохранена в этом браузере.")}
 function resetGame(){if(confirm("Начать заново? Текущее локальное сохранение будет заменено.")){g=clone(base);activeNpc=null;chosenLoc=null;save();view("home")}}
 render();
+
+// GLOBAL ONLINE WORLD: one shared server, no private rooms.
+let zoneSocket=null, zonePlayerId=localStorage.getItem('zoneOnlinePlayerId')||'';
+let onlinePlayers=[], serverWorld=null, serverChat=[];
+let applyingServerState=false;
+function renderOnlinePlayers(){
+ const make=(p)=>`<div class="item"><div style="display:flex;justify-content:space-between;gap:8px;align-items:center"><div><b>🟢 ${escapeHtml(p.name)}</b><div class="desc">${escapeHtml(p.faction)} · ${escapeHtml(locationName(p.location))}</div></div><span class="tag">${p.hp}% HP</span></div></div>`;
+ const all=onlinePlayers.map(make).join('')||'<div class="mutedbox small">Сейчас никого нет. Ты можешь быть первым.</div>';
+ const a=$('mpPlayers');if(a)a.innerHTML=all;
+ const b=$('nearbyPlayers');if(b){const near=onlinePlayers.filter(p=>p.id!==zonePlayerId&&p.location===g.loc);b.innerHTML=near.map(make).join('')||'<div class="mutedbox small">В этом секторе пока нет других игроков.</div>';}
+ const status=$('mpStatus');if(status)status.textContent=zoneSocket?.connected?'🟢 Подключено к общей Зоне':'🔴 Нет соединения';
+ const statusText=$('mpStatusText');if(statusText)statusText.textContent=`Онлайн: ${onlinePlayers.length} · ${zoneSocket?.connected?'все игроки видят друг друга':'переподключение…'}`;
+}
+function locationName(id){return g.locations.find(x=>x.id===id)?.name||id||'Неизвестно'}
+function escapeHtml(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function renderServerChat(){const el=$('mpChat');if(!el)return;el.innerHTML='';for(const m of serverChat.slice(-80)){const row=document.createElement('div');row.style.padding='5px 8px';const time=new Date(m.time||Date.now()).toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'});row.textContent=`[${time}] ${m.name}: ${m.text}`;el.appendChild(row);}el.scrollTop=el.scrollHeight;}
+function mpSend(){const input=$('mpMessage');const text=input?.value?.trim();if(!text)return;if(!zoneSocket?.connected)return alert('Нет соединения с сервером.');zoneSocket.emit('world:chat:send',{text});input.value='';}
+function mpRename(){const n=$('mpName')?.value?.trim();if(!n)return alert('Введи позывной.');g.name=n.slice(0,24);save();if(zoneSocket?.connected)zoneSocket.emit('player:update',{name:g.name,location:g.loc,faction:g.faction});}
+function mpSyncLocation(){if(zoneSocket?.connected)zoneSocket.emit('player:update',{location:g.loc,faction:g.faction,name:g.name});}
+function connectZone(){
+ if(typeof io!=='function'){$('mpStatusText').textContent='Не удалось загрузить Socket.IO. Обнови страницу.';return;}
+ zoneSocket=io({transports:['websocket','polling'],reconnection:true,reconnectionAttempts:Infinity,reconnectionDelay:1000,reconnectionDelayMax:8000});
+ zoneSocket.on('connect',()=>{zoneSocket.emit('player:hello',{id:zonePlayerId,state:g});});
+ zoneSocket.on('player:ready',data=>{
+  zonePlayerId=data.id;localStorage.setItem('zoneOnlinePlayerId',zonePlayerId);
+  if(data.savedState&&typeof data.savedState==='object'){applyingServerState=true;g=data.savedState;migrateWorld();localStorage.setItem('zoneExpandedSave',JSON.stringify(g));applyingServerState=false;render();}
+  serverWorld=data.world||null;if(serverWorld?.diplomacy){g.diplomacy=serverWorld.diplomacy;renderDiplomacy();}
+  onlinePlayers=data.players||[];serverChat=data.chat||[];renderOnlinePlayers();renderServerChat();
+  if($('mpName'))$('mpName').value=g.name;
+  $('mpStatusText').textContent=data.persistent?'Сервер подключён · профиль и общий мир сохраняются в PostgreSQL.':'Сервер подключён · внимание: без PostgreSQL прогресс на сервере сбросится после перезапуска.';
+  if(!data.savedState)zoneSocket.emit('player:save',g);
+  mpSyncLocation();
+ });
+ zoneSocket.on('world:players',list=>{onlinePlayers=list||[];renderOnlinePlayers();});
+ zoneSocket.on('world:chat',m=>{serverChat.push(m);if(serverChat.length>100)serverChat=serverChat.slice(-100);renderServerChat();});
+ zoneSocket.on('world:update',data=>{serverWorld=data.world||serverWorld;if(serverWorld?.diplomacy){g.diplomacy=serverWorld.diplomacy;localStorage.setItem('zoneExpandedSave',JSON.stringify(g));renderDiplomacy();}if(data.notice){g.news.unshift({day:g.day,hour:String(g.hour).padStart(2,'0')+':00',title:'Дипломатия Зоны',body:data.notice});g.news=g.news.slice(0,40);renderNews();}});
+ zoneSocket.on('diplomacy:result',data=>{if(!data.ok){alert(data.message||'Операция не выполнена.');return;}if(data.state){g.money=data.state.money;g.rep=data.state.rep;localStorage.setItem('zoneExpandedSave',JSON.stringify(g));}if(data.world?.diplomacy)g.diplomacy=data.world.diplomacy;render();});
+ zoneSocket.on('server:error',e=>{console.warn(e.message);});
+ zoneSocket.on('disconnect',()=>renderOnlinePlayers());
+}
+// All normal game saves are mirrored to the server. The server keeps one profile per player.
+save=function(){localStorage.setItem('zoneExpandedSave',JSON.stringify(g));render();if(!applyingServerState&&zoneSocket?.connected&&zonePlayerId)zoneSocket.emit('player:save',g);};
+// Diplomacy is a shared server-side operation, not a client-only counter.
+adjustDiplomacy=function(name,action){if(!zoneSocket?.connected)return alert('Подключись к общей Зоне, чтобы вести переговоры.');zoneSocket.emit('diplomacy:action',{target:name,action});};
+if($('mpMessage'))$('mpMessage').addEventListener('keydown',e=>{if(e.key==='Enter')mpSend();});
+connectZone();
 </script></body></html>

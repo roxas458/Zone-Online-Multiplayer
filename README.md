@@ -1,42 +1,49 @@
-# ZONE ONLINE — Multiplayer prototype
+# ZONE ONLINE 2.1 — Shared Zone Online
 
-## What is multiplayer now
-- Room-based multiplayer (players with the same room code meet each other).
-- Live online player list.
-- Shared PDA chat.
-- Location and faction presence synchronization.
-- Automatic reconnect is not forced; players can reconnect using the same room code.
+## What's online now
+- One global world: players no longer need to join the same private room.
+- Live global player roster, with nickname, faction, health and current sector.
+- Location updates are broadcast to all connected players; the map view also shows other players in your current sector.
+- Global PDA chat visible to everyone online.
+- Persistent server-side player profiles: nickname, faction, location, money, health, XP, inventory, equipment, quests, achievements and other game progress are stored as the player's state.
+- Shared server-side faction diplomacy. Diplomatic actions are validated and applied on the server; changes are broadcast to everyone.
+- Automatic reconnection and profile restoration by browser player ID.
+- PostgreSQL persistence for player profiles, diplomacy/world state and chat history.
+- `/health` and `/api/status` endpoints.
 
-The RPG economy, quests, inventory and NPC progression remain per-player/local at this stage. This avoids players overwriting each other's saves. The next step can add server-side shared world state, persistent accounts and co-op quest progression.
+## Important persistence setup on Render
+The game server can run without a database for a quick test, but in-memory mode loses server-side profiles and shared world state whenever the service restarts or sleeps. For a persistent online game, attach PostgreSQL:
 
-## Run locally
-1. Install Node.js 18 or newer.
-2. In this folder run `npm install`.
-3. Run `npm start`.
-4. Open `http://localhost:3000` in two browser tabs/devices.
-5. Use the same room code in both clients.
+1. In Render, create a PostgreSQL database in the same region as the Web Service.
+2. Open the database page and copy its **Internal Database URL**.
+3. Open the Web Service → Environment → add `DATABASE_URL` with that URL.
+4. Save changes and redeploy.
+5. Open `/health`; `database` should show `postgres`.
 
-## Deploy on Render
-- Create a new **Web Service** from this project repository.
-- Runtime: Node.
-- Build command: `npm install`
-- Start command: `npm start`
-- Render will provide `PORT`; the app reads it automatically.
-- No environment variables are required for this prototype.
+Do not publish the database URL or put it in frontend code. Keep it only in Render's server environment variables.
 
-The in-memory room list and chat are cleared when the server restarts. Do not use this prototype for private information; chat is not end-to-end encrypted.
+## Deploy/update
+- Runtime: Node
+- Build command: `npm install` (or `yarn install` if you use Yarn)
+- Start command: `npm start` (or `yarn start`)
+- Node 18+
+- Render assigns `PORT` automatically.
 
+Commit the contents of this project folder to the root of your GitHub repository. The root must contain `package.json`, `server.js`, `render.yaml`, and `public/index.html`.
 
-## Build 0.3 — Call of Pripyat-inspired update
+## Local test
+```bash
+npm install
+npm start
+```
+Open `http://localhost:3000` in two browsers. Both will enter the same global Zone automatically; no room code is needed.
 
-- PDA-style interface refresh and responsive inventory grid.
-- Equipment slots for suit, primary weapon and detector.
-- Additional Zone sectors: Zaton, Jupiter, Yanov, Kopachi, Volkhov AA and Iron Forest.
-- Schematic interactive Zone map with travel nodes.
-- Random generated stalkers, personal greetings and topic-based conversations; some wander between sectors as time advances.
-- Faction emblems, diplomatic channels, information exchange and trade agreements.
-- Achievement journal.
-- Existing local saves are migrated automatically; player progress is retained.
-- Multiplayer location synchronization accepts the additional sectors.
+## Current scope and honest limitations
+- This is a persistent online browser RPG, not a 3D real-time shooter. Other players are represented by their online profiles and sector presence.
+- Player progression is individually owned and saved on the server. Global chat and diplomacy are shared.
+- NPC conversations and most quest/economy rules still run in the player's game client; they are not yet a single authoritative shared NPC simulation. The next backend milestone is server-authoritative trading, shared NPC schedules, co-op quest state and anti-cheat validation.
+- If the service runs without `DATABASE_URL`, it deliberately falls back to memory mode for development; that is not persistent across restarts.
+- Use HTTPS on deployment. Chat is public to all connected players and is not end-to-end encrypted.
 
-Visual assets in this fan project are original interface elements and symbols inspired by the atmosphere of S.T.A.L.K.E.R.; original game artwork and extracted assets are not included.
+## Original fan project
+The interface, icons and map graphics are original fan-made assets inspired by the genre. This project is not affiliated with or endorsed by GSC Game World.
