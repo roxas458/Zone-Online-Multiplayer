@@ -434,21 +434,46 @@ function warCreate(){if(!zoneSocket?.connected)return alert('Для военно
 function warDeploy(id,action){if(!zoneSocket?.connected)return alert('Нет связи с сервером.');zoneSocket.emit('war:operation:deploy',{operationId:id,action});}
 function warResolve(id){if(!confirm('Завершить операцию и зафиксировать результат?'))return;zoneSocket.emit('war:operation:resolve',{operationId:id});}
 
+function applyWorldSync(sync){
+ if(!sync)return;
+ if(sync.mode==='snapshot'&&sync.snapshot){serverWorld=sync.snapshot;}
+ else if(sync.mode==='delta'&&Array.isArray(sync.events)){for(const ev of sync.events)handleOnlineWorldEvent(ev);}
+ if(Number.isFinite(Number(sync.revision))){localStorage.setItem('zoneWorldRevision',String(sync.revision));}
+ renderOnlineWorldStatus();
+}
+function handleOnlineWorldEvent(ev){
+ const payload=ev.payload||{};
+ if(ev.type==='player_joined'&&payload.player){const n=payload.player.name||'Сталкер';if($('onlineWorldFeed'))$('onlineWorldFeed').innerHTML=`<div class="item"><div><b>${escapeHtml(n)}</b><div class="desc">Подключился к общей Зоне</div></div><span class="tag">Онлайн</span></div>`+$('onlineWorldFeed').innerHTML;}
+ else if(ev.type==='player_moved'||ev.type==='player_state_changed'){const name=payload.name||payload.player?.name||'Сталкер';const to=payload.to||payload.player?.location||'';if($('onlineWorldFeed'))$('onlineWorldFeed').innerHTML=`<div class="item"><div><b>${escapeHtml(name)}</b><div class="desc">Изменил положение${to?' · '+escapeHtml(to):''}</div></div><span class="tag">Мир</span></div>`+$('onlineWorldFeed').innerHTML;}
+ else if(ev.type==='player_left'){if($('onlineWorldFeed'))$('onlineWorldFeed').innerHTML=`<div class="item"><div><b>${escapeHtml(payload.name||'Сталкер')}</b><div class="desc">Покинул общую Зону</div></div><span class="tag">Офлайн</span></div>`+$('onlineWorldFeed').innerHTML;}
+ else if(ev.type==='zone_event'){const e=payload; if(e.title){g.news.unshift({day:g.day,hour:String(g.hour).padStart(2,'0')+':00',title:e.title,body:e.body||'Мировое событие'});g.news=g.news.slice(0,60);renderNews();}}
+ if($('onlineWorldFeed')){const children=[...$('onlineWorldFeed').children];children.slice(25).forEach(x=>x.remove());}
+}
+function renderOnlineWorldStatus(status){
+ const s=status||{};const revision=s.revision??Number(localStorage.getItem('zoneWorldRevision')||serverWorld?.revision||0);const npcCount=s.npcCount??Object.values(serverWorld?.npcState||{}).filter(n=>n?.alive).length;const wars=s.activeWars??(serverWorld?.warOperations||[]).filter(x=>x.status==='active').length;const sectors=s.sectors??Object.keys(serverWorld?.territoryOwners||{}).length;
+ if($('onlineWorldStats'))$('onlineWorldStats').innerHTML=[["Игроки онлайн",s.online??onlinePlayers.length],["Живые NPC",npcCount],["Активные войны",wars],["Секторы",sectors],["Ревизия мира",revision]].map(([k,v])=>`<div class="stat"><span>${escapeHtml(String(k))}</span><strong>${escapeHtml(String(v))}</strong></div>`).join('');
+ if($('worldRevisionLabel'))$('worldRevisionLabel').textContent=`Ревизия ${revision} · ${zoneSocket?.connected?'синхронизация активна':'нет соединения'}`;
+}
+function requestWorldResync(){if(zoneSocket?.connected)zoneSocket.emit('world:sync',{sinceRevision:Number(localStorage.getItem('zoneWorldRevision')||0)});}
+
 function connectZone(){
  if(typeof io!=='function'){$('mpStatusText').textContent='Не удалось загрузить Socket.IO. Обнови страницу.';return;}
  zoneSocket=io({transports:['websocket','polling'],reconnection:true,reconnectionAttempts:Infinity,reconnectionDelay:1000,reconnectionDelayMax:8000});
- zoneSocket.on('connect',()=>{zoneSocket.emit('player:hello',{id:zonePlayerId,state:g});});
+ zoneSocket.on('connect',()=>{const lastRevision=Number(localStorage.getItem('zoneWorldRevision')||0);zoneSocket.emit('player:hello',{id:zonePlayerId,state:g,lastRevision});});
  zoneSocket.on('player:ready',data=>{
   zonePlayerId=data.id;localStorage.setItem('zoneOnlinePlayerId',zonePlayerId);
   if(data.savedState&&typeof data.savedState==='object'){applyingServerState=true;g=data.savedState;if(g.characterCreated===undefined)g.characterCreated=true;migrateWorld();localStorage.setItem('zoneExpandedSave',JSON.stringify(g));applyingServerState=false;render();if(g.characterCreated)$('characterSetup')?.classList.remove('show');else if(!$('characterSetup')?.classList.contains('show'))openCharacterSetup();}
-  serverWorld=data.world||null;renderWar();if(serverWorld?.discoveredPoints)applySharedDiscoveredPoints(serverWorld.discoveredPoints);if(serverWorld?.diplomacy){g.diplomacy=serverWorld.diplomacy;renderDiplomacy();}if(serverWorld?.npcPositions)applySharedNpcPositions(serverWorld.npcPositions);renderCoopQuests(serverWorld?.coOpQuests||[]);
+  serverWorld=data.world||null;applyWorldSync(data.worldSync);if(serverWorld?.discoveredPoints)applySharedDiscoveredPoints(serverWorld.discoveredPoints);renderWar();renderOnlineWorldStatus(data.status);if(serverWorld?.diplomacy){g.diplomacy=serverWorld.diplomacy;renderDiplomacy();}if(serverWorld?.npcPositions)applySharedNpcPositions(serverWorld.npcPositions);renderCoopQuests(serverWorld?.coOpQuests||[]);
   onlinePlayers=data.players||[];serverChat=data.chat||[];renderOnlinePlayers();renderServerChat();
   if($('mpName'))$('mpName').value=g.name;
   $('mpStatusText').textContent=data.persistent?'Сервер подключён · профиль и общий мир сохраняются в PostgreSQL.':'Сервер подключён · внимание: без PostgreSQL прогресс на сервере сбросится после перезапуска.';
   if(!data.savedState)zoneSocket.emit('player:save',g);
   renderPlayerTrade();renderIncomingTrades();mpSyncLocation();
  });
- zoneSocket.on('world:players',list=>{onlinePlayers=list||[];renderOnlinePlayers();renderPlayerTrade();});
+ zoneSocket.on('world:players',list=>{onlinePlayers=list||[];renderOnlinePlayers();renderPlayerTrade();renderOnlineWorldStatus();});
+ zoneSocket.on('world:sync',data=>applyWorldSync(data));
+ zoneSocket.on('world:status',data=>renderOnlineWorldStatus(data));
+ zoneSocket.on('world:event',ev=>{if(!ev||!Number.isFinite(Number(ev.revision)))return;const current=Number(localStorage.getItem('zoneWorldRevision')||0);if(Number(ev.revision)<=current)return;localStorage.setItem('zoneWorldRevision',String(ev.revision));renderOnlineWorldStatus();handleOnlineWorldEvent(ev);});
  zoneSocket.on('world:npcs',positions=>applySharedNpcPositions(positions));
  zoneSocket.on('world:npc-event',ev=>{if(!ev)return;g.news.unshift({day:g.day,hour:String(g.hour).padStart(2,'0')+':00',title:ev.type==='npc_skirmish'?'Перестрелка между отрядами':'Сталкеры в пути',body:ev.text||'Изменения активности NPC.'});g.news=g.news.slice(0,60);renderNews();log('Сводка КПК: '+(ev.text||'активность сталкеров')+'.');});
  zoneSocket.on('world:npc-state',data=>{serverWorld=serverWorld||{};serverWorld.npcState=data?.npcs||{};serverWorld.npcEvents=data?.events||[];});
@@ -465,10 +490,10 @@ function connectZone(){
  zoneSocket.on('coop:result',data=>{alert(data.message||'');});
  zoneSocket.on('coop:reward',data=>{if(data.state){g=data.state;localStorage.setItem('zoneExpandedSave',JSON.stringify(g));render();}alert(`Совместное задание выполнено: +${data.reward} ₽ и ${data.xp} опыта.`);});
  zoneSocket.on('world:chat',m=>{serverChat.push(m);if(serverChat.length>100)serverChat=serverChat.slice(-100);renderServerChat();});
- zoneSocket.on('world:update',data=>{serverWorld=data.world||serverWorld;renderWar();renderCoopQuests(serverWorld?.coOpQuests||[]);if(serverWorld?.diplomacy){g.diplomacy=serverWorld.diplomacy;localStorage.setItem('zoneExpandedSave',JSON.stringify(g));renderDiplomacy();}if(data.notice){g.news.unshift({day:g.day,hour:String(g.hour).padStart(2,'0')+':00',title:'Мировая сводка',body:data.notice});g.news=g.news.slice(0,40);renderNews();}});
+ zoneSocket.on('world:update',data=>{serverWorld=data.world||serverWorld;if(Number.isFinite(Number(serverWorld?.revision)))localStorage.setItem('zoneWorldRevision',String(serverWorld.revision));renderOnlineWorldStatus();renderWar();renderCoopQuests(serverWorld?.coOpQuests||[]);if(serverWorld?.diplomacy){g.diplomacy=serverWorld.diplomacy;localStorage.setItem('zoneExpandedSave',JSON.stringify(g));renderDiplomacy();}if(data.notice){g.news.unshift({day:g.day,hour:String(g.hour).padStart(2,'0')+':00',title:'Мировая сводка',body:data.notice});g.news=g.news.slice(0,40);renderNews();}});
  zoneSocket.on('diplomacy:result',data=>{if(!data.ok){alert(data.message||'Операция не выполнена.');return;}if(data.state){g.money=data.state.money;g.rep=data.state.rep;localStorage.setItem('zoneExpandedSave',JSON.stringify(g));}if(data.world?.diplomacy)g.diplomacy=data.world.diplomacy;render();});
  zoneSocket.on('server:error',e=>{console.warn(e.message);});
- zoneSocket.on('disconnect',()=>renderOnlinePlayers());
+ zoneSocket.on('disconnect',()=>{renderOnlinePlayers();renderOnlineWorldStatus();});
 }
 // All normal game saves are mirrored to the server. The server keeps one profile per player.
 save=function(){localStorage.setItem('zoneExpandedSave',JSON.stringify(g));render();if(!applyingServerState&&zoneSocket?.connected&&zonePlayerId){zoneSocket.emit('player:save',g);zoneSocket.emit('player:update',{name:g.name,location:g.loc,faction:g.faction});}};

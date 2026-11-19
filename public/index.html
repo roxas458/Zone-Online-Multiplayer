@@ -32,6 +32,7 @@
 <div class="hero"><div class="eyebrow">ОНЛАЙН-СВЯЗЬ</div><b id="mpStatus">Не подключено</b><div class="muted small" id="mpStatusText">Подключись к серверу, чтобы увидеть других сталкеров.</div></div>
 <div class="section">Твой сетевой профиль</div>
 <div class="item block"><label class="small">Позывной</label><input id="mpName" class="field" maxlength="24" placeholder="Позывной сталкера"><button id="mpJoin" onclick="mpRename()" style="margin-top:8px">Обновить позывной</button></div>
+<div class="section">Состояние единого мира</div><div class="grid three" id="onlineWorldStats"></div><div class="item"><div><b>Синхронизация мира</b><div class="desc" id="worldRevisionLabel">Ожидание серверной ревизии…</div></div><button onclick="requestWorldResync()">Обновить</button></div><div class="section">Последние события общей Зоны</div><div id="onlineWorldFeed" class="list"><div class="mutedbox small">События появятся после подключения.</div></div>
 <div class="section">Все сталкеры онлайн во всей Зоне</div><div id="mpPlayers" class="list"><div class="mutedbox small">Подключаемся к серверу…</div></div>
 <div class="section">Общий канал КПК</div>
 <div id="mpChat" class="log" style="max-height:260px;background:#111a13;border:1px solid var(--line);border-radius:8px"></div>

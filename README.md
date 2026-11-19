@@ -1,21 +1,20 @@
-# ZONE ONLINE 4.4 — NPC AI
+# ZONE ONLINE 4.5 — ONLINE WORLD
 
-ZONE ONLINE 4.4 extends 4.3 WAR SYSTEM with a server-authoritative simulation layer for non-player stalkers.
+ZONE ONLINE 4.5 extends 4.4 NPC AI and 4.3 WAR SYSTEM with revisioned shared-world replication and reconnect recovery.
 
-## NPC simulation
-- Persistent NPC profiles with faction, role, location, destination, action, health, morale, supplies and recent activity history.
-- Autonomous schedule ticks: patrol, travel, trade, search and rest.
-- NPC movement updates the shared world position map.
-- Hostile NPCs that meet in one sector can trigger a simulated skirmish; damage, morale and death state are recorded.
-- NPC events are broadcast to connected clients and surfaced in the PDA news feed.
-- Player interaction supports greeting, asking for information, trading conversation and helping; trust is stored per NPC/player pair.
+## ONLINE WORLD features
+- One authoritative server owns player presence, shared NPC state, faction warfare, territory ownership, world events and PDA news.
+- Every replicated world mutation receives a monotonic revision and is recorded in a bounded 500-event journal stored inside the shared `zone_world` JSON state.
+- Reconnecting clients send their last known revision. The server replays missed events when the cursor is recent, or returns a full snapshot when the journal no longer covers the gap.
+- Socket.IO broadcasts player joins, departures, sector movement, NPC simulation ticks, NPC encounters, warfare, diplomacy and discovered points.
+- A multiplayer status panel shows online players, living NPCs, active wars, sector count and the current world revision.
+- Read-only HTTP endpoints: `/api/status`, `/api/world/snapshot`, and `/api/world/events?since=<revision>`.
+- The NPC scheduler is guarded against overlapping ticks within the server process. World state and event history persist in PostgreSQL when `DATABASE_URL` is configured.
 
-## Server events
-- Client → server: `npc:interact` with `{ npcId, action }`; actions: `greet`, `ask`, `trade`, `help`.
-- Server → client: `npc:interaction-result` with success/reply/trust or reason.
-- Server → all clients: `world:npc-state`, `world:npc-event`, and `world:npcs`.
-
-The server owns NPC state and movement. Client-side display is not authoritative. NPC ticks run once per minute. The existing PostgreSQL `zone_world` JSON state stores NPC profiles and event history; memory mode remains available but does not survive server restarts.
+## Existing systems retained
+- 4.4 NPC AI: autonomous stalker schedules, movement, encounters and relationships.
+- 4.3 WAR SYSTEM: faction operations, deployments, capture results and rewards.
+- 4.2 LIVING ZONE: relationships, ranks, contracts, patrols, emissions, rumors and camp life.
 
 ## Run
 
@@ -26,8 +25,8 @@ npm run check
 npm start
 ```
 
-Set `DATABASE_URL` to PostgreSQL for persistent shared-world state.
+Set `DATABASE_URL` to PostgreSQL for persistence across server restarts. Without PostgreSQL, the server uses memory mode and the shared world resets on restart.
 
-## Roadmap
-- 4.4 NPC AI: persistent autonomous NPC simulation.
-- 4.5 ONLINE WORLD: stronger multiplayer synchronization, world event replication, reconnect recovery and authoritative simulation scheduling.
+## Deployment topology
+
+This release is a single-authoritative-process multiplayer server. It synchronizes all connected clients attached to that server instance. For horizontal multi-instance deployment, add a Socket.IO PostgreSQL/Redis adapter, distributed scheduler leadership, and transactional world-event writes before running more than one game server process. The in-process NPC tick guard does not coordinate multiple server instances.

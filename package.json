@@ -1,12 +1,12 @@
 {
   "name": "zone-online",
-  "version": "4.4.0",
+  "version": "4.5.0",
   "private": true,
-  "description": "Living Zone RPG with server-authoritative NPC simulation, dynamic encounters and faction warfare",
+  "description": "Persistent shared multiplayer world with revisioned event replication, reconnect recovery and authoritative world simulation",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "check": "node --check server.js && node --check src/shared/game-data.js && node --check src/server/validation.js && node --check src/server/world.js && node --check public/js/content.js && node --check public/js/game.js && node --check src/systems/relationships.js && node --check src/systems/ranks.js && node --check src/systems/contracts.js && node --check src/systems/patrols.js && node --check src/systems/territories.js && node --check src/systems/emissions.js && node --check src/systems/rumors.js && node --check src/systems/camp-life.js && node --check src/systems/war.js && node --check src/systems/npc-ai.js",
+    "check": "node --check server.js && node --check src/shared/game-data.js && node --check src/server/validation.js && node --check src/server/world.js && node --check public/js/content.js && node --check public/js/game.js && node --check src/systems/relationships.js && node --check src/systems/ranks.js && node --check src/systems/contracts.js && node --check src/systems/patrols.js && node --check src/systems/territories.js && node --check src/systems/emissions.js && node --check src/systems/rumors.js && node --check src/systems/camp-life.js && node --check src/systems/war.js && node --check src/systems/npc-ai.js && node --check src/systems/online-world.js",
     "test": "node --test"
   },
   "engines": {

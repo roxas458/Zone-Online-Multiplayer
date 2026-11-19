@@ -112,3 +112,33 @@ test('NPC interaction requires same location and builds personal trust', () => {
   assert.equal(result.relationship,5);
   assert.match(result.reply,/помощь/);
 });
+
+const { ensureOnlineWorld, appendWorldEvent, buildWorldSync, publicWorldStatus, MAX_EVENTS } = require('../src/systems/online-world');
+test('ONLINE WORLD assigns monotonic revisions and replays missed events after reconnect', () => {
+  const world = { revision: 1, eventLog: [] };
+  ensureOnlineWorld(world);
+  const first = appendWorldEvent(world, 'player_joined', { name: 'Север' }, 100);
+  const second = appendWorldEvent(world, 'player_moved', { to: 'dump' }, 200);
+  assert.equal(second.revision, first.revision + 1);
+  const sync = buildWorldSync(world, first.revision);
+  assert.equal(sync.mode, 'delta');
+  assert.deepEqual(sync.events.map(x => x.type), ['player_moved']);
+  assert.equal(sync.revision, second.revision);
+});
+test('ONLINE WORLD falls back to a snapshot when the event cursor is stale', () => {
+  const world = { revision: 1, eventLog: [] };
+  ensureOnlineWorld(world);
+  for (let i = 0; i < MAX_EVENTS + 5; i++) appendWorldEvent(world, 'world_tick', { tick: i }, 1000 + i);
+  assert.equal(world.eventLog.length, MAX_EVENTS);
+  const sync = buildWorldSync(world, 0);
+  assert.equal(sync.mode, 'snapshot');
+  assert.equal(sync.snapshot, world);
+});
+test('ONLINE WORLD exposes compact operational status', () => {
+  const world = { revision: 7, npcState: { a: { alive: true }, b: { alive: false } }, warOperations: [{ status: 'active' }], territoryOwners: { cordon: 'Одиночки' } };
+  const status = publicWorldStatus(world, 3);
+  assert.equal(status.online, 3);
+  assert.equal(status.npcCount, 1);
+  assert.equal(status.activeWars, 1);
+  assert.equal(status.sectors, 1);
+});
