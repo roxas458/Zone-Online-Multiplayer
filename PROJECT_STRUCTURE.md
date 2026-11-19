@@ -43,3 +43,8 @@ ZONE_ONLINE/
 
 - `public/assets/zone-atmosphere.svg` — авторская панорама индустриальной Зоны для главного экрана.
 - Версия 4.10: обновлённые карточки инвентаря и торговца, серверный каталог брони и артефактов.
+
+
+### New assets in 4.13
+- `public/assets/portraits/` — 16 optimized male stalker portraits.
+- `public/assets/factions/` — nine original faction insignia SVG files.

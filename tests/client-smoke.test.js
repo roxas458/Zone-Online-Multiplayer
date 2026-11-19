@@ -181,15 +181,17 @@ test('4.11 player dossier renders portrait and expanded expedition statistics', 
   assert.match(elements.get('profileRecord').innerHTML, /Позывной/);
 });
 
-test('4.11 NPC portraits and same-location personal messages work and persist', () => {
-  const { context, elements } = bootClient();
-  context.openNpcDM('sid');
-  assert.match(elements.get('npcDmPanel').innerHTML, /ПРЯМОЙ КАНАЛ/);
-  elements.set('npcDmInput', new (elements.get('npcDmPanel').constructor)('npcDmInput'));
-  elements.get('npcDmInput').value = 'Привет, есть новости?';
-  context.sendNpcMessage({ preventDefault(){} }, 'sid');
-  assert.match(elements.get('npcDmPanel').innerHTML, /Привет, есть новости/);
-  assert.match(elements.get('npcDmPanel').innerHTML, /Слышал|Здорово|Понял/);
+test('4.13 NPC direct messages are removed; NPC contact uses dialogue and approaches', () => {
+  const html = fs.readFileSync(path.join(root,'public/index.html'),'utf8');
+  const client = fs.readFileSync(path.join(root,'public/js/game.js'),'utf8');
+  const server = fs.readFileSync(path.join(root,'server.js'),'utf8');
+  const dialogue = fs.readFileSync(path.join(root,'src/systems/npc-dialogue.js'),'utf8');
+  assert.doesNotMatch(html,/npcDmPanel|Личные сообщения \/ локальный канал/);
+  assert.doesNotMatch(client,/function openNpcDM|function sendNpcMessage|npc:message:send/);
+  assert.match(html,/npcApproachFeed/);
+  assert.match(server,/npc:approach/);
+  assert.match(dialogue,/stage/);
+  assert.doesNotMatch(dialogue,/поправляет снаряжение и оглядывается/);
 });
 
 test('4.11 main menu and accessibility settings are functional', () => {
@@ -224,8 +226,8 @@ test('4.12 player direct messages are location-gated, persisted and rate-limited
 test('4.12 NPC trade inspects gear, supports buy and sell, and verifies local presence server-side', () => {
   const { context, elements } = bootClient();
   assert.doesNotThrow(() => context.openNpcTrade('sid'));
-  assert.match(elements.get('npcDmPanel').innerHTML,/Снаряжение сталкера/);
-  assert.match(elements.get('npcDmPanel').innerHTML,/Полевой обмен/);
+  assert.match(elements.get('peopleList').children.at(-1).innerHTML,/Снаряжение сталкера/);
+  assert.match(elements.get('peopleList').children.at(-1).innerHTML,/Полевой обмен/);
   const server = fs.readFileSync(path.join(root,'server.js'),'utf8');
   assert.match(server,/socket\.on\('npc:trade:buy'/);
   assert.match(server,/socket\.on\('npc:trade:sell'/);
@@ -243,12 +245,47 @@ test('4.12 encyclopedia includes expanded anomaly field dossiers and longer refe
 });
 
 
-test('4.12 online NPC messages use server dialogue and update persistent NPC memory', () => {
+test('4.13 player squads, NPC approach events and staged dialogue are server-backed', () => {
   const server = fs.readFileSync(path.join(root,'server.js'),'utf8');
   const ai = fs.readFileSync(path.join(root,'src/systems/npc-ai.js'),'utf8');
   const dialogue = fs.readFileSync(path.join(root,'src/systems/npc-dialogue.js'),'utf8');
-  assert.match(server,/socket\.on\('npc:message:send'/);
-  assert.match(server,/interactWithNpc\(npc,.*'message'/s);
+  assert.match(server,/socket\.on\('squad:create'/);
+  assert.match(server,/socket\.on\('squad:invite'/);
+  assert.match(server,/socket\.on\('squad:respond'/);
+  assert.match(server,/socket\.on\('squad:leave'/);
+  assert.match(server,/npc:approach/);
   assert.match(ai,/npc\.memory\.push/);
-  assert.match(dialogue,/action==='message'/);
+  assert.match(dialogue,/stage/);
+  assert.doesNotMatch(dialogue,/action==='message'/);
+});
+
+
+test('4.13 faction insignias and male stalker portrait assets are complete', () => {
+  const factionDir = path.join(root,'public/assets/factions');
+  const icons = fs.readdirSync(factionDir).filter(x=>x.endsWith('.svg'));
+  assert.equal(icons.length,9);
+  const portraits = fs.readdirSync(path.join(root,'public/assets/portraits')).filter(x=>x.endsWith('.webp'));
+  assert.equal(portraits.length,16);
+  const game = fs.readFileSync(path.join(root,'public/js/game.js'),'utf8');
+  assert.match(game,/function factionIconMarkup/);
+  assert.match(game,/portrait-faction.*factionIconMarkup/);
+});
+
+test('4.13 no voice feature or NPC messaging UI is exposed', () => {
+  const html=fs.readFileSync(path.join(root,'public/index.html'),'utf8');
+  const client=fs.readFileSync(path.join(root,'public/js/game.js'),'utf8');
+  assert.doesNotMatch(html,/voice-channel|Голосовой канал/);
+  assert.doesNotMatch(html,/npcDmPanel|Личные сообщения \/ локальный канал/);
+  assert.doesNotMatch(client,/npc:message:send|function openNpcDM/);
+  assert.match(html,/playerDmPanel/);
+});
+
+test('4.13 player friend requests are handled by the server and friend UI exists', () => {
+  const server=fs.readFileSync(path.join(root,'server.js'),'utf8');
+  const html=fs.readFileSync(path.join(root,'public/index.html'),'utf8');
+  const client=fs.readFileSync(path.join(root,'public/js/game.js'),'utf8');
+  assert.match(server,/socket\.on\('friend:request'/);
+  assert.match(server,/socket\.on\('friend:respond'/);
+  assert.match(client,/function friendRequest/);
+  assert.match(html,/id="playerFriendsPanel"/);
 });

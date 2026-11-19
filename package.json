@@ -1,8 +1,8 @@
 {
   "name": "zone-online",
-  "version": "4.12.0",
+  "version": "4.13.0",
   "private": true,
-  "description": "LIVING CONTACT: persistent player direct messages, NPC trading, equipment inspection, expanded anomaly field encyclopedia",
+  "description": "LIVING WORLD: player squads, contextual NPC encounters, immersive dialogue and faction insignias",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",

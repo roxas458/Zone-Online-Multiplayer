@@ -26,13 +26,14 @@ function buildDialogue(npc, context={}, now=Date.now()) {
   const friend=context.friendName||''; const rival=context.rivalName||'';
   const personal=npc.biography?` ${npc.biography}`:'';
   const social=friend?` Кстати, я часто держусь с ${friend}; в этих местах надёжный товарищ дороже хорошего автомата.`:rival?` Есть тут один тип, ${rival}. Лучше не спрашивай, почему мы не здороваемся.`:'';
-  const greeting=`${pick(lines.hello,seed)} ${npc.name} поправляет снаряжение и оглядывается на ${location}. ${pick(lines.zone,seed+3)}${personal}${social}`;
+  const greeting=`${pick(lines.hello,seed)} ${pick(lines.zone,seed+3)}${personal}${social}`;
+  const stage=pick([`${npc.name} кивает и освобождает место у костра.`,`${npc.name} на секунду замолкает, прислушиваясь к шуму за укрытием.`,`${npc.name} откладывает инструмент и поворачивается к тебе.`,`${npc.name} говорит негромко, чтобы не привлекать лишнего внимания.`],seed+5);
   const replies=[
     `${pick(lines.zone,seed+1)} ${recent} Я бы не советовал сегодня идти напрямик: сначала расспроси людей у костра, потом сверяй маршрут с КПК.`,
     `${pick(lines.joke,seed+2)} А если серьёзно — ${npc.faction||'местные'} сейчас ${mood==='весёлый'?'держатся бодро':mood==='уставший'?'выглядят вымотанными':'ведут себя осторожно'}. Запасы не бесконечные, и лишний шум никому не нужен.`,
     `${pick(lines.work,seed+4)} Если возьмёшься, возвращайся лично. Мне важны не слухи, а то, что ты увидел своими глазами. ${pick(lines.memory,seed+6)}`
   ];
-  return { greeting, topics:topics.map((label,i)=>[label,replies[(i+seed)%replies.length]]), day, version:npc.dialogueVersion||0, updatedAt:now };
+  return { greeting, stage, topics:topics.map((label,i)=>[label,replies[(i+seed)%replies.length]]), day, version:npc.dialogueVersion||0, updatedAt:now };
 }
 function interactDialogue(npc, player, action, context={}, now=Date.now()) {
   npc.dialogueHistory ||= [];
@@ -44,7 +45,6 @@ function interactDialogue(npc, player, action, context={}, now=Date.now()) {
     action==='ask'?`${prefix}${d.topics[1][1]} ${d.topics[2][1]}`:
     action==='topic'?`${prefix}${selected?selected[1]:'Сейчас не могу подобрать слова. Давай вернёмся к этому позже.'}`:
     action==='help'?`${prefix}Спасибо, это не пустяк. В Зоне помощь помнят дольше, чем обещания. ${d.topics[2][1]}`:
-    action==='message'?`${prefix}${/привет|здрав|добрый/i.test(context.messageText||'')?'Здорово, сталкер. Рад, что написал.':/слух|новост|аномал/i.test(context.messageText||'')?d.topics[0][1]+' '+d.topics[1][1]:/работ|задани|помощ/i.test(context.messageText||'')?d.topics[2][1]:'Прочитал твоё сообщение. Сейчас обстановка непростая, но я запомню наш разговор. '+d.topics[0][1]}`:
     `${prefix}Давай без спешки обсудим условия. ${d.topics[0][1]}`;
   npc.dialogueHistory.push({playerId:player.id,action,day:d.day,at:now}); npc.dialogueHistory=npc.dialogueHistory.slice(-20);
   npc.lastDialogueAt=now;

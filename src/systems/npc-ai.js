@@ -14,7 +14,7 @@ const NPC_DISPLAY = {sid:'Сидорович',wolf:'Волк',fanatic:'Фана�
 function createNpcRoster(npcHome, now = Date.now()) {
   const roster = {};
   for (const [id, location] of Object.entries(npcHome || {})) {
-    roster[id] = { id, name: NPC_DISPLAY[id] || id, faction: NPC_FACTIONS[id] || 'Одиночки', role: ROLES[id] || 'сталкер', location, destination: null, action: 'rest', mood: 'спокоен', health: 100, morale: 60, supplies: 50, alive: true, lastActionAt: now, relationships: {}, inventory: [], history: [], generated:false, dialogueVersion:0, dialogueCycle:Math.floor(now/900000) };
+    roster[id] = { id, name: NPC_DISPLAY[id] || id, faction: NPC_FACTIONS[id] || 'Одиночки', role: ROLES[id] || 'сталкер', location, destination: null, action: 'rest', mood: 'спокоен', health: 100, morale: 60, supplies: 50, alive: true, lastActionAt: now, relationships: {}, inventory: [], history: [], generated:false, dialogueVersion:0, dialogueCycle:Math.floor(now/900000), lastApproachAt:0 };
   }
   return roster;
 }
@@ -66,9 +66,9 @@ function tickNpcWorld(world, locations, random = Math.random, now = Date.now()) 
 function interactWithNpc(npc, player, action, now = Date.now(), context = {}) {
   if (!npc || !npc.alive) return { ok:false, reason:'Этот сталкер больше не может ответить.' };
   if (!player || player.location !== npc.location) return { ok:false, reason:'Нужно находиться в одном секторе со сталкером.' };
-  if (!['greet','ask','trade','help','topic','message'].includes(action)) return { ok:false, reason:'Неизвестное действие.' };
+  if (!['greet','ask','trade','help','topic'].includes(action)) return { ok:false, reason:'Неизвестное действие.' };
   npc.relationships ||= {}; const current = Number(npc.relationships[player.id]) || 0;
-  const delta = action === 'help' ? 5 : action === 'greet' ? 2 : action === 'trade' ? 1 : action === 'message' ? 1 : 0;
+  const delta = action === 'help' ? 5 : action === 'greet' ? 2 : action === 'trade' ? 1 : 0;
   npc.relationships[player.id] = clamp(current + delta, -100, 100);
   npc.memory ||= []; npc.memory.push({type:'player_interaction',playerId:player.id,action,at:now}); npc.memory=npc.memory.slice(-30);
   const result=interactDialogue(npc,player,action,context,now);
