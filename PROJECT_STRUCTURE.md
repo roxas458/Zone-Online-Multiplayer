@@ -1,13 +1,14 @@
-# ZONE ONLINE 4.8.0 project structure
+# ZONE ONLINE 4.9.0 project structure
 
 ```text
 ZONE_ONLINE/
 ├── public/
-│   ├── css/game.css              # Main interface + encyclopedia styles
-│   ├── index.html                # PDA navigation, views and controls
+│   ├── css/game.css              # PDA interface, tactical map, mobile layout and story styles
+│   ├── index.html                # PDA navigation, tactical map, views and mobile dock
 │   └── js/
 │       ├── content.js            # Narrative and authored game content
-│       └── game.js               # Browser game, real-time clock, armory, POIs, encyclopedia
+│       ├── game.js               # Browser game, real-time clock, tactical map and PDA
+│       └── stories.js            # Persistent NPC storylines and rewards
 ├── server.js                     # Express + Socket.IO authoritative server
 ├── src/
 │   ├── server/
@@ -37,3 +38,5 @@ ZONE_ONLINE/
 ├── README.md
 └── CHANGELOG.md
 ```
+
+- `public/js/stories.js` — личные сюжетные линии NPC, прогресс и награды (4.9).

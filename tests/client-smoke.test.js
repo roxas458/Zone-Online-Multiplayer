@@ -47,6 +47,7 @@ function bootClient() {
   window.document = document; window.localStorage = localStorage;
   vm.createContext(context);
   vm.runInContext(fs.readFileSync(path.join(root,'public/js/content.js'),'utf8'), context, {filename:'content.js'});
+  vm.runInContext(fs.readFileSync(path.join(root,'public/js/stories.js'),'utf8'), context, {filename:'stories.js'});
   vm.runInContext(fs.readFileSync(path.join(root,'public/js/game.js'),'utf8'), context, {filename:'game.js'});
   return { context, elements };
 }
@@ -57,7 +58,7 @@ test('browser client bootstraps without temporal-dead-zone errors', () => {
 
 test('all main browser-game views can be opened after bootstrap', () => {
   const { context } = bootClient();
-  for (const id of ['world','encyclopedia','people','quests','inventory','armory','trade','factions','living','archive','war','diplomacy','achievements','journal','craft','profile','multiplayer','settings']) {
+  for (const id of ['world','encyclopedia','stories','people','quests','inventory','armory','trade','factions','living','archive','war','diplomacy','achievements','journal','craft','profile','multiplayer','settings']) {
     assert.doesNotThrow(() => context.view(id), `view ${id}`);
   }
 });
@@ -88,4 +89,39 @@ test('4.8 catalogue and point-of-interest expansion covers every sector', () => 
   assert.ok(poi);
   assert.equal((poi[1].match(/^\s*[a-z]+:\[\[/gm) || []).length, 16);
   assert.equal((poi[1].match(/\],\[/g) || []).length >= 32, true);
+});
+
+
+test('4.9 tactical map and mobile PDA navigation are present', () => {
+  const html = fs.readFileSync(path.join(root, 'public/index.html'), 'utf8');
+  const css = fs.readFileSync(path.join(root, 'public/css/game.css'), 'utf8');
+  const game = fs.readFileSync(path.join(root, 'public/js/game.js'), 'utf8');
+  assert.match(html, /mobile-dock/);
+  assert.match(html, /map-toolbar/);
+  assert.match(css, /safe-area-inset-bottom/);
+  assert.match(game, /function mapZoom\(/);
+  assert.match(game, /function renderZoneMap\(/);
+});
+
+test('4.9 personal NPC stories persist progress and reward completion', () => {
+  const { context } = bootClient();
+  const state = {npcs:[{id:'sid',name:'Сидорович'}],loc:'cordon',money:100,rep:0,xp:0,relationships:{}};
+  const started = context.window.ZoneStories.choose(state, 'sid_cache');
+  assert.equal(started.ok, true);
+  assert.equal(state.storyProgress.sid_cache, 1);
+  state.loc = 'dump';
+  const finished = context.window.ZoneStories.choose(state, 'sid_cache');
+  assert.equal(finished.ok, true);
+  assert.equal(state.storyProgress.sid_cache, 2);
+  assert.equal(state.money, 280);
+});
+
+
+test('4.9 map renders terrain, routes and current-sector points of interest', () => {
+  const { elements } = bootClient();
+  const svg = elements.get('zoneMap').innerHTML;
+  assert.match(svg, /map-water/);
+  assert.match(svg, /map-road/);
+  assert.match(svg, /map-sector/);
+  assert.match(elements.get('mapCoordinates').textContent, /СЕКТОР/);
 });

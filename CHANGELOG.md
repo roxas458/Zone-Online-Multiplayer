@@ -1,5 +1,16 @@
-# ZONE ONLINE 4.8.0 — REAL STALKER LIFE
+# ZONE ONLINE CHANGELOG
 
+## 4.9.0 — HUMAN STORIES
+
+### Added
+- Тактическая карта с рельефом, водными зонами, маршрутами, секторами, POI и масштабированием.
+- Мобильная навигация и сенсорные зоны управления для Android/iOS.
+- Личные истории NPC: три сюжетных дела с перемещением по карте, наградами и персистентным прогрессом.
+- Обновлённый интерфейс КПК и адаптивная компоновка.
+
+---
+
+## 4.8.0 — REAL STALKER LIFE
 ## Added
 - Real-time-only game clock based on the device wall clock. Day count advances once per real 24-hour period from the first 4.8 launch; displayed hour/minute follow local device time.
 - Removed the time fast-forward control. Exploration, travel, rest, searching, POI discovery and camp actions no longer increment the in-game clock or consume simulated hours.
@@ -16,4 +27,4 @@
 
 ## Verification
 - `npm run check`
-- `npm test` — 26 tests passing.
+- `npm test` — 30 tests passing for 4.9 (4.8 baseline: 27 tests).

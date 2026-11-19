@@ -1,8 +1,8 @@
-# ZONE ONLINE 4.8.0 — REAL STALKER LIFE
+# ZONE ONLINE 4.9.0 — HUMAN STORIES
 
-A backward-compatible expansion of ZONE ONLINE 4.7.1.
+A backward-compatible continuation of ZONE ONLINE 4.8.0.
 
-## 4.8 features
+## 4.8 inherited features
 
 ### Real-time world clock
 - The displayed time follows the player's device clock (local timezone).
@@ -28,8 +28,17 @@ npm test
 npm start
 ```
 
-Deploy the full project folder to the existing Node service. Keep the existing `DATABASE_URL` and PostgreSQL database; 4.8 does not require a schema migration. Do not delete browser local storage or reset the player profile. Existing 4.7.1 saves are migrated in place.
+Deploy the full project folder to the existing Node service. Keep the existing `DATABASE_URL` and PostgreSQL database; 4.9 does not require a schema migration. Do not delete browser local storage or reset the player profile. Existing 4.8 saves are migrated in place.
 
 ## Notes
 - Device clock is used for the client display; players with incorrect device clocks may see an incorrect local time. The authoritative server still timestamps shared-world events.
 - The browser clock is not used to authorize multiplayer actions.
+
+
+## 4.9 — HUMAN STORIES
+
+- Переработана тактическая карта: рельефные слои, водные преграды, маршруты, сектора, подписи контроля и маркеры точек интереса.
+- Добавлены масштабирование карты и более удобная навигация на сенсорных экранах.
+- Для телефонов добавлена нижняя панель быстрого доступа, увеличены зоны нажатия, учтены safe-area отступы iOS.
+- Добавлен раздел личных историй NPC с заданиями по локациям, наградами и сохранением прогресса.
+- Обновлена визуальная система КПК в индустриальном полевом стиле.
