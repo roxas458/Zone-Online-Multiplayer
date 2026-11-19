@@ -1,8 +1,8 @@
 {
   "name": "zone-online",
-  "version": "3.0.0",
+  "version": "3.1.0",
   "private": true,
-  "description": "Expanded PDA RPG with weapon catalogue, POIs, equipment and global multiplayer",
+  "description": "Expanded PDA RPG with character creation, turn-based combat and global multiplayer",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"

@@ -14,7 +14,7 @@ const online = new Map();
 const recentChat = [];
 let pool = null;
 let dbReady = false;
-let world = { diplomacy: {}, events: [], revision: 1, npcPositions: {}, coOpQuests: [] };
+let world = { diplomacy: {}, events: [], revision: 1, npcPositions: {}, coOpQuests: [], discoveredPoints: {}, zoneEvents: [] };
 const NPC_HOME = { sid:'cordon', wolf:'cordon', fanatic:'cordon', scout:'dump', bandit:'dump', barman:'bar', seriy:'bar', scientist:'agro', merc:'dark', prof:'yantar', freedom:'army', guide:'red', loner:'pripyat' };
 const TRADE_ITEM_IDS = new Set(['med','bread','bolt','scrap','bandage','artifact']);
 const SHOP = {med:{name:'Аптечка',type:'Медицина',desc:'Восстанавливает здоровье.',weight:.4,price:180,qty:1,value:100},bread:{name:'Хлеб',type:'Еда',desc:'Восстанавливает выносливость.',weight:.3,price:45,qty:1,value:35},bandage:{name:'Бинт',type:'Медицина',desc:'Полевой расходный предмет.',weight:.2,price:70,qty:1,value:45},scrap:{name:'Металлолом',type:'Материал',desc:'Материал для ремесла.',weight:.8,price:55,qty:1,value:30},bolt:{name:'Болты ×5',type:'Инструмент',desc:'Набор болтов.',weight:.1,price:40,qty:5,value:5}};
@@ -30,7 +30,7 @@ function validId(value){ return /^[a-f0-9-]{16,64}$/i.test(String(value||'')); }
 function safeState(input){
   const s = input && typeof input === 'object' ? input : {};
   return {
-    name:clean(s.name,24)||'Сталкер', faction:FACTIONS.has(s.faction)?s.faction:'Одиночки',
+    name:clean(s.name,24)||'Сталкер', faction:FACTIONS.has(s.faction)?s.faction:'Одиночки', characterCreated:s.characterCreated===true,
     loc:LOCATIONS.has(s.loc)?s.loc:'cordon', money:Math.max(0,Math.min(99999999,Number(s.money)||0)),
     hp:Math.max(0,Math.min(100,Number(s.hp)||100)), xp:Math.max(0,Math.min(1e7,Number(s.xp)||0)),
     rep:Math.max(-1000,Math.min(1000,Number(s.rep)||0)), state:s
@@ -42,6 +42,8 @@ function broadcastOnline(){ io.emit('world:players',onlineList()); }
 function systemMessage(text){ const m={id:crypto.randomUUID(),system:true,name:'Система',text:clean(text,240),time:Date.now()}; recentChat.push(m); if(recentChat.length>80)recentChat.shift(); io.emit('world:chat',m); }
 function initSharedWorld(){
   world.npcPositions ||= {};
+  world.discoveredPoints ||= {};
+  world.zoneEvents ||= [];
   for(const [id,loc] of Object.entries(NPC_HOME)) if(!LOCATIONS.has(world.npcPositions[id])) world.npcPositions[id]=loc;
   world.coOpQuests ||= COOP_TEMPLATES.map(q=>({...q,participants:[],done:false}));
 }
@@ -190,6 +192,13 @@ io.on('connection', socket=>{
     }
     await persistWorld();io.emit('world:coop',world.coOpQuests);socket.emit('coop:result',{ok:true,message:q.done?'Группа выполнила задание!':'Твоё прибытие отмечено.'});
   });
+  socket.on('world:poi:discover', async input=>{
+    const p=online.get(socket.data.playerId);if(!p)return;
+    const location=String(input?.location||'');const id=clean(input?.id,80);const name=clean(input?.name,80);
+    if(!LOCATIONS.has(location)||p.location!==location||!new RegExp('^'+location+'_poi_[0-9]+$').test(id))return;
+    world.discoveredPoints ||= {};world.discoveredPoints[location] ||= [];
+    if(!world.discoveredPoints[location].includes(id)){world.discoveredPoints[location].push(id);world.revision=(world.revision||0)+1;await persistWorld();io.emit('world:poi',world.discoveredPoints);systemMessage(`${p.name} обнаружил новую точку интереса: ${name} (${location}).`);}
+  });
   socket.on('diplomacy:action', async input=>{
     const p=online.get(socket.data.playerId);if(!p)return;
     const target=clean(input?.target,32), action=input?.action;
@@ -218,4 +227,16 @@ setInterval(async()=>{
   world.npcPositions[id]=options[Math.floor(Math.random()*options.length)]; world.revision=(world.revision||0)+1;
   try{await persistWorld();io.emit('world:npcs',world.npcPositions);io.emit('world:update',{world,notice:`Сталкер ${id} замечен в новом секторе.`});}catch(e){console.error('NPC schedule:',e.message);}
 }, 5*60*1000).unref();
+const ZONE_EVENTS=[
+ {title:'Выброс на подходе',body:'По каналам КПК поступило предупреждение о нестабильной активности. Сталкеры ищут укрытия.'},
+ {title:'Торговый караван',body:'Между безопасными секторами замечен караван. Торговцы ожидают новые поставки.'},
+ {title:'Необычный сигнал',body:'Несколько детекторов зафиксировали странный сигнал. Источник пока не установлен.'},
+ {title:'Ночная активность',body:'Проводники сообщают о движении в отдалённых районах. Некоторые маршруты временно обходят.'},
+ {title:'Сводка группировок',body:'На нескольких территориях замечены новые патрули. Баланс сил может измениться.'}
+];
+setInterval(async()=>{
+  const event={...ZONE_EVENTS[Math.floor(Math.random()*ZONE_EVENTS.length)],id:crypto.randomUUID(),at:Date.now()};
+  world.zoneEvents ||= [];world.zoneEvents.push(event);world.zoneEvents=world.zoneEvents.slice(-30);world.revision=(world.revision||0)+1;
+  try{await persistWorld();io.emit('world:zoneEvent',event);}catch(e){console.error('Zone event:',e.message);}
+},4*60*1000).unref();
 initDb().finally(()=>server.listen(PORT,'0.0.0.0',()=>console.log(`ZONE ONLINE listening on ${PORT}`)));

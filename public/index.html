@@ -61,8 +61,14 @@ button{background:linear-gradient(180deg,#424735,#292f23);border:1px solid #7273
 .weapon-card small{display:block;color:var(--muted)}
 .poi-marker{display:inline-block;padding:2px 6px;border:1px solid #53684f;border-radius:4px;color:#d7c99b;font-size:10px;margin:3px}
 @media(max-width:650px){.weapon-card{grid-template-columns:48px 1fr}.weapon-card button{grid-column:1/-1}.inventory-layout{display:block}}
+
+/* 3.1 character setup and turn-based encounters */
+.overlay{position:fixed;inset:0;z-index:50;background:#080c09ed;display:none;align-items:center;justify-content:center;padding:16px}.overlay.show{display:flex}.dialog-card{width:min(560px,100%);max-height:92vh;overflow:auto;background:linear-gradient(145deg,#303728,#151b14);border:1px solid #8a855d;box-shadow:0 20px 70px #000b;padding:20px}.dialog-card h2{margin:0 0 6px;color:#e1d39b}.setup-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:12px 0}.faction-choice{padding:10px;border:1px solid #596147;background:#22291f;cursor:pointer;text-align:left}.faction-choice.selected{border-color:#e0ce87;background:#3a402d;box-shadow:inset 0 0 0 1px #b8a96e}.combat-card{border:1px solid #887451;background:linear-gradient(145deg,#292e22,#171c15);padding:14px;margin:10px 0}.combat-head{display:flex;justify-content:space-between;gap:10px;align-items:center}.combat-actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:12px}.combat-log{max-height:150px;overflow:auto;background:#10160f;border:1px solid #48513d;padding:9px;font-size:12px}.combat-log div{padding:3px 0;border-bottom:1px solid #293226}.combat-meter{height:9px;background:#414538;margin:5px 0 10px}.combat-meter i{display:block;height:100%;background:#b96f5c}.enemy-art{font-size:34px;float:right;margin:5px 12px}.battle-button{border-color:#a47c5b}.battle-button:hover{background:#5a3d2c}
+@media(max-width:520px){.setup-grid{grid-template-columns:1fr}.dialog-card{padding:14px}}
 </style></head><body>
-<header><div class="logo">S.T.A.L.K.E.R. // ZONE ONLINE<small>CALL OF PRIPYAT INSPIRED · PDA BUILD 0.3</small></div><div class="topstats"><span>₽ <b id="topMoney">—</b></span><span>♥ <b id="topHp">—</b></span><span>☼ <b id="topDay">—</b></span><span>⌖ <b id="topLoc">—</b></span></div></header>
+<div class="overlay" id="characterSetup"><div class="dialog-card"><div class="eyebrow">РЕГИСТРАЦИЯ КПК / НОВЫЙ СТАЛКЕР</div><h2>Добро пожаловать в Зону</h2><p class="muted small">Выбери сторону и позывной. Это будет отображаться в профиле и у других игроков.</p><label class="small">Позывной</label><input class="field" id="setupCallsign" maxlength="24" placeholder="Например, Север" style="width:100%;margin:5px 0 12px"><div class="section">Выбери группировку</div><div class="setup-grid" id="setupFactions"></div><div class="mutedbox small" id="factionDescription">Выбери группировку, чтобы прочитать её описание.</div><div class="rightbuttons" style="justify-content:flex-end;margin-top:14px"><button onclick="confirmCharacter()">Начать игру</button></div></div></div>
+<div class="overlay" id="combatOverlay"><div class="dialog-card"><div class="eyebrow">ТАКТИЧЕСКАЯ СИТУАЦИЯ / СТОЛКНОВЕНИЕ</div><div class="combat-head"><h2 id="combatTitle">Контакт</h2><span class="tag" id="combatRisk">Опасность</span></div><div class="combat-card"><div class="enemy-art" id="enemyIcon">☣</div><b id="enemyName">Противник</b><div class="desc" id="enemyDesc">Непредвиденная встреча в Зоне.</div><div class="small">Состояние противника: <b id="enemyHpText">100%</b></div><div class="combat-meter"><i id="enemyHpBar" style="width:100%"></i></div><div class="small">Твоё здоровье: <b id="playerHpText">100%</b></div><div class="combat-meter"><i id="playerHpBar" style="width:100%;background:#8fa96b"></i></div><div class="small">Снаряжение: <b id="combatWeapon">—</b></div></div><div class="combat-actions"><button class="battle-button" onclick="combatAction('attack')">⚔ Действовать</button><button onclick="combatAction('guard')">▣ Укрыться</button><button onclick="combatAction('med')">✚ Аптечка</button><button onclick="combatAction('retreat')">↩ Отступить</button></div><div class="section">Ход столкновения</div><div class="combat-log" id="combatLog"></div><p class="muted small">Боевая система условная и пошаговая: исход зависит от характеристик игрового снаряжения, состояния персонажа и случайности.</p></div></div>
+<header><div class="logo">S.T.A.L.K.E.R. // ZONE ONLINE<small>CALL OF PRIPYAT INSPIRED · PDA BUILD 0.3.1</small></div><div class="topstats"><span>₽ <b id="topMoney">—</b></span><span>♥ <b id="topHp">—</b></span><span>☼ <b id="topDay">—</b></span><span>⌖ <b id="topLoc">—</b></span></div></header>
 <main>
 <aside class="panel"><h2>КПК / навигация</h2><nav class="nav">
 <button class="active" data-v="home">⌂ Обзор</button><button data-v="world">▦ Карта</button><button data-v="people">☻ Персонажи</button><button data-v="quests">☷ Задания</button><button data-v="inventory">▤ Инвентарь</button><button data-v="armory">⚒ Арсенал</button><button data-v="trade">⇄ Торговля</button><button data-v="factions">⚑ Группировки</button><button data-v="diplomacy">⇄ Дипломатия</button><button data-v="achievements">★ Достижения</button><button data-v="journal">▣ Новости</button><button data-v="craft">⚒ Ремесло</button><button data-v="profile">◉ Профиль</button><button data-v="multiplayer">☷ Мультиплеер</button><button data-v="settings">⚙ Система</button>
@@ -70,7 +76,7 @@ button{background:linear-gradient(180deg,#424735,#292f23);border:1px solid #7273
 <section class="panel content">
 <div class="view active" id="home"><div class="hero"><div class="eyebrow">ЗОНА ОТЧУЖДЕНИЯ · ЧЕРНОБЫЛЬСКАЯ АНОМАЛЬНАЯ ОБЛАСТЬ</div><h1>Зона живёт своей жизнью.</h1><div class="muted">Исследуй локации, знакомься со сталкерами, принимай решения, выполняй поручения и влияй на баланс сил. Каждый переход времени приносит новые события.</div></div>
 <div class="grid four"><div class="stat"><span>Баланс</span><strong id="sMoney">—</strong></div><div class="stat"><span>Здоровье</span><strong id="sHp">—</strong></div><div class="stat"><span>Репутация</span><strong id="sRep">—</strong></div><div class="stat"><span>День</span><strong id="sDay">—</strong></div></div>
-<div class="section">Что происходит рядом</div><div id="nearby" class="list"></div>
+<div class="section">Что происходит рядом</div><div id="nearby" class="list"></div><div class="section">Полевые действия</div><div class="rightbuttons"><button onclick="explore()">⌖ Исследовать сектор</button><button onclick="searchAnomaly()">✧ Проверить аномалии</button><button onclick="startRandomEncounter(true)">⚔ Тренировочное столкновение</button></div><div class="muted small" style="margin-top:6px">Столкновения также могут возникать во время исследования и переходов.</div>
 <div class="section">Полевые действия</div><div class="grid"><button onclick="explore()">⌕ Осмотреть местность</button><button onclick="rest()">☾ Отдохнуть у костра</button><button onclick="searchAnomaly()">⌁ Поиск артефактов</button><button onclick="advance()">⏩ Продвинуть время</button></div>
 <div class="section">Последняя сводка</div><div id="homeNews" class="mutedbox small"></div></div>
 <div class="view" id="world"><div class="eyebrow">КАРТОГРАФИЯ / ТЕРРИТОРИИ</div><h1>Карта Зоны</h1><p class="muted small">Выбирай место для перехода. Путешествие расходует время и силы; в пути могут встретиться персонажи, события и опасности.</p><div class="zone-map-frame"><div class="map-legend"><span>● Текущая позиция</span><span>◆ Контроль группировок</span><span>⌖ Переходы между секторами</span></div><div id="zoneMap" class="zone-map"></div></div><div class="section">Ключевые точки текущего сектора</div><div id="keyPoints" class="poi-list"></div><div class="section">Сталкеры рядом с тобой</div><div id="nearbyPlayers" class="list"><div class="mutedbox small">Загружаем данные КПК…</div></div><div class="section">Список секторов</div><div class="map" id="map"></div><div id="locationInfo" class="dialogue">Выбери локацию.</div></div>
@@ -165,7 +171,9 @@ const base={
  log:["КПК активирован. Добро пожаловать в Зону.","Получено стартовое снаряжение."],
  world:{weather:"Пасмурно",emission: "Низкая активность",mutants:"Следы замечены",tension:42}
 };
+const hadLocalSave=!!localStorage.getItem("zoneExpandedSave");
 let g;try{g=JSON.parse(localStorage.getItem("zoneExpandedSave"))||clone(base)}catch(e){g=clone(base)}
+if(g.characterCreated===undefined)g.characterCreated=hadLocalSave;
 let chosenLoc=null,activeNpc=null,questFilter="all";
 const $=id=>document.getElementById(id);
 // Save migration: extend existing saves without resetting player progress.
@@ -233,11 +241,12 @@ function renderKeyPoints(){
 function discoverPoint(id){
  const p=Object.values(g.keyPoints).flat().find(x=>x.id===id);if(!p||p.discovered)return;
  if(g.stamina<5)return alert("Недостаточно выносливости.");
- p.discovered=true;g.stamina-=5;g.xp+=12;g.hour++;
+ p.discovered=true;g.stamina-=5;g.xp+=12;g.hour++;if(zoneSocket?.connected)zoneSocket.emit('world:poi:discover',{id:p.id,location:g.loc,name:p.name});
  log("Отмечена ключевая точка: "+p.name+".");news("Новая отметка на карте",p.name+" — "+p.desc);
  if(Math.random()<.38){let w=weaponCatalogue[Math.floor(Math.random()*weaponCatalogue.length)];if(!g.discoveredWeapons.includes(w[0])){g.discoveredWeapons.push(w[0]);addItem(w[0],w[1],"Оружие","Найденное оружие. Состояние: "+w[7]+"%.",w[5],w[6]);g.items.find(x=>x.id===w[0]).condition=w[7];g.items.find(x=>x.id===w[0]).icon=weaponGlyph(w[0]);log("Найдено снаряжение: "+w[1]+".");}}
  save();
 }
+function applySharedDiscoveredPoints(points){if(!points||typeof points!=='object')return;for(const [loc,ids] of Object.entries(points)){for(const p of (g.keyPoints?.[loc]||[])){if(Array.isArray(ids)&&ids.includes(p.id))p.discovered=true;}}renderKeyPoints();if($('world').classList.contains('active'))selectLocation(g.loc);}
 const weaponGlyphs={pm:"▰",fort:"◧",udp:"▱",kora:"◩",martha:"▰",spsa:"╾",chaser:"╼",protecta:"═",sawed:"╾",akm:"━",akm_gl:"┅",abakan:"━",obokan:"┉",tr301:"━",il86:"┅",gp37:"━",groza:"╾",vintar:"━",svd:"━━",svu:"━━",gauss:"⌁",bulldog:"▣",rp74:"╍",knife:"†"};
 function weaponGlyph(id){return weaponGlyphs[id]||null}
 function renderArmory(){
@@ -289,7 +298,11 @@ function tradeGoods(){return [["Аптечка","med","Медицина",180,.4,
 function buy(i){let x=tradeGoods()[i];if(g.money<x[3])return alert("Не хватает рублей.");g.money-=x[3];addItem(x[1],x[0],x[2],x[5],x[4],Math.floor(x[1]==="bolt"?5:1));log("Куплено: "+x[0]+".");save()}
 function sell(id){let x=g.items.find(i=>i.id===id);if(!x)return;let amount=Math.min(x.qty,1);x.qty-=amount;g.money+=Math.floor(x.value*.65);if(x.qty<=0)g.items=g.items.filter(i=>i.id!==id);log("Продан предмет: "+x.name+".");save()}
 function useItem(id){let x=g.items.find(i=>i.id===id);if(!x)return;if(id==="med"){if(g.hp>=100)return alert("Здоровье уже полное.");g.hp=Math.min(100,g.hp+35);take(id,1)}else if(id==="bandage"){g.hp=Math.min(100,g.hp+15);take(id,1)}else if(id==="bread"){g.stamina=Math.min(100,g.stamina+20);take(id,1)}else return alert("Этот предмет нельзя использовать напрямую.");log("Использован предмет: "+x.name+".");save()}
-function itemGlyph(x){return x.icon||weaponGlyph(x.id)||({"Медицина":"✚","Еда":"▰","Инструмент":"⌁","Материал":"▧","Оружие":"▰","Броня":"▤","Детектор":"⌁","Артефакт":"✧"}[x.type]||"▣")}
+function itemGlyph(x){
+ const kind=x.type==='Оружие'?'weapon':x.type==='Броня'?'armor':x.type==='Медицина'?'med':x.type==='Еда'?'food':x.type==='Артефакт'?'artifact':x.type==='Детектор'?'detector':'tool';
+ const shapes={weapon:'<path d="M9 25h40v-7H34l-4-7H18l-2 7H9z"/><path d="M23 25v13h9V25M39 18v-5h7v5"/>',armor:'<path d="M18 8l12 5 12-5 9 10-7 7-4-4v20H20V21l-4 4-7-7z"/>',med:'<rect x="10" y="14" width="40" height="26" rx="3"/><path d="M27 18h7v7h7v7h-7v7h-7v-7h-7v-7h7z"/>',food:'<path d="M12 28c0-10 8-17 18-17s18 7 18 17-8 13-18 13-18-3-18-13z"/><path d="M20 26h20M22 33h16"/>',artifact:'<path d="M30 5l8 12 12 7-8 13-12 8-12-8-8-13 12-7z"/><circle cx="30" cy="27" r="6"/>',detector:'<rect x="14" y="10" width="32" height="38" rx="4"/><circle cx="30" cy="25" r="9"/><path d="M30 25l7-5M22 40h16"/>',tool:'<path d="M12 15l9-9 10 10-9 9zM26 24l20 20-6 6-20-20M35 11l9-5 8 8-5 9"/>'};
+ return `<svg viewBox="0 0 60 56" width="42" height="40" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">${shapes[kind]}</svg>`;
+}
 function equipItem(id){let x=g.items.find(i=>i.id===id);if(!x)return;if(x.type==="Оружие")g.equipment.weapon=x.name;else if(x.type==="Броня")g.equipment.suit=x.name;else if(x.type==="Детектор")g.equipment.tool=x.name;else return alert("Этот предмет нельзя экипировать.");log("Экипировано: "+x.name);save()}
 function renderInventory(){
  const query=($("invSearch")?.value||"").toLowerCase(),filter=$("invFilter")?.value||"all",sort=$("invSort")?.value||"name";
@@ -374,14 +387,86 @@ function renderServerChat(){const el=$('mpChat');if(!el)return;el.innerHTML='';f
 function mpSend(){const input=$('mpMessage');const text=input?.value?.trim();if(!text)return;if(!zoneSocket?.connected)return alert('Нет соединения с сервером.');zoneSocket.emit('world:chat:send',{text});input.value='';}
 function mpRename(){const n=$('mpName')?.value?.trim();if(!n)return alert('Введи позывной.');g.name=n.slice(0,24);save();if(zoneSocket?.connected)zoneSocket.emit('player:update',{name:g.name,location:g.loc,faction:g.faction});}
 function mpSyncLocation(){if(zoneSocket?.connected)zoneSocket.emit('player:update',{location:g.loc,faction:g.faction,name:g.name});}
+
+// Character creation: faction and callsign are chosen before entering the world.
+const factionLore={
+ 'Одиночки':'Вольные исследователи Зоны. Не подчиняются единому командованию и ценят личную свободу.',
+ 'Долг':'Организованная группировка, стремящаяся сдерживать распространение опасностей Зоны.',
+ 'Свобода':'Сталкеры, выступающие за свободное исследование Зоны и доступ к её тайнам.',
+ 'Бандиты':'Разрозненные группы, живущие за счёт сделок, влияния и контроля маршрутов.',
+ 'Военные':'Силы периметра, поддерживающие установленный порядок и контроль территории.',
+ 'Учёные':'Исследовательские группы, изучающие аномальные явления и артефакты.',
+ 'Наёмники':'Контрактники, выполняющие заказы различных клиентов.',
+ 'Монолит':'Закрытая и крайне враждебная группировка из глубины Зоны.',
+ 'Чистое небо':'Исследователи, стремящиеся понять природу Зоны.'
+};
+let setupFaction='Одиночки';
+function openCharacterSetup(){
+ const root=$('characterSetup');if(!root)return;
+ $('setupCallsign').value=g.name==='Новичок'?'':g.name;
+ $('setupFactions').innerHTML=g.factions.map(f=>`<button type="button" class="faction-choice ${setupFaction===f.name?'selected':''}" onclick="selectSetupFaction('${f.name.replace(/'/g,"\\'")}')"><b>${f.icon||'◉'} ${f.name}</b><div class="desc">${f.style||''}</div></button>`).join('');
+ $('factionDescription').textContent=factionLore[setupFaction]||'Выбранная сторона Зоны.';
+ root.classList.add('show');
+}
+function selectSetupFaction(name){const current=$('setupCallsign').value;setupFaction=name;openCharacterSetup();$('setupCallsign').value=current;}
+function confirmCharacter(){
+ const name=$('setupCallsign').value.trim().replace(/[<>]/g,'').slice(0,24);
+ if(name.length<2)return alert('Позывной должен содержать минимум 2 символа.');
+ if(!g.factions.some(f=>f.name===setupFaction))return alert('Выбери группировку из списка.');
+ g.name=name;g.faction=setupFaction;g.characterCreated=true;
+ g.news.unshift({day:g.day,hour:String(g.hour).padStart(2,'0')+':00',title:'Регистрация завершена',body:`Сталкер ${name} зарегистрирован в КПК. Группировка: ${setupFaction}.`});
+ g.log.unshift(`Позывной: ${name}. Группировка: ${setupFaction}.`);
+ $('characterSetup').classList.remove('show');save();mpSyncLocation();
+}
+
+// Turn-based fictional combat. It uses abstract game stats, not real-world tactics.
+let battle=null;
+const enemyTemplates=[
+ {name:'Псевдособака',icon:'🐺',hp:58,power:9,desc:'Осторожный мутант держится на расстоянии.'},
+ {name:'Плоть',icon:'☣',hp:72,power:8,desc:'Неуклюжий, но выносливый обитатель Зоны.'},
+ {name:'Группа мародёров',icon:'♟',hp:85,power:10,desc:'Небольшая враждебная группа перекрыла маршрут.'},
+ {name:'Кровосос',icon:'◉',hp:92,power:12,desc:'Опасная встреча. Лучше не затягивать столкновение.'},
+ {name:'Снорк',icon:'☢',hp:66,power:11,desc:'Непредсказуемый противник из заражённого сектора.'}
+];
+function equippedWeapon(){return g.items.find(x=>x.name===g.equipment?.weapon&&x.type==='Оружие')||g.items.find(x=>x.type==='Оружие')||null;}
+function weaponPower(item){if(!item)return 8;const n=item.name.toLowerCase();let power=12;if(/гаусс/.test(n))power=27;else if(/свд|сву|винтарь|вс/.test(n))power=22;else if(/гроза|бульдог|рп-74|гп37|ас-96|обокан|трс|ил86|акм/.test(n))power=19;else if(/спса|chaser|protecta|обрез/.test(n))power=20;else if(/форт|кора|удп|пмм|мартышка/.test(n))power=13;return Math.round(power*(Math.max(25,Number(item.condition??75))/100));}
+function startRandomEncounter(force=false){
+ if(battle)return;
+ const chance=force?1:({ 'Низкий':.08,'Средний':.17,'Высокий':.26,'Очень высокий':.34,'Критический':.4 }[here().risk]||.15);
+ if(!force&&Math.random()>chance)return;
+ const e=clone(enemyTemplates[Math.floor(Math.random()*enemyTemplates.length)]);
+ const scale=Math.max(.8,Math.min(1.5,1+(g.xp/800)));
+ battle={enemy:{...e,hp:Math.round(e.hp*scale),maxHp:Math.round(e.hp*scale)},guard:false,log:[],turn:1};
+ $('combatTitle').textContent='Контакт в секторе «'+here().name+'»';$('combatRisk').textContent=here().risk;
+ $('combatOverlay').classList.add('show');combatLog('Контакт! '+e.desc);renderCombat();
+}
+function combatLog(text){if(!battle)return;battle.log.unshift(text);battle.log=battle.log.slice(0,12);$('combatLog').innerHTML=battle.log.map(x=>`<div>${escapeHtml(x)}</div>`).join('');}
+function renderCombat(){if(!battle)return;const e=battle.enemy;$('enemyName').textContent=e.name;$('enemyIcon').textContent=e.icon;$('enemyDesc').textContent=e.desc;$('enemyHpText').textContent=Math.max(0,e.hp)+' / '+e.maxHp;$('enemyHpBar').style.width=Math.max(0,e.hp/e.maxHp*100)+'%';$('playerHpText').textContent=g.hp+'%';$('playerHpBar').style.width=g.hp+'%';const w=equippedWeapon();$('combatWeapon').textContent=w?`${w.name} · сила ${weaponPower(w)} · состояние ${w.condition??'—'}%`:'Нет оружия · сила 8';}
+function finishCombat(result){if(!battle)return;const name=battle.enemy.name;if(result==='win'){const reward=60+Math.floor(Math.random()*100),xp=18+Math.floor(Math.random()*16);g.money+=reward;g.xp+=xp;log(`Столкновение завершено: ${name}. Награда ${reward} ₽ и ${xp} опыта.`);news('Сводка столкновения',`${g.name} пережил встречу с угрозой в районе «${here().name}».`);}else if(result==='escape'){log('Ты отступил и избежал дальнейшего столкновения.');g.stamina=Math.max(0,g.stamina-8);}else{g.hp=15;log('Столкновение завершилось неудачно. Ты смог отойти, но потерял часть здоровья.');}
+ battle=null;$('combatOverlay').classList.remove('show');save();}
+function enemyTurn(){if(!battle)return;const baseDamage=battle.enemy.power+Math.floor(Math.random()*5);const armor=g.items.find(x=>x.name===g.equipment?.suit&&x.type==='Броня');const defense=armor?Math.round((Number(armor.condition??70)/100)*4):0;const damage=Math.max(2,baseDamage-defense-(battle.guard?Math.round(baseDamage*.65):0));battle.guard=false;g.hp=Math.max(0,g.hp-damage);combatLog(`${battle.enemy.name} наносит условный урон: −${damage} здоровья.`);if(g.hp<=0){g.hp=15;finishCombat('loss');return;}renderCombat();}
+function combatAction(action){if(!battle)return;
+ if(action==='retreat'){if(Math.random()<.68){finishCombat('escape');return;}combatLog('Отступление не удалось: противник не даёт пройти.');enemyTurn();return;}
+ if(action==='guard'){battle.guard=true;combatLog('Ты занял защитную позицию. Следующий ответный урон будет снижен.');enemyTurn();return;}
+ if(action==='med'){const med=g.items.find(x=>x.id==='med'&&x.qty>0)||g.items.find(x=>x.type==='Медицина'&&x.qty>0);if(!med)return alert('В рюкзаке нет аптечки.');med.qty--;g.hp=Math.min(100,g.hp+32);combatLog('Использована аптечка: здоровье восстановлено.');enemyTurn();save();return;}
+ const w=equippedWeapon(),power=weaponPower(w),damage=Math.max(4,power+Math.floor(Math.random()*9)-3);battle.enemy.hp=Math.max(0,battle.enemy.hp-damage);if(w&&w.condition!=null)w.condition=Math.max(0,w.condition-1);combatLog(`Ты провёл игровую атаку. Противник потерял ${damage} очков здоровья.`);
+ if(battle.enemy.hp<=0){renderCombat();finishCombat('win');return;}enemyTurn();save();
+}
+
+
+const originalTravel=travel;
+travel=function(id){const before=g.loc;originalTravel(id);if(g.loc!==before)setTimeout(()=>startRandomEncounter(false),120);};
+const originalExplore=explore;
+explore=function(){if(battle)return;originalExplore();if(!battle)setTimeout(()=>startRandomEncounter(false),80);};
+
 function connectZone(){
  if(typeof io!=='function'){$('mpStatusText').textContent='Не удалось загрузить Socket.IO. Обнови страницу.';return;}
  zoneSocket=io({transports:['websocket','polling'],reconnection:true,reconnectionAttempts:Infinity,reconnectionDelay:1000,reconnectionDelayMax:8000});
  zoneSocket.on('connect',()=>{zoneSocket.emit('player:hello',{id:zonePlayerId,state:g});});
  zoneSocket.on('player:ready',data=>{
   zonePlayerId=data.id;localStorage.setItem('zoneOnlinePlayerId',zonePlayerId);
-  if(data.savedState&&typeof data.savedState==='object'){applyingServerState=true;g=data.savedState;migrateWorld();localStorage.setItem('zoneExpandedSave',JSON.stringify(g));applyingServerState=false;render();}
-  serverWorld=data.world||null;if(serverWorld?.diplomacy){g.diplomacy=serverWorld.diplomacy;renderDiplomacy();}if(serverWorld?.npcPositions)applySharedNpcPositions(serverWorld.npcPositions);renderCoopQuests(serverWorld?.coOpQuests||[]);
+  if(data.savedState&&typeof data.savedState==='object'){applyingServerState=true;g=data.savedState;if(g.characterCreated===undefined)g.characterCreated=true;migrateWorld();localStorage.setItem('zoneExpandedSave',JSON.stringify(g));applyingServerState=false;render();if(g.characterCreated)$('characterSetup')?.classList.remove('show');else if(!$('characterSetup')?.classList.contains('show'))openCharacterSetup();}
+  serverWorld=data.world||null;if(serverWorld?.discoveredPoints)applySharedDiscoveredPoints(serverWorld.discoveredPoints);if(serverWorld?.diplomacy){g.diplomacy=serverWorld.diplomacy;renderDiplomacy();}if(serverWorld?.npcPositions)applySharedNpcPositions(serverWorld.npcPositions);renderCoopQuests(serverWorld?.coOpQuests||[]);
   onlinePlayers=data.players||[];serverChat=data.chat||[];renderOnlinePlayers();renderServerChat();
   if($('mpName'))$('mpName').value=g.name;
   $('mpStatusText').textContent=data.persistent?'Сервер подключён · профиль и общий мир сохраняются в PostgreSQL.':'Сервер подключён · внимание: без PostgreSQL прогресс на сервере сбросится после перезапуска.';
@@ -390,6 +475,8 @@ function connectZone(){
  });
  zoneSocket.on('world:players',list=>{onlinePlayers=list||[];renderOnlinePlayers();renderPlayerTrade();});
  zoneSocket.on('world:npcs',positions=>applySharedNpcPositions(positions));
+ zoneSocket.on('world:poi',points=>applySharedDiscoveredPoints(points));
+ zoneSocket.on('world:zoneEvent',ev=>{g.news.unshift({day:g.day,hour:String(g.hour).padStart(2,'0')+':00',title:ev.title,body:ev.body});g.news=g.news.slice(0,60);renderNews();log('Сводка КПК: '+ev.title+'.');});
  zoneSocket.on('world:coop',list=>renderCoopQuests(list));
  zoneSocket.on('trade:incoming',offer=>{incomingTrades.push(offer);renderIncomingTrades();});
  zoneSocket.on('market:result',data=>{if(data.state){g=data.state;localStorage.setItem('zoneExpandedSave',JSON.stringify(g));render();}alert(data.message||'Операция выполнена.');});
@@ -411,4 +498,5 @@ sell=function(id){if(zoneSocket?.connected){zoneSocket.emit('market:sell',{item:
 adjustDiplomacy=function(name,action){if(!zoneSocket?.connected)return alert('Подключись к общей Зоне, чтобы вести переговоры.');zoneSocket.emit('diplomacy:action',{target:name,action});};
 if($('mpMessage'))$('mpMessage').addEventListener('keydown',e=>{if(e.key==='Enter')mpSend();});
 connectZone();
+if(!g.characterCreated)openCharacterSetup();
 </script></body></html>
