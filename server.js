@@ -13,12 +13,7 @@ const io = new Server(server, {
 
 const PORT = process.env.PORT || 3000;
 const rooms = new Map();
-const LOCATION_NAMES = {
-  cordon: "Кордон", dump: "Свалка", bar: "Росток / Бар",
-  agro: "Агропром", dark: "Тёмная долина", yantar: "Янтарь",
-  army: "Армейские склады", red: "Рыжий лес", pripyat: "Припять"
-};
-const LOCATIONS = new Set(Object.keys(LOCATION_NAMES));
+const LOCATIONS = new Set(["cordon","dump","bar","agro","dark","yantar","army","red","pripyat","zaton","jupiter","yanov","kopachi","volkhov","iron"]);
 
 app.use(express.static(path.join(__dirname, "public")));
 app.get("/health", (_req, res) => res.json({ ok: true, service: "zone-online-multiplayer" }));
@@ -67,7 +62,7 @@ io.on("connection", socket => {
     const player = {
       id: socket.id, name,
       faction: cleanText(payload?.faction, 24) || "Одиночки",
-      location, locationName: LOCATION_NAMES[location],
+      location, locationName: location,
       joinedAt: Date.now()
     };
     r.players.set(socket.id, player);
@@ -84,7 +79,7 @@ io.on("connection", socket => {
     if (!room || !rooms.has(room)) return;
     const r = rooms.get(room), p = r.players.get(socket.id);
     if (!p) return;
-    if (LOCATIONS.has(payload?.location)) { p.location = payload.location; p.locationName = LOCATION_NAMES[payload.location]; }
+    if (LOCATIONS.has(payload?.location)) p.location = p.locationName = payload.location;
     if (payload?.faction) p.faction = cleanText(payload.faction, 24);
     broadcastPlayers(room);
   });

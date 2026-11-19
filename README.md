@@ -25,3 +25,18 @@ The RPG economy, quests, inventory and NPC progression remain per-player/local a
 - No environment variables are required for this prototype.
 
 The in-memory room list and chat are cleared when the server restarts. Do not use this prototype for private information; chat is not end-to-end encrypted.
+
+
+## Build 0.3 — Call of Pripyat-inspired update
+
+- PDA-style interface refresh and responsive inventory grid.
+- Equipment slots for suit, primary weapon and detector.
+- Additional Zone sectors: Zaton, Jupiter, Yanov, Kopachi, Volkhov AA and Iron Forest.
+- Schematic interactive Zone map with travel nodes.
+- Random generated stalkers, personal greetings and topic-based conversations; some wander between sectors as time advances.
+- Faction emblems, diplomatic channels, information exchange and trade agreements.
+- Achievement journal.
+- Existing local saves are migrated automatically; player progress is retained.
+- Multiplayer location synchronization accepts the additional sectors.
+
+Visual assets in this fan project are original interface elements and symbols inspired by the atmosphere of S.T.A.L.K.E.R.; original game artwork and extracted assets are not included.
