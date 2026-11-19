@@ -17,3 +17,12 @@
 - Added shared NPC movement updates and PDA event notifications.
 - Added simulated hostile encounters with health, morale and death state.
 - Added server-validated player/NPC interactions and per-player trust.
+
+## 4.6.0 — ECOSYSTEM
+- Added 36 persistent procedural supporting stalkers with humorous, generated nicknames.
+- Added long-form, role-specific dialogue that rotates every 15 minutes and reacts to relationships, NPC history and recent world events.
+- Added generated NPCs to sector people lists and conversation screens.
+- Added mutant packs with migration and population simulation.
+- Added faction base upgrades, player clans and dynamic sector market scarcity.
+- Added server events and shared-state replication for ecosystem updates.
+- Added tests for procedural NPCs, dialogue rotation, mutant ecology, base upgrades and clan membership.

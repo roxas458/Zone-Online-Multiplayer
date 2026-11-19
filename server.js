@@ -12,6 +12,7 @@ const { initSharedWorld, initDiplomacy } = require('./src/server/world');
 const { WAR_CONFIG, createOperation, deploymentPower, addDeployment, resolveOperation } = require('./src/systems/war');
 const { tickNpcWorld, interactWithNpc } = require('./src/systems/npc-ai');
 const { ensureOnlineWorld, appendWorldEvent, buildWorldSync, publicWorldStatus } = require('./src/systems/online-world');
+const { initEcosystem, tickEcosystem, upgradeBase, createClan, joinClan } = require('./src/systems/ecosystem');
 
 const online = new Map();
 const recentChat = [];
@@ -28,7 +29,7 @@ const PORT = process.env.PORT || 3000;
 
 app.use(express.static(path.join(__dirname, 'public')));
 app.get('/health', (_req,res) => res.json({ ok:true, service:'ZONE ONLINE shared world', database:dbReady?'postgres':'memory-fallback', online:online.size }));
-app.get('/api/status', (_req,res) => res.json({ ...publicWorldStatus(world, online.size), persistent:dbReady, service:'ZONE ONLINE 4.5 ONLINE WORLD' }));
+app.get('/api/status', (_req,res) => res.json({ ...publicWorldStatus(world, online.size), persistent:dbReady, service:'ZONE ONLINE 4.6 ECOSYSTEM' }));
 app.get('/api/world/snapshot', (_req,res) => res.json({ status:publicWorldStatus(world, online.size), world }));
 app.get('/api/world/events', (req,res) => { const since=Number(req.query.since||0); const sync=buildWorldSync(world, Number.isSafeInteger(since)?since:0); res.json(sync); });
 
@@ -70,7 +71,7 @@ io.on('connection', socket=>{
       const joinEvent = appendWorldEvent(world, 'player_joined', { player:publicPlayer(p) });
       socket.emit('player:ready',{id, savedState:saved, world, worldSync:buildWorldSync(world, Number(payload?.lastRevision)||0), status:publicWorldStatus(world,online.size), chat:recentChat.slice(-60), players:onlineList(), persistent:dbReady});
       socket.to('zone-world').emit('world:event',joinEvent);
-      io.emit('world:npcs',world.npcPositions); io.emit('world:npc-state',{npcs:world.npcState,events:(world.npcEvents||[]).slice(-20)}); io.emit('world:coop',world.coOpQuests); io.emit('war:state',{operations:world.warOperations||[],history:(world.warHistory||[]).slice(0,12)});
+      io.emit('world:npcs',world.npcPositions); io.emit('world:npc-state',{npcs:world.npcState,events:(world.npcEvents||[]).slice(-20)}); io.emit('world:ecosystem',world.ecosystem); io.emit('world:coop',world.coOpQuests); io.emit('war:state',{operations:world.warOperations||[],history:(world.warHistory||[]).slice(0,12)});
       systemMessage(`${p.name} вошёл в Зону.`); broadcastOnline(); persistWorld().catch(e=>console.error('join persistence:',e.message));
     } catch(e){ socket.emit('server:error',{message:'Не удалось загрузить профиль.'}); console.error(e); }
   });
@@ -245,10 +246,18 @@ io.on('connection', socket=>{
     const p=online.get(socket.data.playerId); if(!p)return;
     const npcId=String(input?.npcId||'').slice(0,48), action=String(input?.action||'');
     const npc=world.npcState?.[npcId];
-    const result=interactWithNpc(npc,{id:p.id,location:p.location},action);
+    const result=interactWithNpc(npc,{id:p.id,location:p.location},action,Date.now(),{recentWorldEvent:world.zoneEvents?.at(-1)?.title||'',locationName:npc.location});
     socket.emit('npc:interaction-result',result);
     if(result.ok){ const syncEvent=appendWorldEvent(world,'npc_interaction',{npcId,playerId:p.id,action,relationship:result.relationship}); await persistWorld(); io.emit('world:event',syncEvent); io.emit('world:npc-state',{npcs:world.npcState,events:(world.npcEvents||[]).slice(-20)}); }
   });
+  socket.on('base:upgrade', async input=>{
+    const p=online.get(socket.data.playerId);if(!p)return;const cost=500,st=safeState(p.state);
+    if(st.money<cost){socket.emit('ecosystem:result',{ok:false,message:`Нужно ${cost} ₽ на материалы.`});return;}
+    const result=upgradeBase(world,String(input?.location||''),p.faction,cost);if(!result.ok){socket.emit('ecosystem:result',{ok:false,message:result.reason});return;}
+    st.state.money=st.money-cost;p.state=st.state;await persistPlayer(p.id,p.state);const ev=appendWorldEvent(world,'base_upgraded',{location:result.base.location,faction:p.faction,level:result.base.level});await persistWorld();io.emit('world:event',ev);io.emit('world:ecosystem',world.ecosystem);socket.emit('ecosystem:result',{ok:true,message:`База улучшена до уровня ${result.base.level}.`,state:p.state});
+  });
+  socket.on('clan:create', async input=>{const p=online.get(socket.data.playerId);if(!p)return;const result=createClan(world,{id:p.id,name:p.name,faction:p.faction},input?.name);if(!result.ok){socket.emit('ecosystem:result',{ok:false,message:result.reason});return;}const ev=appendWorldEvent(world,'clan_created',{clanId:result.clan.id,name:result.clan.name,faction:p.faction});await persistWorld();io.emit('world:event',ev);io.emit('world:ecosystem',world.ecosystem);socket.emit('ecosystem:result',{ok:true,message:`Клан «${result.clan.name}» создан.`,clan:result.clan});});
+  socket.on('clan:join', async input=>{const p=online.get(socket.data.playerId);if(!p)return;const result=joinClan(world,{id:p.id,name:p.name,faction:p.faction},input?.clanId);if(!result.ok){socket.emit('ecosystem:result',{ok:false,message:result.reason});return;}await persistWorld();io.emit('world:ecosystem',world.ecosystem);socket.emit('ecosystem:result',{ok:true,message:`Ты вступил в клан «${result.clan.name}».`});});
   socket.on('diplomacy:action', async input=>{
     const p=online.get(socket.data.playerId);if(!p)return;
     const target=clean(input?.target,32), action=input?.action;
@@ -275,12 +284,13 @@ setInterval(async()=>{
   try {
     initSharedWorld(world, NPC_HOME, LOCATIONS, COOP_TEMPLATES);
     const now=Date.now(), events=tickNpcWorld(world,LOCATIONS,Math.random,now);
+    const ecoEvents=tickEcosystem(world,Math.random,now);
     world.onlineMetrics ||= {totalJoins:0,totalMoves:0,lastTickAt:0}; world.onlineMetrics.lastTickAt=now;
     const tickEvent=appendWorldEvent(world,'world_tick',{npcEvents:events.length,activeNpcs:Object.values(world.npcState||{}).filter(n=>n.alive).length},now);
     io.emit('world:event',tickEvent);
-    for(const event of events){const ev=appendWorldEvent(world,event.type,{...event},now);io.emit('world:event',ev);io.emit('world:npc-event',event);if(event.type==='npc_skirmish')systemMessage(event.text);}
+    for(const event of [...events,...ecoEvents]){const ev=appendWorldEvent(world,event.type,{...event},now);io.emit('world:event',ev);io.emit('world:npc-event',event);if(event.type==='npc_skirmish'||event.type==='mutant_migration')systemMessage(event.text);}
     await persistWorld(); io.emit('world:npcs',world.npcPositions);
-    io.emit('world:npc-state',{npcs:world.npcState,events:(world.npcEvents||[]).slice(-20)});
+    io.emit('world:npc-state',{npcs:world.npcState,events:(world.npcEvents||[]).slice(-20)});io.emit('world:ecosystem',world.ecosystem);
     io.emit('world:status',publicWorldStatus(world,online.size));
   }catch(e){console.error('NPC AI schedule:',e.message);} finally {npcTickRunning=false;}
 },60*1000).unref();

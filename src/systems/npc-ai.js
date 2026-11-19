@@ -9,10 +9,12 @@ const NPC_FACTIONS = Object.freeze({
 });
 const ROLES = Object.freeze({ sid:'торговец', wolf:'сталкер', fanatic:'сталкер', scout:'разведчик', bandit:'бандит', barman:'торговец', seriy:'сталкер', scientist:'учёный', merc:'наёмник', prof:'учёный', freedom:'боец', guide:'проводник', loner:'сталкер', lebedev:'командир', novikov:'техник', cold:'боец', lukash:'командир', voronin:'командир', sultan:'главарь', beard:'торговец', charon:'командир', wolfhound:'боец', archivist:'учёный', kravtsov:'военный' });
 const ACTIONS = ['patrol','travel','trade','rest','search'];
+const { buildDialogue, interactDialogue } = require('./npc-dialogue');
+const NPC_DISPLAY = {sid:'Сидорович',wolf:'Волк',fanatic:'Фанатик',scout:'Разведчик',bandit:'Бандит',barman:'Бармен',seriy:'Серый',scientist:'Учёный',merc:'Наёмник',prof:'Профессор Сахаров',freedom:'Свободовец',guide:'Проводник',loner:'Одиночка',lebedev:'Николай Лебедев',novikov:'Новиков',cold:'Холод',lukash:'Лукаш',voronin:'Генерал Воронин',sultan:'Султан',beard:'Борода',charon:'Харон',wolfhound:'Вольфхаунд',archivist:'Архивист',kravtsov:'Командир Кравцов'};
 function createNpcRoster(npcHome, now = Date.now()) {
   const roster = {};
   for (const [id, location] of Object.entries(npcHome || {})) {
-    roster[id] = { id, name: id, faction: NPC_FACTIONS[id] || 'Одиночки', role: ROLES[id] || 'сталкер', location, destination: null, action: 'rest', mood: 'спокоен', health: 100, morale: 60, supplies: 50, alive: true, lastActionAt: now, relationships: {}, inventory: [], history: [] };
+    roster[id] = { id, name: NPC_DISPLAY[id] || id, faction: NPC_FACTIONS[id] || 'Одиночки', role: ROLES[id] || 'сталкер', location, destination: null, action: 'rest', mood: 'спокоен', health: 100, morale: 60, supplies: 50, alive: true, lastActionAt: now, relationships: {}, inventory: [], history: [], generated:false, dialogueVersion:0, dialogueCycle:Math.floor(now/900000) };
   }
   return roster;
 }
@@ -23,6 +25,8 @@ function tickNpcWorld(world, locations, random = Math.random, now = Date.now()) 
   const allLocations = [...locations];
   for (const npc of Object.values(world.npcState)) {
     if (!npc.alive) continue;
+    const cycle=Math.floor(now/900000); if(npc.dialogueCycle!==cycle){npc.dialogueCycle=cycle;npc.dialogueVersion=(npc.dialogueVersion||0)+1;events.push({type:'npc_dialogue_updated',npcId:npc.id,text:`${npc.name}: появились новые темы и слухи для разговора.`,at:now});}
+    npc.dialogue = buildDialogue(npc, {recentWorldEvent:world.zoneEvents?.at(-1)?.title || ''}, now);
     npc.health = clamp(npc.health, 0, 100); npc.morale = clamp(npc.morale, 0, 100); npc.supplies = clamp(npc.supplies, 0, 100);
     if (npc.destination && npc.destination !== npc.location) {
       const from = npc.location; npc.location = npc.destination; npc.destination = null;
@@ -58,15 +62,16 @@ function tickNpcWorld(world, locations, random = Math.random, now = Date.now()) 
   world.npcEvents ||= []; world.npcEvents.push(...events); world.npcEvents = world.npcEvents.slice(-60);
   return events;
 }
-function interactWithNpc(npc, player, action, now = Date.now()) {
+function interactWithNpc(npc, player, action, now = Date.now(), context = {}) {
   if (!npc || !npc.alive) return { ok:false, reason:'Этот сталкер больше не может ответить.' };
   if (!player || player.location !== npc.location) return { ok:false, reason:'Нужно находиться в одном секторе со сталкером.' };
   if (!['greet','ask','trade','help'].includes(action)) return { ok:false, reason:'Неизвестное действие.' };
   npc.relationships ||= {}; const current = Number(npc.relationships[player.id]) || 0;
   const delta = action === 'help' ? 5 : action === 'greet' ? 2 : action === 'trade' ? 1 : 0;
   npc.relationships[player.id] = clamp(current + delta, -100, 100);
-  const replies = { greet:`${npc.name}: Здорово, сталкер.`, ask:`${npc.name}: В Зоне слухи меняются быстрее погоды.`, trade:`${npc.name}: Посмотрим, что у тебя есть.`, help:`${npc.name}: Не забуду твою помощь.` };
+  const result=interactDialogue(npc,player,action,context,now);
   npc.lastInteractionAt = now;
-  return { ok:true, reply:replies[action], relationship:npc.relationships[player.id], npcId:npc.id };
+  return { ok:true, ...result, relationship:npc.relationships[player.id], npcId:npc.id };
 }
+
 module.exports = { NPC_FACTIONS, ROLES, createNpcRoster, tickNpcWorld, interactWithNpc };

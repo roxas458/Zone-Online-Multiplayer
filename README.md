@@ -30,3 +30,24 @@ Set `DATABASE_URL` to PostgreSQL for persistence across server restarts. Without
 ## Deployment topology
 
 This release is a single-authoritative-process multiplayer server. It synchronizes all connected clients attached to that server instance. For horizontal multi-instance deployment, add a Socket.IO PostgreSQL/Redis adapter, distributed scheduler leadership, and transactional world-event writes before running more than one game server process. The in-process NPC tick guard does not coordinate multiple server instances.
+
+## ZONE ONLINE 4.6 — ECOSYSTEM
+
+This release expands the persistent world with a procedural supporting-NPC roster and contextual dialogue.
+
+### New systems
+- **Procedural stalkers:** 36 persistent supporting NPCs with generated nicknames (for example, «Вадим Спагетти», «Вовка Табак», «Гена Пельмень»), faction, role, mood, supplies, health and location.
+- **Long-form dialogue:** multi-paragraph greetings and replies, role-specific topics, personal-trust variations and context from recent world events. Dialogue topics rotate on a 15-minute world cycle and react to NPC history and current events.
+- **Mutant ecology:** packs of mutants move between sectors; their numbers and aggression fluctuate and migration reports enter the world event feed.
+- **Faction bases:** persistent base level, fortification and supplies. Players can upgrade a base belonging to their own faction for 500 ₽.
+- **Clans:** players can create a faction-bound clan and other players of the same faction can join it.
+- **Dynamic markets:** every sector tracks scarcity and a changing price index.
+
+### Run
+```bash
+npm install
+npm run check
+npm test
+npm start
+```
+Set `DATABASE_URL` to a PostgreSQL connection string for persistence across server restarts. Without PostgreSQL, the server runs in memory fallback mode.

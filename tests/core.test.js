@@ -142,3 +142,38 @@ test('ONLINE WORLD exposes compact operational status', () => {
   assert.equal(status.activeWars, 1);
   assert.equal(status.sectors, 1);
 });
+
+const { ensureRandomNpcs } = require('../src/systems/npc-roster');
+const { buildDialogue } = require('../src/systems/npc-dialogue');
+const { initEcosystem, tickEcosystem, upgradeBase, createClan, joinClan } = require('../src/systems/ecosystem');
+test('ECOSYSTEM creates a persistent roster of oddly nicknamed supporting stalkers', () => {
+  const world = { npcState: {}, npcPositions: {} };
+  ensureRandomNpcs(world, 36);
+  const generated = Object.values(world.npcState).filter(n => n.generated);
+  assert.equal(generated.length, 36);
+  assert.ok(generated.some(n => /Спагетти|Табак|Пельмень|Болт|Чебурек/.test(n.name)));
+  const firstName = generated[0].name;
+  ensureRandomNpcs(world, 36);
+  assert.equal(world.npcState.wanderer_001.name, firstName);
+});
+test('NPC dialogue is long-form and changes with the 15-minute dialogue cycle', () => {
+  const npc = { id:'wanderer_001',name:'Вадим Спагетти',role:'сталкер',faction:'Одиночки',location:'cordon',mood:'весёлый',history:[],dialogueVersion:0 };
+  const first = buildDialogue(npc, {locationName:'Кордон'}, 1000);
+  npc.dialogueVersion = 1;
+  const second = buildDialogue(npc, {locationName:'Кордон'}, 1000);
+  assert.ok(first.greeting.length > 100);
+  assert.ok(first.topics.every(t => t[1].length > 100));
+  assert.notEqual(first.topics[0][1], second.topics[0][1]);
+});
+test('ECOSYSTEM simulates mutant packs, faction bases, markets and clan membership', () => {
+  const world = { territoryOwners:{cordon:'Одиночки'} };
+  const eco = initEcosystem(world);
+  assert.ok(eco.mutantPacks.length > 0);
+  assert.equal(upgradeBase(world,'cordon','Одиночки').ok,true);
+  const created = createClan(world,{id:'p1',name:'Сталкер',faction:'Одиночки'},'Весёлый Болт');
+  assert.equal(created.ok,true);
+  assert.equal(joinClan(world,{id:'p2',name:'Вадим',faction:'Одиночки'},created.clan.id).ok,true);
+  const events = tickEcosystem(world,()=>0.2,2000);
+  assert.ok(Array.isArray(events));
+  assert.ok(eco.markets.cordon.priceIndex > 0);
+});

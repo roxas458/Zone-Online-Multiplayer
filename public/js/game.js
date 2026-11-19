@@ -165,11 +165,11 @@ function view(id){document.querySelectorAll(".view").forEach(v=>v.classList.togg
 document.querySelectorAll("[data-v]").forEach(b=>b.onclick=()=>{view(b.dataset.v);if(b.dataset.v==="armory")renderArmory();if(b.dataset.v==="inventory")renderInventory()});
 function here(){return g.locations.find(l=>l.id===g.loc)}
 function npcBy(id){return g.npcs.find(n=>n.id===id)}
-function nearbyNpcs(){return here().people.map(npcBy).filter(Boolean)}
+function nearbyNpcs(){syncNpcRosterToClient();return here().people.map(npcBy).filter(Boolean)}
 function addQuest(id){let q=g.quests.find(q=>q.id===id);if(q&&!q.accepted&&!q.done){q.accepted=true;log("Получено задание: "+q.title);news("Новое задание",q.title+" — "+q.desc)}}
 function meet(id){let n=npcBy(id);if(!n||n.loc!==g.loc)return;activeNpc=id;g.meetings++;
 log("Встреча: "+n.name+".");view("people");renderPeople();startTalk(id);save()}
-function startTalk(id){let n=npcBy(id);if(!n)return;activeNpc=id;
+function startTalk(id){let n=npcBy(id);if(!n)return;const live=serverWorld?.npcState?.[id];if(live?.dialogue){if(live.generated){n.greeting=live.dialogue.greeting;n.topics=live.dialogue.topics;}else{n.topics=(n.topics||[]).filter(t=>!['Свежие слухи','Личная история'].includes(t[0]));n.topics.push(['Свежие слухи',live.dialogue.topics?.[1]?.[1]||'Пока новых сведений нет.'],['Личная история',live.dialogue.topics?.[2]?.[1]||'Сталкер не хочет говорить о прошлом.']);}}activeNpc=id;
  const storyMeet={lebedev:["metLebedev","story_swamp_signal"],novikov:["metNovikov","story_swamp_relay"],prof:["metSakharov","story_yantar_echo"],beard:["metBeard","story_north_route"],archivist:["metArchivist","story_pripyat_archive"]};
  if(storyMeet[id]){g.storyFlags[storyMeet[id][0]]=true;addQuest(storyMeet[id][1]);}
  let box=$("dialogueBox");box.innerHTML=`<div class="dialogue-screen"><div class="dialogue-top"><div class="avatar portrait">${n.icon||"◉"}</div><div><div class="eyebrow">ВХОДЯЩИЙ КАНАЛ / ${here().name.toUpperCase()}</div><b class="speaker">${n.name}</b><div class="desc">${n.role} · ${n.faction||"неизвестная принадлежность"}</div><div class="small muted">Отношение: ${n.mood||"нейтральное"}</div></div></div><div class="dialogue"><span class="speaker">${n.name}:</span><p>${n.greeting}</p></div><div class="section">Выберите реплику</div><div class="choices">${n.topics.map((t,i)=>`<button onclick="topic('${id}',${i})">› ${t[0]}</button>`).join("")}<button onclick="view('trade')">⇄ Открыть торговлю</button><button onclick="closeTalk()">× Завершить разговор</button></div></div>`;renderQuick()}
@@ -181,7 +181,7 @@ if(id==="wolf"&&i===1)extra=`<button onclick="turnIn('bread')">Передать 
 if(id==="barman"&&i===2)extra=`<button onclick="view('quests')">Открыть журнал заданий</button>`;
 $("dialogueBox").innerHTML=`<div class="dialogue"><b class="speaker">${n.name}:</b><p>${result}</p></div><div class="choices">${extra}<button onclick="startTalk('${id}')">Задать другой вопрос</button><button onclick="closeTalk()">Попрощаться</button></div>`;log("Разговор: "+n.name+" — "+t[0]);save()}
 function closeTalk(){activeNpc=null;$("dialogueBox").innerHTML="Разговор завершён. Можно осмотреться или встретить другого персонажа.";renderQuick()}
-function renderPeople(){$("peopleList").innerHTML=nearbyNpcs().map(n=>`<div class="item"><div class="npc-card"><div class="avatar">${n.icon}</div><div><b>${n.name}</b><div class="desc">${n.role} · ${n.desc}</div></div></div><div class="rightbuttons"><button onclick="startTalk('${n.id}')">Поговорить</button><button onclick="npcServerAction('${n.id}','greet')">Поздороваться</button><button onclick="npcServerAction('${n.id}','ask')">Спросить о слухах</button><button onclick="npcServerAction('${n.id}','help')">Помочь</button></div></div>`).join("")||'<div class="mutedbox">В этой локации сейчас никого нет. Попробуй зайти позже.</div>'}
+function renderPeople(){syncNpcRosterToClient();$("peopleList").innerHTML=nearbyNpcs().map(n=>`<div class="item"><div class="npc-card"><div class="avatar">${n.icon}</div><div><b>${n.name}</b><div class="desc">${n.role} · ${n.desc}</div></div></div><div class="rightbuttons"><button onclick="startTalk('${n.id}')">Поговорить</button><button onclick="npcServerAction('${n.id}','greet')">Поздороваться</button><button onclick="npcServerAction('${n.id}','ask')">Спросить о слухах</button><button onclick="npcServerAction('${n.id}','help')">Помочь</button></div></div>`).join("")||'<div class="mutedbox">В этой локации сейчас никого нет. Попробуй зайти позже.</div>'}
 function npcServerAction(npcId,action){if(!zoneSocket?.connected)return alert("Для взаимодействия с живым NPC нужно подключение к серверу.");zoneSocket.emit("npc:interact",{npcId,action});}
 function renderQuick(){$("quickNpc").innerHTML=nearbyNpcs().slice(0,3).map(n=>`<div class="item" style="padding:7px;margin-bottom:6px"><span>${n.icon} ${n.name}</span><button onclick="meet('${n.id}')">Встреча</button></div>`).join("")||'<span class="muted small">Поблизости никого не видно.</span>'}
 function travel(id){let l=g.locations.find(x=>x.id===id);if(!l||id===g.loc)return;let cost=l.travel;if(g.stamina<cost*5)return alert("Недостаточно выносливости. Отдохни у костра.");consumeTime(cost);g.stamina-=cost*5;g.hour+=cost;if(g.hour>=24){g.day+=Math.floor(g.hour/24);g.hour%=24}g.loc=id;activeNpc=null;log("Переход: "+l.name+".");news("Сталкер прибыл",g.name+" прибыл в район «"+l.name+"».");if(Math.random()<.35){let event=["По дороге ты заметил следы недавнего лагеря.","На маршруте встретилась небольшая группа сталкеров.","Погода изменилась, путь занял больше времени."][Math.floor(Math.random()*3)];log(event);news("Событие в пути",event)}render();mpSyncLocation();view("world")}
@@ -292,11 +292,22 @@ function renderOnlinePlayers(){
 }
 function locationName(id){return g.locations.find(x=>x.id===id)?.name||id||'Неизвестно'}
 function escapeHtml(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function syncNpcRosterToClient(){
+ const roster=serverWorld?.npcState||{};g.npcs||=[];
+ for(const npc of Object.values(roster)){
+  if(!npc||!npc.alive)continue;
+  let local=g.npcs.find(x=>x.id===npc.id);
+  if(!local){local={id:npc.id,name:npc.name,role:npc.role||'сталкер',loc:npc.location,faction:npc.faction,icon:npc.icon||'◉',desc:`${npc.personality||'обычный'} сталкер. ${npc.action==='travel'?'Сейчас в пути.':'Находится в секторе.'}`,mood:npc.mood||'нейтральное',generated:!!npc.generated,topics:[],greeting:''};g.npcs.push(local);}
+  local.name=npc.name||local.name;local.loc=npc.location||local.loc;local.faction=npc.faction||local.faction;local.role=npc.role||local.role;local.icon=npc.icon||local.icon;local.generated=!!npc.generated;local.mood=npc.mood||local.mood;
+  if(npc.dialogue){local.greeting=npc.dialogue.greeting;local.topics=npc.dialogue.topics;}
+ }
+ for(const l of g.locations||[])l.people=(g.npcs||[]).filter(n=>n.loc===l.id&&(!roster[n.id]||roster[n.id].alive!==false)).map(n=>n.id);
+}
 function applySharedNpcPositions(positions){
  if(!positions||typeof positions!=='object')return;
+ serverWorld=serverWorld||{};serverWorld.npcPositions=positions;
  for(const n of g.npcs||[]){if(positions[n.id]&&g.locations.some(l=>l.id===positions[n.id]))n.loc=positions[n.id];}
- for(const l of g.locations||[])l.people=(g.npcs||[]).filter(n=>n.loc===l.id).map(n=>n.id);
- renderPeople();renderQuick();if($('people').classList.contains('active'))renderPeople();
+ syncNpcRosterToClient();renderPeople();renderQuick();if($('people').classList.contains('active'))renderPeople();
 }
 function renderPlayerTrade(){const el=$('playerTrade');if(!el)return;const others=onlinePlayers.filter(p=>p.id!==zonePlayerId);if(!others.length){el.innerHTML='<div class="mutedbox small">Пока нет других игроков онлайн.</div>';return;}
  const items=(g.items||[]).filter(x=>x.qty>0&&['med','bread','bolt','scrap','bandage','artifact','canned','sausage','condensed','water','tea','ration'].includes(x.id));
@@ -405,8 +416,15 @@ function renderLivingZone(){
  $("contracts").innerHTML=g.contracts.map(c=>`<div class="item block"><b>${escapeHtml(c.title)}</b><div class="desc">${escapeHtml(c.desc)} · ${c.reward} ₽ / ${c.xp} XP</div><span class="tag">${c.done?"Выполнен":c.accepted?"В работе":"Доступен"}</span><div class="rightbuttons">${!c.accepted&&!c.done?`<button onclick="livingAccept('${c.id}')">Взять контракт</button>`:""}${c.accepted&&!c.done?`<button onclick="livingComplete('${c.id}')">Сдать контракт</button>`:""}</div></div>`).join("");
  $("patrols").innerHTML=g.patrols.slice(0,8).map(p=>`<div class="item"><span>🪖 ${escapeHtml(p.faction)} · ${escapeHtml(g.locations.find(l=>l.id===p.loc)?.name||p.loc)}</span><b>${p.strength} бойцов</b></div>`).join("")||'<div class="mutedbox small">Патрули пока не отмечены. Проверь обстановку.</div>';
  $("patrols").innerHTML += g.locations.map(l=>`<div class="item"><span>${escapeHtml(l.name)} · ${escapeHtml(l.owner)} · ${l.control}%</span>${l.owner!==g.faction?`<button onclick="livingTerritory('${l.id}')">Влияние · 350 ₽</button>`:""}</div>`).join("");
+ const eco=serverWorld?.ecosystem;
+ const packs=(eco?.mutantPacks||[]).filter(p=>p.location===g.loc);
+ const bases=Object.values(eco?.bases||{}).filter(b=>b.faction===g.faction);
+ const clans=Object.values(eco?.clans||{}).filter(c=>c.faction===g.faction);
  $("campFeed").innerHTML=g.campFeed.slice(0,6).map(e=>`<div class="item"><b>${escapeHtml(e.title)}</b><div class="desc">${escapeHtml(e.body)}</div></div>`).join("")||'<div class="mutedbox small">У костра пока тихо.</div>';
+ $("campFeed").innerHTML += `<div class="section">Экосистема сектора</div><div class="item"><b>Мутанты поблизости: ${packs.reduce((a,p)=>a+p.count,0)}</b><div class="desc">${packs.map(p=>`${escapeHtml(p.species)} ×${p.count}`).join(' · ')||'Следов мутантов поблизости не обнаружено.'}</div></div><div class="section">Базы группировки</div>${bases.map(b=>`<div class="item"><b>${escapeHtml(locationName(b.location))} · уровень ${b.level}</b><div class="desc">Укрепления ${b.fortification}% · припасы ${b.supplies}%</div><button onclick="upgradeZoneBase('${b.location}')">Улучшить · 500 ₽</button></div>`).join('')||'<div class="mutedbox small">У группировки пока нет зарегистрированных баз.</div>'}<div class="section">Кланы</div><div class="item"><b>Кланов твоей группировки: ${clans.length}</b><div class="desc">${clans.map(c=>`${escapeHtml(c.name)} · ${c.members.length} участников`).join(' · ')||'Создай клан, чтобы собирать отряд.'}</div><button onclick="createZoneClan()">Создать клан</button></div>`;
 }
+function upgradeZoneBase(location){if(!zoneSocket?.connected)return alert('Для улучшения базы нужно подключение к серверу.');zoneSocket.emit('base:upgrade',{location});}
+function createZoneClan(){const name=prompt('Название клана (3–24 символа):');if(!name)return;if(!zoneSocket?.connected)return alert('Для создания клана нужно подключение к серверу.');zoneSocket.emit('clan:create',{name});}
 function livingTalk(id){initLivingState();let n=npcBy(id);if(!n)return;g.relationships[id]=Math.min(100,(g.relationships[id]||0)+5);g.rep=Math.min(1000,g.rep+1);livingNews("Новая связь: "+n.name,`Ты провёл время с ${n.name}. Личное доверие выросло до ${g.relationships[id]}.`);log("Отношения с "+n.name+" улучшились.");save();}
 function livingAccept(id){let c=g.contracts.find(x=>x.id===id);if(!c||c.done)return;c.accepted=true;livingNews("Контракт принят",c.title+" · заказчик: "+c.giver);save();}
 function livingComplete(id){let c=g.contracts.find(x=>x.id===id);if(!c||!c.accepted||c.done)return;if(g.loc!==c.loc)return alert("Для сдачи контракта вернись в сектор: "+(g.locations.find(l=>l.id===c.loc)?.name||c.loc));if(c.item&&count(c.item)<c.qty)return alert("Не хватает предметов: "+c.item+" ×"+c.qty);if(c.item)take(c.item,c.qty);c.done=true;g.money+=c.reward;g.xp+=c.xp;g.rep+=c.rep;livingNews("Контракт выполнен",`${c.title}. Получено ${c.reward} ₽ и ${c.xp} опыта.`);save();}
@@ -463,7 +481,7 @@ function connectZone(){
  zoneSocket.on('player:ready',data=>{
   zonePlayerId=data.id;localStorage.setItem('zoneOnlinePlayerId',zonePlayerId);
   if(data.savedState&&typeof data.savedState==='object'){applyingServerState=true;g=data.savedState;if(g.characterCreated===undefined)g.characterCreated=true;migrateWorld();localStorage.setItem('zoneExpandedSave',JSON.stringify(g));applyingServerState=false;render();if(g.characterCreated)$('characterSetup')?.classList.remove('show');else if(!$('characterSetup')?.classList.contains('show'))openCharacterSetup();}
-  serverWorld=data.world||null;applyWorldSync(data.worldSync);if(serverWorld?.discoveredPoints)applySharedDiscoveredPoints(serverWorld.discoveredPoints);renderWar();renderOnlineWorldStatus(data.status);if(serverWorld?.diplomacy){g.diplomacy=serverWorld.diplomacy;renderDiplomacy();}if(serverWorld?.npcPositions)applySharedNpcPositions(serverWorld.npcPositions);renderCoopQuests(serverWorld?.coOpQuests||[]);
+  serverWorld=data.world||null;syncNpcRosterToClient();applyWorldSync(data.worldSync);if(serverWorld?.discoveredPoints)applySharedDiscoveredPoints(serverWorld.discoveredPoints);renderWar();renderOnlineWorldStatus(data.status);if(serverWorld?.diplomacy){g.diplomacy=serverWorld.diplomacy;renderDiplomacy();}if(serverWorld?.npcPositions)applySharedNpcPositions(serverWorld.npcPositions);renderCoopQuests(serverWorld?.coOpQuests||[]);
   onlinePlayers=data.players||[];serverChat=data.chat||[];renderOnlinePlayers();renderServerChat();
   if($('mpName'))$('mpName').value=g.name;
   $('mpStatusText').textContent=data.persistent?'Сервер подключён · профиль и общий мир сохраняются в PostgreSQL.':'Сервер подключён · внимание: без PostgreSQL прогресс на сервере сбросится после перезапуска.';
@@ -476,8 +494,10 @@ function connectZone(){
  zoneSocket.on('world:event',ev=>{if(!ev||!Number.isFinite(Number(ev.revision)))return;const current=Number(localStorage.getItem('zoneWorldRevision')||0);if(Number(ev.revision)<=current)return;localStorage.setItem('zoneWorldRevision',String(ev.revision));renderOnlineWorldStatus();handleOnlineWorldEvent(ev);});
  zoneSocket.on('world:npcs',positions=>applySharedNpcPositions(positions));
  zoneSocket.on('world:npc-event',ev=>{if(!ev)return;g.news.unshift({day:g.day,hour:String(g.hour).padStart(2,'0')+':00',title:ev.type==='npc_skirmish'?'Перестрелка между отрядами':'Сталкеры в пути',body:ev.text||'Изменения активности NPC.'});g.news=g.news.slice(0,60);renderNews();log('Сводка КПК: '+(ev.text||'активность сталкеров')+'.');});
- zoneSocket.on('world:npc-state',data=>{serverWorld=serverWorld||{};serverWorld.npcState=data?.npcs||{};serverWorld.npcEvents=data?.events||[];});
- zoneSocket.on('npc:interaction-result',data=>{if(data?.reply)alert(data.reply+(data.relationship!==undefined?' Доверие: '+data.relationship:' '));else if(data?.reason)alert(data.reason);});
+ zoneSocket.on('world:npc-state',data=>{serverWorld=serverWorld||{};serverWorld.npcState=data?.npcs||{};serverWorld.npcEvents=data?.events||[];syncNpcRosterToClient();renderPeople();renderQuick();});
+ zoneSocket.on('world:ecosystem',data=>{serverWorld=serverWorld||{};serverWorld.ecosystem=data;renderLivingZone();});
+ zoneSocket.on('ecosystem:result',data=>{if(data?.state){g=data.state;localStorage.setItem('zoneExpandedSave',JSON.stringify(g));render();}alert(data?.message||'');renderLivingZone();});
+ zoneSocket.on('npc:interaction-result',data=>{if(data?.reply){const n=npcBy(data.npcId);if(n&&data.dialogue){n.greeting=data.dialogue.greeting;n.topics=data.dialogue.topics;}const box=$('dialogueBox');if(box){const paragraphs=String(data.reply).split(/(?<=[.!?])\s+/).filter(Boolean);box.innerHTML=`<div class=\"dialogue-screen\"><div class=\"dialogue-top\"><div class=\"avatar portrait\">${n?.icon||'◉'}</div><div><b class=\"speaker\">${escapeHtml(n?.name||'Сталкер')}</b><div class=\"desc\">${escapeHtml(n?.role||'сталкер')} · ${escapeHtml(n?.faction||'')}</div><div class=\"small muted\">Доверие: ${Number(data.relationship)||0}</div></div></div><div class=\"dialogue\">${paragraphs.map(x=>`<p>${escapeHtml(x)}</p>`).join('')}</div><div class=\"choices\"><button onclick=\"startTalk('${data.npcId}')\">Продолжить разговор</button><button onclick=\"closeTalk()\">Попрощаться</button></div></div>`;}else alert(data.reply);}else if(data?.reason)alert(data.reason);});
  zoneSocket.on('world:poi',points=>applySharedDiscoveredPoints(points));
  zoneSocket.on('world:zoneEvent',ev=>{g.news.unshift({day:g.day,hour:String(g.hour).padStart(2,'0')+':00',title:ev.title,body:ev.body});g.news=g.news.slice(0,60);renderNews();log('Сводка КПК: '+ev.title+'.');});
  zoneSocket.on('world:coop',list=>renderCoopQuests(list));
