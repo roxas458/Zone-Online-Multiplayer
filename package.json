@@ -1,8 +1,8 @@
 {
   "name": "zone-online",
-  "version": "2.2.0",
+  "version": "3.0.0",
   "private": true,
-  "description": "Persistent shared-world browser RPG with global realtime multiplayer",
+  "description": "Expanded PDA RPG with weapon catalogue, POIs, equipment and global multiplayer",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
