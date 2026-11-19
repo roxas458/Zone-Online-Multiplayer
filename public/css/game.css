@@ -102,3 +102,65 @@ body:before{content:"";position:fixed;inset:0;pointer-events:none;z-index:-1;opa
 /* Dynamic field atmosphere: local time, fog, rain and anomalous glow. */
 .atmosphere-fx{position:absolute;inset:0;z-index:0;pointer-events:none;opacity:.42;mix-blend-mode:screen;background:linear-gradient(180deg,#aeb99a12,transparent 55%)}.hero>*:not(.atmosphere-fx){position:relative;z-index:1}.atmosphere-info{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin:0 0 12px;color:#e0d7aa;font:9px monospace;letter-spacing:1.1px}.weather-pip{width:7px;height:7px;border-radius:50%;background:#b8c78d;box-shadow:0 0 9px currentColor}.weather-updated{margin-left:auto;color:#b7b69a88;font-size:8px}.hero[data-weather="fog"]{background-image:linear-gradient(90deg,#253526e8,#253526a8),url('/assets/zone-atmosphere.svg'),linear-gradient(120deg,#89947c,#293328)}.hero[data-weather="fog"] .atmosphere-fx{background:linear-gradient(180deg,#c7cdb655,#c7cdb622 40%,transparent 90%);filter:blur(3px);animation:fog-drift 12s ease-in-out infinite alternate}.hero[data-weather="rain"] .atmosphere-fx{opacity:.65;background:repeating-linear-gradient(108deg,transparent 0 16px,#b9c9c322 17px,#b9c9c322 18px,transparent 19px 31px);animation:rain-fall .65s linear infinite}.hero[data-weather="overcast"] .atmosphere-fx{background:linear-gradient(180deg,#66736a66,#18221d22)}.hero[data-weather="emission"] .atmosphere-fx{background:radial-gradient(ellipse at 65% 35%,#d5d58b66,transparent 50%);animation:emission-pulse 3.4s ease-in-out infinite}.hero[data-light="night"]{filter:saturate(.78)}.hero[data-light="dawn"]{background-color:#5d5941}.hero[data-light="dusk"]{background-color:#594333}.hero[data-weather="rain"] .weather-pip{background:#9eb9c5;color:#9eb9c5}.hero[data-weather="emission"] .weather-pip{background:#d8d88e;color:#d8d88e}.hero[data-weather="fog"] .weather-pip{background:#c0c7b5;color:#c0c7b5}@keyframes rain-fall{from{background-position:0 0}to{background-position:-24px 70px}}@keyframes fog-drift{from{transform:translateX(-2%);opacity:.3}to{transform:translateX(2%);opacity:.65}}@keyframes emission-pulse{0%,100%{opacity:.22}50%{opacity:.65}}
 .avatar.portrait{width:54px;height:62px;flex:0 0 54px;border-radius:7px 7px 15px 7px;background:radial-gradient(ellipse at 50% 32%,#8d9274 0%,#4c5945 38%,#1a241b 76%);border:1px solid #777756;box-shadow:inset 0 0 0 3px #10171077,0 3px 10px #0008;font-size:29px;filter:saturate(.72)}.dialogue-top .avatar.portrait{width:62px;height:70px;flex-basis:62px;font-size:34px}
+
+/* 4.11 STALKER IDENTITY — portrait dossier, direct PDA channels and responsive menu */
+.main-menu-trigger{border:1px solid var(--line);background:#1b281d;color:var(--text);border-radius:7px;padding:9px 13px;font-weight:800;letter-spacing:.08em;white-space:nowrap}
+.main-menu-trigger span{font-size:10px}
+.menu-overlay{z-index:120}
+.main-menu-card{width:min(680px,calc(100vw - 24px));max-height:min(88dvh,760px);overflow:auto}
+.main-menu-head{display:flex;justify-content:space-between;gap:16px;align-items:flex-start}
+.main-menu-head h2{margin:5px 0}
+.menu-close{font-size:25px;min-width:42px;min-height:42px}
+.main-menu-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin:18px 0}
+.main-menu-grid button{min-height:76px;text-align:left;display:grid;align-content:center;gap:5px;background:linear-gradient(135deg,#273629,#18221a);border:1px solid #52634b}
+.main-menu-grid button b{font-size:14px}.main-menu-grid button small{color:var(--muted);font-size:11px}
+.menu-quick-settings,.settings-options{display:grid;gap:10px;padding:13px;border:1px solid var(--line);border-radius:9px;background:#121a14}
+.menu-quick-settings label,.settings-options label{display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:13px}
+.menu-quick-settings input,.settings-options input{width:22px;height:22px;accent-color:#9aad6c}
+.main-menu-footer{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:14px;color:var(--muted);font-size:12px}
+.profile-hero{display:flex;gap:20px;align-items:center;padding:18px;border:1px solid var(--line);border-radius:12px;background:linear-gradient(120deg,#273329,#121a14 70%);margin:12px 0 18px}
+.portrait-large{width:142px;flex:0 0 142px}
+.profile-identity h2{margin:7px 0;font-size:25px;letter-spacing:.04em}
+.profile-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.profile-record{border:1px solid var(--line);border-radius:9px;padding:12px;background:#111913}
+.record-line{display:flex;justify-content:space-between;gap:12px;padding:8px 2px;border-bottom:1px solid #29342a}
+.record-line:last-child{border-bottom:0}.record-line span{color:var(--muted)}
+.npc-profile-card{padding:13px!important}
+.npc-card{display:flex;align-items:center;gap:13px}
+.npc-main{min-width:0;flex:1}
+.npc-stat-strip{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.npc-stat-strip span{font-size:10px;color:var(--muted);border:1px solid var(--line);padding:4px 7px;border-radius:5px}
+.npc-stat-strip b{color:var(--green)}
+.npc-portrait{position:relative;display:block;width:76px;height:88px;flex:0 0 76px;border:1px solid hsl(var(--portrait-hue) 24% 48%);border-radius:8px;overflow:hidden;background:#18221a;box-shadow:0 4px 12px #0008}
+.npc-portrait svg{display:block;width:100%;height:100%}
+.portrait-xl{width:142px;height:160px;flex-basis:142px}
+.portrait-faction{position:absolute;left:4px;bottom:4px;font-size:8px;letter-spacing:.12em;color:#e4e7d4;background:#101710cc;padding:2px 4px;border-radius:3px}
+.npc-dm-panel{border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#101811}
+.dm-head{display:flex;align-items:center;gap:12px;padding:12px;background:#1d2a20;border-bottom:1px solid var(--line)}
+.dm-head .npc-portrait{width:54px;height:64px;flex-basis:54px}
+.dm-head small,.dm-head span{display:block;font-size:10px;color:var(--muted);margin-top:3px}
+.dm-online{color:#9dbb77!important}
+.dm-log{height:260px;max-height:42dvh;overflow:auto;padding:12px;display:flex;flex-direction:column;gap:9px}
+.dm-message{max-width:86%;padding:9px 11px;border-radius:9px;border:1px solid var(--line)}
+.dm-message small{font-size:9px;letter-spacing:.08em;color:var(--muted)}
+.dm-message p{margin:5px 0 0;white-space:pre-wrap;overflow-wrap:anywhere;font-size:13px}
+.dm-message.outgoing{align-self:flex-end;background:#283b2b;border-color:#536b4c}
+.dm-message.incoming{align-self:flex-start;background:#1b241d}
+.dm-compose{display:flex;gap:8px;padding:10px;border-top:1px solid var(--line);background:#172019}
+.dm-compose input{flex:1;min-width:0;min-height:42px;border:1px solid var(--line);border-radius:7px;background:#0c130e;color:var(--text);padding:9px 11px}
+.dm-compose button{min-width:92px}
+body.large-text{font-size:17px}body.large-text .small,body.large-text small{font-size:13px}
+body.compact-ui .item,body.compact-ui .stat{padding:8px}
+body.reduce-motion *,body.reduce-motion *:before,body.reduce-motion *:after{animation-duration:.01ms!important;transition-duration:.01ms!important;scroll-behavior:auto!important}
+@media(max-width:720px){
+ .main-menu-trigger{padding:8px 10px;font-size:12px}.main-menu-trigger span{display:none}
+ .profile-hero{align-items:flex-start;gap:12px;padding:12px}.portrait-large{width:104px;flex-basis:104px}.portrait-xl{width:104px;height:120px;flex-basis:104px}
+ .profile-identity h2{font-size:20px}.profile-actions button{flex:1;min-width:130px}
+ .npc-portrait{width:64px;height:76px;flex-basis:64px}
+ .dm-log{height:230px}.dm-compose{position:sticky;bottom:0}
+ .main-menu-grid{gap:7px}.main-menu-grid button{min-height:70px;padding:10px}
+ .main-menu-footer{align-items:stretch;flex-direction:column}
+}
+@media(max-width:390px){.profile-hero{gap:9px}.portrait-large{width:86px;flex-basis:86px}.portrait-xl{width:86px;height:104px;flex-basis:86px}.profile-identity h2{font-size:18px}.main-menu-grid button b{font-size:12px}}
+
+.npc-portrait img{display:block;width:100%;height:100%;object-fit:cover;object-position:center 30%;filter:saturate(.78) contrast(1.04)}

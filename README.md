@@ -52,3 +52,7 @@ Deploy the full project folder to the existing Node service. Keep the existing `
 - Added 8 artifacts and 6 armor suits to the shared offline/online market catalogue.
 - Armor protection values are used by the combat damage calculation.
 - No PostgreSQL schema migration or save reset is required.
+
+
+### 4.11 — STALKER IDENTITY
+The player dossier now includes expedition and combat statistics. NPCs have original illustrated portrait assets and richer contact cards. Direct PDA messages are available for NPCs sharing the player's current location; message history is saved in the local profile. The main menu provides quick navigation and persistent accessibility settings (large text, reduced motion, compact layout).

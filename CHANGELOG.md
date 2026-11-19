@@ -38,3 +38,12 @@
 - Добавлена авторская SVG-панорама индустриальной Зоны и атмосферное оформление главного экрана.
 - Сохранения 4.9 продолжают использоваться; миграция базы данных не требуется.
 - Проверки: `npm run check`; `npm test` — 34 теста.
+
+
+## 4.11.0 — STALKER IDENTITY
+- Added 16 original illustrated portrait assets in optimized WebP format, assigned consistently to the player and NPCs.
+- Rebuilt the player dossier with rank, faction, health, reputation, XP, discoveries, visited sectors, combat victories and expedition statistics.
+- Added a local PDA direct-message channel for NPCs physically present in the player's current location. Message history is stored in the local save and the channel closes when the NPC is no longer in the same sector.
+- Added a new main menu with shortcuts to profile, map, inventory, contacts, trade and settings.
+- Added accessibility and layout options: larger text, reduced motion and compact interface; preferences persist with the player save.
+- Improved NPC contact cards and mobile messaging layout. Existing 4.10 saves are migrated without resetting progress.

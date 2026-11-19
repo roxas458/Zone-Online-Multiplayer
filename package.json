@@ -1,8 +1,8 @@
 {
   "name": "zone-online",
-  "version": "4.10.0",
+  "version": "4.11.0",
   "private": true,
-  "description": "IMMERSION UPDATE: atmospheric interface, redesigned inventory and expanded artifact and armor economy",
+  "description": "STALKER IDENTITY: illustrated stalker portraits, personal dossier statistics, local NPC messaging and responsive PDA menu",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",

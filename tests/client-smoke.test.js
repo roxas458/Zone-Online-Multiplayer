@@ -171,3 +171,41 @@ test('4.10 home screen atmosphere reports changing local light and weather state
   assert.match(elements.get('atmosphereInfo').innerHTML, /ЯСНО|ТУМАН|ДОЖДЬ|ПАСМУРНО|РАДИАЦИОННЫЙ ФОН/);
   assert.match(elements.get('atmosphereInfo').innerHTML, /НОЧЬ|РАССВЕТ|ДЕНЬ|СУМЕРКИ/);
 });
+
+
+test('4.11 player dossier renders portrait and expanded expedition statistics', () => {
+  const { context, elements } = bootClient();
+  assert.doesNotThrow(() => context.view('profile'));
+  assert.match(elements.get('playerPortrait').innerHTML, /stalker-\d{2}\.webp/);
+  assert.match(elements.get('profileCareerStats').innerHTML, /Победы в столкновениях/);
+  assert.match(elements.get('profileRecord').innerHTML, /Позывной/);
+});
+
+test('4.11 NPC portraits and same-location personal messages work and persist', () => {
+  const { context, elements } = bootClient();
+  context.openNpcDM('sid');
+  assert.match(elements.get('npcDmPanel').innerHTML, /ПРЯМОЙ КАНАЛ/);
+  elements.set('npcDmInput', new (elements.get('npcDmPanel').constructor)('npcDmInput'));
+  elements.get('npcDmInput').value = 'Привет, есть новости?';
+  context.sendNpcMessage({ preventDefault(){} }, 'sid');
+  assert.match(elements.get('npcDmPanel').innerHTML, /Привет, есть новости/);
+  assert.match(elements.get('npcDmPanel').innerHTML, /Слышал|Здорово|Понял/);
+});
+
+test('4.11 main menu and accessibility settings are functional', () => {
+  const { context, elements } = bootClient();
+  context.openMainMenu();
+  assert.ok(elements.get('mainMenuOverlay').classList);
+  context.setGameOption('largeText', true);
+  assert.equal(elements.get('settingLargeText').checked, true);
+  assert.equal(elements.get('menuLargeText').checked, true);
+  context.menuGo('people');
+});
+
+
+test('4.11 generated portrait sheet is split into sixteen optimized local character assets', () => {
+  const assets = path.join(root, 'public/assets/portraits');
+  const portraits = fs.readdirSync(assets).filter(name => /^stalker-\d{2}\.webp$/.test(name));
+  assert.equal(portraits.length, 16);
+  assert.ok(portraits.every(name => fs.statSync(path.join(assets, name)).size > 1000));
+});

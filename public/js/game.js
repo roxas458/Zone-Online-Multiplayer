@@ -1,4 +1,4 @@
-// ZONE ONLINE 4.9 browser client. HUMAN STORIES / FIELD PDA.
+// ZONE ONLINE 4.11 browser client. STALKER IDENTITY / PORTRAITS / LOCAL MESSAGING.
 const clone=o=>JSON.parse(JSON.stringify(o));
 const base={
  name:"Новичок",money:1450,hp:100,stamina:85,hunger:18,thirst:20,rep:10,day:1,hour:9,loc:"cordon",faction:"Одиночки",xp:0,meetings:0,completed:0,flags:{metSid:false,metWolf:false,heardBar:false,foundArtifact:false,helpedWolf:false},
@@ -94,6 +94,10 @@ function migrateWorld(){
  if(!g.foodKitGranted){addItem("canned","Консервы","Еда","Сытный полевой паёк.",.45,65,1);addItem("water","Бутылка воды","Еда","Чистая питьевая вода.",.5,25,2);g.foodKitGranted=true;}
 }
 migrateWorld();
+g.npcMessages ||= {}; g.careerStats ||= {kills:0,discoveries:0,travelled:0,conversations:0};
+g.options ||= {largeText:false,reduceMotion:false,compactUI:false};
+g.visitedLocations ||= [g.loc];
+g.careerStats.kills=Number(g.careerStats.kills)||0;g.careerStats.discoveries=Number(g.careerStats.discoveries)||0;g.careerStats.travelled=Number(g.careerStats.travelled)||0;g.careerStats.conversations=Number(g.careerStats.conversations)||0;
 try{localStorage.setItem("zoneExpandedSave",JSON.stringify(g));}catch(e){console.warn("Could not persist save migration",e);}
 
 
@@ -164,7 +168,7 @@ function renderKeyPoints(){
 function discoverPoint(id){
  const p=Object.values(g.keyPoints).flat().find(x=>x.id===id);if(!p||p.discovered)return;
  if(g.stamina<5)return alert("Недостаточно выносливости.");
- p.discovered=true;g.stamina-=5;g.xp+=12;if(zoneSocket?.connected)zoneSocket.emit('world:poi:discover',{id:p.id,location:g.loc,name:p.name});
+ p.discovered=true;g.careerStats||={};g.careerStats.discoveries=(g.careerStats.discoveries||0)+1;g.stamina-=5;g.xp+=12;if(zoneSocket?.connected)zoneSocket.emit('world:poi:discover',{id:p.id,location:g.loc,name:p.name});
  log("Отмечена ключевая точка: "+p.name+".");news("Новая отметка на карте",p.name+" — "+p.desc);
  if(Math.random()<.38){let w=weaponCatalogue[Math.floor(Math.random()*weaponCatalogue.length)];if(!g.discoveredWeapons.includes(w[0])){g.discoveredWeapons.push(w[0]);addItem(w[0],w[1],"Оружие","Найденное оружие. Состояние: "+w[7]+"%.",w[5],w[6]);g.items.find(x=>x.id===w[0]).condition=w[7];g.items.find(x=>x.id===w[0]).icon=weaponGlyph(w[0]);log("Найдено снаряжение: "+w[1]+".");}}
  save();
@@ -208,7 +212,7 @@ function news(t,b){const c=realClock();g.news.unshift({day:c.day,hour:c.time,tit
 function addItem(id,name,type,desc,weight,value,qty=1){let x=g.items.find(i=>i.id===id);if(x)x.qty+=qty;else g.items.push({id,name,type,desc,weight,value,qty})}
 function count(id){return g.items.find(i=>i.id===id)?.qty||0}
 function take(id,n){let x=g.items.find(i=>i.id===id);if(!x||x.qty<n)return false;x.qty-=n;if(x.qty<=0)g.items=g.items.filter(i=>i.id!==id);return true}
-function view(id){document.querySelectorAll(".view").forEach(v=>v.classList.toggle("active",v.id===id));document.querySelectorAll("[data-v]").forEach(b=>b.classList.toggle("active",b.dataset.v===id));document.querySelector("main>aside.panel")?.classList.remove("mobile-open");if(id==="war")renderWar();if(id==="encyclopedia")renderEncyclopedia();if(id==="stories")renderStories()}
+function view(id){document.querySelectorAll(".view").forEach(v=>v.classList.toggle("active",v.id===id));document.querySelectorAll("[data-v]").forEach(b=>b.classList.toggle("active",b.dataset.v===id));document.querySelector("main>aside.panel")?.classList.remove("mobile-open");if(id==="war")renderWar();if(id==="encyclopedia")renderEncyclopedia();if(id==="stories")renderStories();if(id==="people")renderPeople();if(id==="profile")renderProfile();if(id==="settings")applyGameOptions()}
 function toggleMobileMenu(){document.querySelector("main>aside.panel")?.classList.toggle("mobile-open")}
 document.querySelectorAll("[data-v]").forEach(b=>b.onclick=()=>{view(b.dataset.v);if(b.dataset.v==="armory")renderArmory();if(b.dataset.v==="inventory")renderInventory()});
 
@@ -234,11 +238,64 @@ $("dialogueBox").innerHTML=`<div class="dialogue"><b class="speaker">${n.name}:<
 function closeTalk(){activeNpc=null;$("dialogueBox").innerHTML="Разговор завершён. Можно осмотреться или встретить другого персонажа.";renderQuick()}
 function renderPeople(){
  syncNpcRosterToClient();
- const nearby=nearbyNpcs().map(n=>`<div class="item"><div class="npc-card"><div class="avatar">${escapeHtml(n.icon)}</div><div><b>${escapeHtml(n.name)}</b><div class="desc">${escapeHtml(n.role)} · ${escapeHtml(n.faction||"")} · ${escapeHtml(n.desc||"")}</div><div class="small muted">${escapeHtml(n.personality||"сталкер")}${n.squadId?" · состоит в отряде":""} · друзья: ${(n.friends||[]).length} · соперники: ${(n.rivals||[]).length}</div></div></div>${n.biography?`<p class="desc">${escapeHtml(n.biography)}</p>`:""}<div class="rightbuttons"><button onclick="startTalk('${n.id}')">Поговорить</button><button onclick="npcServerAction('${n.id}','greet')">Поздороваться</button><button onclick="npcServerAction('${n.id}','ask')">Спросить о слухах</button><button onclick="npcServerAction('${n.id}','help')">Помочь</button></div></div>`).join("");
+ const roster=nearbyNpcs();
+ const nearby=roster.map(n=>{
+  const rel=Number(g.relationships?.[n.id]||0),messages=(g.npcMessages?.[n.id]||[]).length;
+  const rank=n.rank||n.title||n.role||'Сталкер';
+  return `<div class="item npc-profile-card"><div class="npc-card">${portraitMarkup(n)}<div class="npc-main"><b>${escapeHtml(n.name)}</b><div class="desc">${escapeHtml(n.role)} · ${escapeHtml(n.faction||"")} · ${escapeHtml(n.desc||"")}</div><div class="small muted">${escapeHtml(n.personality||"сталкер")} · ${escapeHtml(rank)}</div><div class="npc-stat-strip"><span>Здоровье <b>${Math.round(n.health??100)}%</b></span><span>Мораль <b>${Math.round(n.morale??60)}%</b></span><span>Отношение <b>${rel>0?'+':''}${rel}</b></span><span>Друзья <b>${(n.friends||[]).length}</b></span><span>Соперники <b>${(n.rivals||[]).length}</b></span><span>Состояние <b>${escapeHtml(n.action||'в секторе')}</b></span></div></div></div>${n.biography?`<p class="desc">${escapeHtml(n.biography)}</p>`:""}<div class="rightbuttons"><button onclick="startTalk('${n.id}')">Поговорить</button><button onclick="openNpcDM('${n.id}')">✉ Личное сообщение${messages?` (${messages})`:''}</button><button onclick="npcServerAction('${n.id}','ask')">Спросить о слухах</button></div></div>`;
+ }).join("");
  const squads=(serverWorld?.npcSquads||[]).filter(s=>s.status!=='disbanded').map(s=>`<div class="item"><b>Отряд «${escapeHtml(s.name)}»</b><div class="desc">${escapeHtml(s.faction)} · ${escapeHtml(locationName(s.location))} · ${s.members.length} бойцов · ${s.status==='on_raid'?'в рейде':'на привале'}</div></div>`).join("");
  const memorial=(serverWorld?.npcMemorial||[]).slice(0,5).map(m=>`<div class="item"><b>☠ ${escapeHtml(m.name)}</b><div class="desc">Погиб: ${escapeHtml(m.cause)} · ${escapeHtml(locationName(m.location))}</div></div>`).join("");
  $("peopleList").innerHTML=(nearby||'<div class="mutedbox">В этой локации сейчас никого нет. Попробуй зайти позже.</div>')+(squads?`<h3>Отряды сталкеров</h3>${squads}`:"")+(memorial?`<h3>Память Зоны</h3>${memorial}`:"");
+ if(activeNpc&&roster.some(n=>n.id===activeNpc))renderNpcDM(activeNpc);else if(!$("npcDmPanel").dataset.npc) $("npcDmPanel").innerHTML='<div class="mutedbox small">Выбери сталкера поблизости, чтобы открыть личный канал.</div>';
 }
+function portraitMarkup(n,large=false){
+ const seed=String(n.id||n.name||'npc').split('').reduce((a,c)=>((a*31)+c.charCodeAt(0))>>>0,7),portrait=(seed%16)+1,src=`/assets/portraits/stalker-${String(portrait).padStart(2,'0')}.webp`;
+ return `<div class="npc-portrait ${large?'portrait-xl':''}" style="--portrait-hue:${seed%360}"><img src="${src}" alt="Портрет ${escapeHtml(n.name||'сталкера')}" loading="lazy"><span class="portrait-faction">${escapeHtml((n.faction||'ЗОНА').slice(0,2).toUpperCase())}</span></div>`;
+}
+function openNpcDM(id){
+ const n=npcBy(id);if(!n||n.loc!==g.loc)return alert('Личный канал доступен только в одной локации.');
+ activeNpc=id;renderNpcDM(id);$('npcDmPanel').scrollIntoView?.({behavior:g.options?.reduceMotion?'auto':'smooth',block:'nearest'});
+}
+function renderNpcDM(id){
+ const n=npcBy(id),panel=$('npcDmPanel');if(!n||!panel||n.loc!==g.loc){if(panel)panel.innerHTML='<div class="mutedbox small">Сталкер покинул эту локацию. Канал закрыт.</div>';return;}
+ g.npcMessages||={};const messages=g.npcMessages[id]||[];panel.dataset.npc=id;
+ panel.innerHTML=`<div class="dm-head">${portraitMarkup(n)}<div><b>${escapeHtml(n.name)}</b><small>${escapeHtml(n.role)} · ${escapeHtml(here().name)} · ПРЯМОЙ КАНАЛ</small><span class="dm-online">● В пределах связи</span></div></div><div class="dm-log" id="npcDmLog">${messages.map(m=>`<div class="dm-message ${m.from==='player'?'outgoing':'incoming'}"><small>${m.from==='player'?'ТЫ':escapeHtml(n.name)} · ${new Date(m.time).toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'})}</small><p>${escapeHtml(m.text)}</p></div>`).join('')||'<div class="mutedbox small">Канал открыт. Напиши первое сообщение.</div>'}</div><form class="dm-compose" onsubmit="sendNpcMessage(event,'${id}')"><input id="npcDmInput" maxlength="240" autocomplete="off" placeholder="Личное сообщение..." aria-label="Личное сообщение"><button type="submit">Отправить</button></form>`;
+ const logEl=$('npcDmLog');if(logEl)logEl.scrollTop=logEl.scrollHeight;
+}
+function npcReply(n,text){
+ const lower=text.toLowerCase(),name=n.name.split(' ')[0],loc=here().name;
+ if(/работ|дел|задани|заказ|помощ/.test(lower))return `Сейчас я в ${loc}. Если будет конкретное дело — поговорим. Не люблю обещать впустую.`;
+ if(/слух|новост|что происходит|обстанов/.test(lower))return `Слышал, что в округе ${loc} неспокойно. Проверяй КПК и не ходи по открытым местам без нужды.`;
+ if(/торг|куп|прод|цена|рубл/.test(lower))return `По торговле лучше подойти к местному торговцу. Я сейчас не при делах.`;
+ if(/привет|здрав|добрый/.test(lower))return `Здорово, ${g.name}. Рад знакомству. Давно здесь?`;
+ if(/опас|мутант|аномал/.test(lower))return `Не стой на месте и следи за детектором. В Зоне тишина редко бывает хорошим знаком.`;
+ const replies=['Понял тебя. Тут лишние слова иногда дороже патронов.','Может быть. Я подумаю над этим.','Сейчас не лучшее место для долгих разговоров. Но я тебя услышал.','Есть такое. Держи ухо востро, сталкер.','Не знаю, что и сказать. Время покажет.'];
+ return replies[(text.length+n.name.length)%replies.length];
+}
+function sendNpcMessage(event,id){
+ event?.preventDefault?.();const n=npcBy(id),input=$('npcDmInput'),text=input?.value?.trim();
+ if(!n||n.loc!==g.loc)return alert('Сталкер больше не находится рядом. Личный канал закрыт.');
+ if(!text)return;g.npcMessages||={};g.npcMessages[id]||=[];
+ const thread=g.npcMessages[id];thread.push({from:'player',text:text.slice(0,240),time:Date.now()});
+ thread.push({from:'npc',text:npcReply(n,text),time:Date.now()+1});
+ if(thread.length>80)thread.splice(0,thread.length-80);
+ g.careerStats.conversations=(g.careerStats.conversations||0)+1;save();renderNpcDM(id);
+}
+function openMainMenu(){
+ const overlay=$('mainMenuOverlay');if(!overlay)return;
+ $('menuProfileLine').textContent=`${g.name} · ${g.faction} · ${here().name}`;
+ $('menuLargeText').checked=!!g.options?.largeText;$('menuReduceMotion').checked=!!g.options?.reduceMotion;$('menuCompact').checked=!!g.options?.compactUI;
+ overlay.classList.add('show');overlay.setAttribute('aria-hidden','false');
+}
+function closeMainMenu(){const overlay=$('mainMenuOverlay');overlay?.classList.remove('show');overlay?.setAttribute('aria-hidden','true');}
+function menuGo(id){closeMainMenu();view(id);render();}
+function setGameOption(key,value){
+ g.options||={};g.options[key]=!!value;document.body.classList.toggle('large-text',!!g.options.largeText);document.body.classList.toggle('reduce-motion',!!g.options.reduceMotion);document.body.classList.toggle('compact-ui',!!g.options.compactUI);
+ const pairs={largeText:'settingLargeText',reduceMotion:'settingReduceMotion',compactUI:'settingCompact'},menuPairs={largeText:'menuLargeText',reduceMotion:'menuReduceMotion',compactUI:'menuCompact'};
+ if($(pairs[key]))$(pairs[key]).checked=!!value;if($(menuPairs[key]))$(menuPairs[key]).checked=!!value;save();
+}
+function applyGameOptions(){for(const [key,value] of Object.entries(g.options||{})){document.body.classList.toggle(key==='largeText'?'large-text':key==='reduceMotion'?'reduce-motion':'compact-ui',!!value);}}
 function npcServerAction(npcId,action){if(!zoneSocket?.connected)return alert("Для взаимодействия с живым NPC нужно подключение к серверу.");zoneSocket.emit("npc:interact",{npcId,action});}
 function renderQuick(){$("quickNpc").innerHTML=nearbyNpcs().slice(0,3).map(n=>`<div class="item" style="padding:7px;margin-bottom:6px"><span>${n.icon} ${n.name}</span><button onclick="meet('${n.id}')">Встреча</button></div>`).join("")||'<span class="muted small">Поблизости никого не видно.</span>'}
 function travel(id){let l=g.locations.find(x=>x.id===id);if(!l||id===g.loc)return;let cost=l.travel;if(g.stamina<cost*5)return alert("Недостаточно выносливости. Отдохни у костра.");g.stamina-=cost*5;g.loc=id;activeNpc=null;log("Переход: "+l.name+".");news("Сталкер прибыл",g.name+" прибыл в район «"+l.name+"».");if(Math.random()<.35){let event=["По дороге ты заметил следы недавнего лагеря.","На маршруте встретилась небольшая группа сталкеров.","Погода изменилась, путь занял больше времени."][Math.floor(Math.random()*3)];log(event);news("Событие в пути",event)}render();mpSyncLocation();view("world")}
@@ -346,7 +403,16 @@ function generateRumor(){let arr=["На Кордоне говорят, что т
 function clearOldNews(){g.news=g.news.slice(0,5);save()}
 function renderCraft(){$("recipes").innerHTML=[{name:"Полевой набор",desc:"Обменять 2 металлолома на 1 бинт.",cost:{scrap:2},out:"bandage"},{name:"Запас болтов",desc:"Обменять 1 металлолом на 5 болтов.",cost:{scrap:1},out:"bolt"},{name:"Аптечный комплект",desc:"Обменять 3 металлолома на аптечку.",cost:{scrap:3},out:"med"}].map((r,i)=>`<div class="item"><div><b>${r.name}</b><div class="desc">${r.desc}</div></div><button onclick="craft(${i})">Собрать</button></div>`).join("")}
 function craft(i){let recipes=[{cost:2,out:"bandage",name:"Бинт"},{cost:1,out:"bolt",name:"Болты",qty:5},{cost:3,out:"med",name:"Аптечка"}],r=recipes[i];if(count("scrap")<r.cost)return alert("Недостаточно металлолома.");take("scrap",r.cost);let map={bandage:["Бинт","Медицина","Полевой расходный предмет",.2,45],bolt:["Болты","Инструмент","Металлические болты",.1,5],med:["Аптечка","Медицина","Восстанавливает здоровье",.4,100]}[r.out];addItem(r.out,map[0],map[1],map[2],map[3],map[4],r.qty||1);log("Изготовлено: "+r.name+".");save()}
-function renderProfile(){$("profileName").textContent=g.name;$("rank").textContent=g.xp<50?"Новичок":g.xp<150?"Опытный сталкер":g.xp<300?"Следопыт":"Ветеран Зоны";$("profileStats").innerHTML=[["Группировка",g.faction],["Репутация",g.rep],["Опыт",g.xp],["Здоровье",g.hp+"%"],["Выносливость",g.stamina+"%"],["Голод",g.hunger+"%"],["Жажда",g.thirst+"%"],["Выполнено",g.completed]].map(x=>`<div class="stat"><span>${x[0]}</span><strong style="font-size:16px">${x[1]}</strong></div>`).join("");$("meetingCount").textContent=g.meetings}
+function renderProfile(){
+ const rank=g.xp<50?"Новичок":g.xp<150?"Опытный сталкер":g.xp<300?"Следопыт":g.xp<600?"Ветеран Зоны":"Легенда Зоны";
+ $("profileName").textContent=g.name;$("rank").textContent=rank;$("profileFaction").textContent=`${g.faction} · ${here().name}`;$("profileBio").textContent=`В Зоне с ${new Date(g.realTimeStartedAt||Date.now()).toLocaleDateString('ru-RU')}. Твой путь продолжается.`;
+ $("playerPortrait").innerHTML=portraitMarkup({id:'player-'+g.name,name:g.name,faction:g.faction,role:rank,icon:'☻'});
+ $("profileStats").innerHTML=[["Репутация",g.rep],["Опыт",g.xp],["Здоровье",g.hp+"%"],["Выносливость",g.stamina+"%"],["Ранг",rank],["Группировка",g.faction]].map(x=>`<div class="stat"><span>${x[0]}</span><strong style="font-size:16px">${escapeHtml(x[1])}</strong></div>`).join("");
+ const c=g.careerStats||{},artifacts=g.items.filter(x=>x.type==='Артефакт').reduce((a,x)=>a+x.qty,0),discovered=Object.values(g.keyPoints||{}).flat().filter(p=>p.discovered).length,done=g.quests.filter(q=>q.done).length;
+ $("profileCareerStats").innerHTML=[["Победы в столкновениях",c.kills||0],["Найдено артефактов",artifacts],["Открыто точек",discovered],["Заданий выполнено",done],["Локаций посещено",(g.visitedLocations||[g.loc]).length],["Переходов",c.travelled||0]].map(x=>`<div class="stat"><span>${x[0]}</span><strong>${x[1]}</strong></div>`).join("");
+ $("profileRecord").innerHTML=`<div class="record-line"><span>Позывной</span><b>${escapeHtml(g.name)}</b></div><div class="record-line"><span>Текущий сектор</span><b>${escapeHtml(here().name)}</b></div><div class="record-line"><span>Знакомства</span><b>${g.meetings||0}</b></div><div class="record-line"><span>Время в Зоне</span><b>${Math.max(0,Math.floor((Date.now()-(g.realTimeStartedAt||Date.now()))/86400000))} дн.</b></div>`;
+ $("meetingCount").textContent=g.meetings||0;
+}
 function rename(){let n=prompt("Новый позывной:",g.name);if(n&&n.trim()){g.name=n.trim().slice(0,24);log("Позывной изменён.");save()}}
 function chooseFaction(){let names=g.factions.map(f=>f.name),v=prompt("Выбери группировку:\n"+names.join("\n"),g.faction);if(!v)return;if(!names.includes(v))return alert("Такой группировки нет в списке.");g.faction=v;log("Теперь ты состоишь в группировке «"+v+"».");save();mpSyncLocation()}
 function renderAtmosphere(){
@@ -363,7 +429,7 @@ $("nearby").innerHTML=nearbyNpcs().slice(0,3).map(n=>`<div class="item"><div><b>
 $("homeNews").textContent=g.news[0]?g.news[0].title+": "+g.news[0].body:"Пока без новостей.";
 $("miniStatus").innerHTML=`<div class="item"><span>Локация</span><b>${l.name}</b></div><div class="item"><span>Выносливость</span><b>${g.stamina}%</b></div><div class="bar"><i style="width:${g.stamina}%"></i></div><div class="item"><span>Голод</span><b>${g.hunger}%</b></div><div class="bar"><i style="width:${g.hunger}%;background:#c6a16c"></i></div><div class="item"><span>Жажда</span><b>${g.thirst}%</b></div><div class="bar"><i style="width:${g.thirst}%;background:#8ab5c7"></i></div><div class="item"><span>Погода</span><b>${g.world.weather}</b></div><div class="item"><span>Фракция</span><b>${g.faction}</b></div>`;
 $("worldState").innerHTML=`<div class="item"><span>Аномальная активность</span><b>${g.world.emission}</b></div><div class="item"><span>Мутанты</span><b>${g.world.mutants}</b></div><div class="item"><span>Напряжённость</span><b>${g.world.tension}%</b></div>`;
-renderAtmosphere();renderMap();renderKeyPoints();renderStories();renderArmory();renderEncyclopedia();renderPeople();renderQuests();renderInventory();renderTrade();renderFactions();renderArchive();renderDiplomacy();renderAchievements();renderNews();renderCraft();renderProfile();renderQuick();renderLivingZone();$("log").innerHTML=g.log.map((x,i)=>`<div><time>${String(i+1).padStart(2,"0")}</time>${x}</div>`).join("")}
+applyGameOptions();renderAtmosphere();renderMap();renderKeyPoints();renderStories();renderArmory();renderEncyclopedia();renderPeople();renderQuests();renderInventory();renderTrade();renderFactions();renderArchive();renderDiplomacy();renderAchievements();renderNews();renderCraft();renderProfile();renderQuick();renderLivingZone();$("log").innerHTML=g.log.map((x,i)=>`<div><time>${String(i+1).padStart(2,"0")}</time>${x}</div>`).join("")}
 function exportSave(){let blob=new Blob([JSON.stringify(g,null,2)],{type:"application/json"}),a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="zone-online-save.json";a.click();URL.revokeObjectURL(a.href)}
 function importSave(e){let f=e.target.files[0];if(!f)return;let r=new FileReader();r.onload=()=>{try{let d=JSON.parse(r.result);if(!d.locations||!d.npcs||!d.items)throw Error();g=d;save();alert("Сохранение загружено.")}catch(err){alert("Файл сохранения не распознан.")}};r.readAsText(f)}
 function manualSave(){save();alert("Игра сохранена в этом браузере.")}
@@ -398,7 +464,7 @@ function syncNpcRosterToClient(){
   if(!npc||!npc.alive)continue;
   let local=g.npcs.find(x=>x.id===npc.id);
   if(!local){local={id:npc.id,name:npc.name,role:npc.role||'сталкер',loc:npc.location,faction:npc.faction,icon:npc.icon||'◉',desc:`${npc.personality||'обычный'} сталкер. ${npc.action==='travel'?'Сейчас в пути.':'Находится в секторе.'}`,mood:npc.mood||'нейтральное',generated:!!npc.generated,topics:[],greeting:''};g.npcs.push(local);}
-  local.name=npc.name||local.name;local.loc=npc.location||local.loc;local.faction=npc.faction||local.faction;local.role=npc.role||local.role;local.icon=npc.icon||local.icon;local.generated=!!npc.generated;local.mood=npc.mood||local.mood;local.biography=npc.biography||local.biography;local.friends=npc.friends||[];local.rivals=npc.rivals||[];local.squadId=npc.squadId||null;local.personality=npc.personality||local.personality;local.dialogueVersion=npc.dialogueVersion||0;
+  local.name=npc.name||local.name;local.loc=npc.location||local.loc;local.faction=npc.faction||local.faction;local.role=npc.role||local.role;local.icon=npc.icon||local.icon;local.generated=!!npc.generated;local.mood=npc.mood||local.mood;local.health=Number.isFinite(Number(npc.health))?Number(npc.health):local.health;local.morale=Number.isFinite(Number(npc.morale))?Number(npc.morale):local.morale;local.supplies=Number.isFinite(Number(npc.supplies))?Number(npc.supplies):local.supplies;local.action=npc.action||local.action;local.alive=npc.alive!==false;local.biography=npc.biography||local.biography;local.friends=npc.friends||[];local.rivals=npc.rivals||[];local.squadId=npc.squadId||null;local.personality=npc.personality||local.personality;local.dialogueVersion=npc.dialogueVersion||0;
   if(npc.dialogue){local.greeting=npc.dialogue.greeting;local.topics=npc.dialogue.topics;}
  }
  for(const l of g.locations||[])l.people=(g.npcs||[]).filter(n=>n.loc===l.id&&(!roster[n.id]||roster[n.id].alive!==false)).map(n=>n.id);
@@ -490,8 +556,10 @@ function combatAction(action){if(!battle)return;
 }
 
 
+const originalFinishCombat=finishCombat;
+finishCombat=function(result){if(result==='win'){g.careerStats||={};g.careerStats.kills=(g.careerStats.kills||0)+1;}return originalFinishCombat(result);};
 const originalTravel=travel;
-travel=function(id){const before=g.loc;originalTravel(id);if(g.loc!==before)setTimeout(()=>startRandomEncounter(false),120);};
+travel=function(id){const before=g.loc;originalTravel(id);if(g.loc!==before){g.careerStats||={};g.careerStats.travelled=(g.careerStats.travelled||0)+1;g.visitedLocations||=[before];if(!g.visitedLocations.includes(g.loc))g.visitedLocations.push(g.loc);save();setTimeout(()=>startRandomEncounter(false),120);}};
 const originalExplore=explore;
 explore=function(){if(battle)return;originalExplore();if(!battle)setTimeout(()=>startRandomEncounter(false),80);};
 
