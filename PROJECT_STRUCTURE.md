@@ -49,3 +49,5 @@ ZONE_ONLINE/
 - `src/systems/npc-dialogue.js` — contextual long-form dialogue and server-selected topic replies.
 - `server.js` — repaired safe-state wiring and acknowledged multiplayer login handshake.
 - `public/js/game.js` — visible connection diagnostics, server-driven dialogue topics, squad and memorial UI.
+
+- `tests/client-smoke.test.js` — browser startup and navigation smoke tests for all main views.

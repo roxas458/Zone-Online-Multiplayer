@@ -1,8 +1,8 @@
 {
   "name": "zone-online",
-  "version": "4.7.0",
+  "version": "4.7.1",
   "private": true,
-  "description": "SOULS OF THE ZONE: reliable multiplayer login, persistent NPC biographies, relationships, squads, raids and memorials",
+  "description": "SOULS OF THE ZONE stability patch: repaired browser bootstrap, configurable Socket.IO endpoint and robust client loading",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",

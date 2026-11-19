@@ -30,8 +30,8 @@ const io = new Server(server, { cors: { origin: true, methods: ['GET','POST'] },
 const PORT = process.env.PORT || 3000;
 
 app.use(express.static(path.join(__dirname, 'public')));
-app.get('/health', (_req,res) => res.json({ ok:true, service:'ZONE ONLINE 4.7 SOULS OF THE ZONE', database:dbReady?'postgres':'memory-fallback', online:online.size, revision:world.revision||1 }));
-app.get('/api/status', (_req,res) => res.json({ ...publicWorldStatus(world, online.size), persistent:dbReady, service:'ZONE ONLINE 4.7 SOULS OF THE ZONE' }));
+app.get('/health', (_req,res) => res.json({ ok:true, service:'ZONE ONLINE 4.7.1 SOULS OF THE ZONE — STABILITY PATCH', database:dbReady?'postgres':'memory-fallback', online:online.size, revision:world.revision||1 }));
+app.get('/api/status', (_req,res) => res.json({ ...publicWorldStatus(world, online.size), persistent:dbReady, service:'ZONE ONLINE 4.7.1 SOULS OF THE ZONE — STABILITY PATCH' }));
 app.get('/api/world/snapshot', (_req,res) => res.json({ status:publicWorldStatus(world, online.size), world }));
 app.get('/api/world/events', (req,res) => { const since=Number(req.query.since||0); const sync=buildWorldSync(world, Number.isSafeInteger(since)?since:0); res.json(sync); });
 

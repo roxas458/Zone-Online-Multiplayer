@@ -29,6 +29,7 @@
 <div class="view" id="profile"><div class="eyebrow">ЛИЧНОЕ ДЕЛО / СТАЛКЕР</div><h1 id="profileName">Новичок</h1><div class="hero"><span class="tag" id="rank">Новичок</span><p class="muted small">Твоя история в Зоне записывается в КПК.</p></div><div class="grid three" id="profileStats"></div><div class="section">Личные настройки</div><div class="item"><span>Позывной</span><button onclick="rename()">Изменить</button></div><div class="item"><span>Группировка</span><button onclick="chooseFaction()">Сменить сторону</button></div><div class="item"><span>Статистика встреч</span><b id="meetingCount">0</b></div></div>
 <div class="view" id="multiplayer">
 <div class="eyebrow">СЕТЬ / СОВМЕСТНАЯ ЗОНА</div><h1>Мультиплеер</h1>
+<div class="item block"><label class="small" for="mpServerUrl">Адрес игрового сервера</label><input id="mpServerUrl" class="field" type="url" placeholder="https://твой-сервер.onrender.com" autocomplete="url"><div class="desc">Если игра открыта не с сайта игрового сервера, укажи здесь адрес Render/Node-сервера. Если игра и сервер размещены вместе — оставь поле пустым.</div><button id="mpConnect" onclick="mpConnect()" style="margin-top:8px">Подключиться / переподключиться</button></div>
 <div class="hero"><div class="eyebrow">ОНЛАЙН-СВЯЗЬ</div><b id="mpStatus">Не подключено</b><div class="muted small" id="mpStatusText">Подключись к серверу, чтобы увидеть других сталкеров.</div></div>
 <div class="section">Твой сетевой профиль</div>
 <div class="item block"><label class="small">Позывной</label><input id="mpName" class="field" maxlength="24" placeholder="Позывной сталкера"><button id="mpJoin" onclick="mpRename()" style="margin-top:8px">Обновить позывной</button></div>
@@ -47,5 +48,20 @@
 <section class="panel"><h2>Лента КПК</h2><div class="log" id="log"></div></section>
 <section class="panel"><h2>Мировая обстановка</h2><div style="padding:11px;display:grid;gap:7px" id="worldState"></div></section>
 </aside></main><footer>Неофициальная фанатская игра. Интерфейс и графика созданы специально для ZONE ONLINE; игровые персонажи, события, цены и параметры частично симулируются. Не связан с правообладателями S.T.A.L.K.E.R.</footer>
-<script src="/socket.io/socket.io.js"></script><script src="/js/content.js"></script>
-<script src="/js/game.js?v=4.7.0" defer></script></body></html>
+<script>
+window.zoneSocketClientReady = new Promise(resolve => {
+  const local = document.createElement('script');
+  local.src = '/socket.io/socket.io.js';
+  local.onload = () => resolve(true);
+  local.onerror = () => {
+    const fallback = document.createElement('script');
+    fallback.src = 'https://cdn.socket.io/4.8.1/socket.io.min.js';
+    fallback.onload = () => resolve(true);
+    fallback.onerror = () => resolve(false);
+    document.head.appendChild(fallback);
+  };
+  document.head.appendChild(local);
+});
+</script>
+<script src="/js/content.js"></script>
+<script src="/js/game.js?v=4.7.1" defer></script></body></html>

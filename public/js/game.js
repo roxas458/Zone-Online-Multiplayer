@@ -282,12 +282,15 @@ function exportSave(){let blob=new Blob([JSON.stringify(g,null,2)],{type:"applic
 function importSave(e){let f=e.target.files[0];if(!f)return;let r=new FileReader();r.onload=()=>{try{let d=JSON.parse(r.result);if(!d.locations||!d.npcs||!d.items)throw Error();g=d;save();alert("Сохранение загружено.")}catch(err){alert("Файл сохранения не распознан.")}};r.readAsText(f)}
 function manualSave(){save();alert("Игра сохранена в этом браузере.")}
 function resetGame(){if(confirm("Начать заново? Текущее локальное сохранение будет заменено.")){g=clone(base);activeNpc=null;chosenLoc=null;save();view("home")}}
-render();
-
-// GLOBAL ONLINE WORLD: one shared server, no private rooms.
+// GLOBAL ONLINE WORLD state must exist before the first render: renderPeople()
+ // reads serverWorld while building the initial NPC roster.
 let zoneSocket=null, zonePlayerId=localStorage.getItem('zoneOnlinePlayerId')||'';
 let onlinePlayers=[], serverWorld=null, serverChat=[], incomingTrades=[];
 let applyingServerState=false;
+
+render();
+
+// GLOBAL ONLINE WORLD: one shared server, no private rooms.
 function renderOnlinePlayers(){
  const make=(p)=>`<div class="item"><div style="display:flex;justify-content:space-between;gap:8px;align-items:center"><div><b>🟢 ${escapeHtml(p.name)}</b><div class="desc">${escapeHtml(p.faction)} · ${escapeHtml(locationName(p.location))}</div></div><span class="tag">${p.hp}% HP</span></div></div>`;
  const all=onlinePlayers.map(make).join('')||'<div class="mutedbox small">Сейчас никого нет. Ты можешь быть первым.</div>';
@@ -485,11 +488,18 @@ function setOnlineConnectionState(state,message){
  if(title)title.textContent=state==="online"?"🟢 Подключено к общей Зоне":state==="connecting"?"🟡 Подключение к серверу…":"🔴 Нет соединения";
  if(detail)detail.textContent=message|| (state==="online"?"Сервер подтвердил вход. Игроки и мир синхронизированы.":state==="connecting"?"Устанавливаем связь и загружаем профиль…":"Сервер недоступен. Проверяем соединение и повторяем попытку.");
 }
-function connectZone(){
- if(typeof io!=='function'){$('mpStatusText').textContent='Не удалось загрузить Socket.IO. Обнови страницу.';return;}
- zoneSocket=io({transports:['polling','websocket'],upgrade:true,timeout:10000,reconnection:true,reconnectionAttempts:Infinity,reconnectionDelay:1000,reconnectionDelayMax:8000});
+async function connectZone(){
+ const clientReady = window.zoneSocketClientReady ? await window.zoneSocketClientReady : (typeof io==='function');
+ if(!clientReady || typeof io!=='function'){
+  setOnlineConnectionState('offline','Не удалось загрузить Socket.IO. Проверь интернет или открой игру с сервера. Если игра размещена отдельно, укажи адрес Node-сервера ниже.');
+  return;
+ }
+ if(zoneSocket){try{zoneSocket.removeAllListeners();zoneSocket.disconnect();}catch{}}
+ const serverUrl=(localStorage.getItem('zoneServerUrl')||'').trim();
+ if($('mpServerUrl') && $('mpServerUrl').value!==serverUrl)$('mpServerUrl').value=serverUrl;
+ try{zoneSocket=io(serverUrl||undefined,{transports:['polling','websocket'],upgrade:true,timeout:10000,reconnection:true,reconnectionAttempts:Infinity,reconnectionDelay:1000,reconnectionDelayMax:8000});
  zoneSocket.on('connect',()=>{setOnlineConnectionState('connecting','Связь установлена. Завершаем вход в Зону…');const lastRevision=Number(localStorage.getItem('zoneWorldRevision')||0);zoneSocket.timeout(12000).emit('player:hello',{id:zonePlayerId,state:g,lastRevision},(err,result)=>{if(err){setOnlineConnectionState('offline','Сервер не ответил на запрос входа за 12 секунд. Проверь адрес сервера и его журнал ошибок.');console.error('player:hello acknowledgement timeout');return;}if(!result?.ok){setOnlineConnectionState('offline',result?.message||'Сервер отклонил вход.');}});});
- zoneSocket.on('connect_error',err=>{setOnlineConnectionState('offline',`Не удалось подключиться: ${err?.message||'ошибка сети'}. Повторяем попытку…`);});
+ zoneSocket.on('connect_error',err=>{const target=(localStorage.getItem('zoneServerUrl')||window.location.origin).trim();setOnlineConnectionState('offline',`Не удалось подключиться к ${target}: ${err?.message||'ошибка сети'}. Проверь адрес сервера, его запуск и доступность /health.`);});
  zoneSocket.io.on('reconnect_attempt',()=>setOnlineConnectionState('connecting','Повторное подключение к серверу…'));
  zoneSocket.on('player:hello:error',data=>setOnlineConnectionState('offline',data?.message||'Не удалось завершить вход.'));
  zoneSocket.on('server:error',e=>{console.warn(e.message);setOnlineConnectionState('offline',e?.message||'Ошибка сервера.');});
@@ -529,6 +539,17 @@ function connectZone(){
  zoneSocket.on('world:update',data=>{serverWorld=data.world||serverWorld;if(Number.isFinite(Number(serverWorld?.revision)))localStorage.setItem('zoneWorldRevision',String(serverWorld.revision));renderOnlineWorldStatus();renderWar();renderCoopQuests(serverWorld?.coOpQuests||[]);if(serverWorld?.diplomacy){g.diplomacy=serverWorld.diplomacy;localStorage.setItem('zoneExpandedSave',JSON.stringify(g));renderDiplomacy();}if(data.notice){g.news.unshift({day:g.day,hour:String(g.hour).padStart(2,'0')+':00',title:'Мировая сводка',body:data.notice});g.news=g.news.slice(0,40);renderNews();}});
  zoneSocket.on('diplomacy:result',data=>{if(!data.ok){alert(data.message||'Операция не выполнена.');return;}if(data.state){g.money=data.state.money;g.rep=data.state.rep;localStorage.setItem('zoneExpandedSave',JSON.stringify(g));}if(data.world?.diplomacy)g.diplomacy=data.world.diplomacy;render();});
  zoneSocket.on('disconnect',reason=>{setOnlineConnectionState('offline',`Связь потеряна (${reason||'disconnect'}). Автоматически переподключаемся…`);renderOnlinePlayers();renderOnlineWorldStatus();});
+ }catch(error){console.error('Socket.IO initialization failed:',error);setOnlineConnectionState('offline','Не удалось запустить сетевой клиент: '+(error?.message||'неизвестная ошибка'));}
+}
+function mpConnect(){
+ const field=$('mpServerUrl'),raw=(field?.value||'').trim();
+ if(raw){
+  let parsed;try{parsed=new URL(raw);}catch{return alert('Укажи полный адрес сервера, например https://zone-online.onrender.com');}
+  if(!['http:','https:'].includes(parsed.protocol))return alert('Адрес сервера должен начинаться с http:// или https://');
+  localStorage.setItem('zoneServerUrl',parsed.origin);
+ }else localStorage.removeItem('zoneServerUrl');
+ setOnlineConnectionState('connecting','Проверяем адрес сервера и устанавливаем новое соединение…');
+ connectZone();
 }
 // All normal game saves are mirrored to the server. The server keeps one profile per player.
 save=function(){localStorage.setItem('zoneExpandedSave',JSON.stringify(g));render();if(!applyingServerState&&zoneSocket?.connected&&zonePlayerId){zoneSocket.emit('player:save',g);zoneSocket.emit('player:update',{name:g.name,location:g.loc,faction:g.faction});}};

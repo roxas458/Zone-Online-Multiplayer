@@ -1,4 +1,4 @@
-# ZONE ONLINE 4.7 — SOULS OF THE ZONE
+# ZONE ONLINE 4.7.1 — SOULS OF THE ZONE · STABILITY PATCH
 
 ZONE ONLINE 4.5 extends 4.4 NPC AI and 4.3 WAR SYSTEM with revisioned shared-world replication and reconnect recovery.
 
@@ -75,3 +75,27 @@ npm test
 npm start
 ```
 Set `DATABASE_URL` to a PostgreSQL connection string for durable player/world state. Without it, multiplayer works while the process is running, but world and profile persistence reset when the server restarts. Deploy the whole folder to the Node service; do not open `public/index.html` as a local file. The browser must load `/socket.io/socket.io.js` from the same deployed server origin. After deployment, open `https://YOUR-SERVER/health`; the response should contain `ok: true`. Then reload the game. If the page is still served from an old static-host URL while the socket points elsewhere, configure the client and server under the same origin or use an explicit Socket.IO server URL.
+
+
+## 4.7.1 — Stability patch
+
+### Critical browser bootstrap fix
+- Fixed a startup-order bug in `public/js/game.js`: the first `render()` ran before the `serverWorld` multiplayer state was initialized. The initial NPC render called `syncNpcRosterToClient()`, which accessed the `let serverWorld` binding in its temporal dead zone and threw a `ReferenceError`. This could leave the game page partially rendered and prevent the rest of the client initialization from running.
+- Multiplayer state is now initialized before the first render.
+- Added a browser smoke test that executes both client scripts with a DOM stub and opens every main game view.
+
+### More reliable multiplayer setup
+- The page now loads the Socket.IO client from the same-origin server first and falls back to the official Socket.IO CDN if the game is hosted separately.
+- Added a multiplayer server URL field. If the browser game is hosted on a static site, enter the full Node/Render server origin there (for example `https://your-service.onrender.com`) and press **Подключиться / переподключиться**.
+- If the game and Node server are hosted by the same service, leave the server URL field empty.
+- The client reports the target address and connection error rather than silently retrying an unknown origin.
+- Socket connection retries remain enabled after the initial connection attempt.
+
+### Verification
+```bash
+npm run check
+npm test
+```
+- JavaScript syntax checks pass.
+- 24 automated tests pass, including browser bootstrap and navigation smoke tests.
+- The full Socket.IO + PostgreSQL production deployment still needs an end-to-end check on the actual hosting provider, because deployment secrets and the live server URL are not part of this archive.

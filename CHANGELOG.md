@@ -1,4 +1,4 @@
-# Changelog — ZONE ONLINE 4.7 SOULS OF THE ZONE
+# Changelog — ZONE ONLINE 4.7.1 SOULS OF THE ZONE — STABILITY PATCH
 
 ## Multiplayer reliability fixes
 - Fixed missing `safeState` initialization that caused `player:hello` to throw before emitting `player:ready`.
@@ -18,3 +18,11 @@
 ## Compatibility
 - Existing player saves and world state are retained; new NPC fields are initialized lazily.
 - Existing WAR SYSTEM, ONLINE WORLD, ecosystem, markets and clans remain in place.
+
+
+## 4.7.1 — STABILITY PATCH
+- Fixed critical client startup ReferenceError caused by the first render accessing `serverWorld` before its `let` initialization.
+- Added browser bootstrap and all-view smoke tests.
+- Added same-origin Socket.IO loading with CDN fallback.
+- Added configurable multiplayer server URL and clearer connection diagnostics.
+- Preserved all existing 4.7 gameplay systems and saves.
