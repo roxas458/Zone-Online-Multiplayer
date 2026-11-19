@@ -1,6 +1,6 @@
 {
-  "name": "zone-online-multiplayer",
-  "version": "2.0.0",
+  "name": "zone-online",
+  "version": "2.2.0",
   "private": true,
   "description": "Persistent shared-world browser RPG with global realtime multiplayer",
   "main": "server.js",

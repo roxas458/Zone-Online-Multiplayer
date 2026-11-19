@@ -54,9 +54,9 @@ button{background:linear-gradient(180deg,#424735,#292f23);border:1px solid #7273
 <div class="section">Последняя сводка</div><div id="homeNews" class="mutedbox small"></div></div>
 <div class="view" id="world"><div class="eyebrow">КАРТОГРАФИЯ / ТЕРРИТОРИИ</div><h1>Карта Зоны</h1><p class="muted small">Выбирай место для перехода. Путешествие расходует время и силы; в пути могут встретиться персонажи, события и опасности.</p><div class="zone-map-frame"><div class="map-legend"><span>● Текущая позиция</span><span>◆ Контроль группировок</span><span>⌖ Переходы между секторами</span></div><div id="zoneMap" class="zone-map"></div></div><div class="section">Сталкеры рядом с тобой</div><div id="nearbyPlayers" class="list"><div class="mutedbox small">Загружаем данные КПК…</div></div><div class="section">Список секторов</div><div class="map" id="map"></div><div id="locationInfo" class="dialogue">Выбери локацию.</div></div>
 <div class="view" id="people"><div class="eyebrow">КОНТАКТЫ / ВСТРЕЧИ</div><h1>Персонажи Зоны</h1><p class="muted small">Не все персонажи находятся в одном месте. Перемещайся по карте, чтобы встречать новых людей.</p><div class="list" id="peopleList"></div><div class="section">Текущий разговор</div><div id="dialogueBox" class="mutedbox">Пока ты ни с кем не разговариваешь.</div></div>
-<div class="view" id="quests"><div class="eyebrow">ЖУРНАЛ / ИСТОРИИ И ПОРУЧЕНИЯ</div><h1>Задания</h1><div class="tabs"><button onclick="questFilter='all';renderQuests()">Все</button><button onclick="questFilter='active';renderQuests()">Активные</button><button onclick="questFilter='done';renderQuests()">Завершённые</button></div><div id="questList" class="list"></div></div>
+<div class="view" id="quests"><div class="eyebrow">ЖУРНАЛ / ИСТОРИИ И ПОРУЧЕНИЯ</div><h1>Задания</h1><div class="tabs"><button onclick="questFilter='all';renderQuests()">Все</button><button onclick="questFilter='active';renderQuests()">Активные</button><button onclick="questFilter='done';renderQuests()">Завершённые</button></div><div id="questList" class="list"></div><div class="section">Совместные задания Зоны</div><p class="muted small">Общие цели для группы игроков. Каждый участник должен вступить в группу и прибыть в нужный сектор.</p><div id="coopQuestList" class="list"></div></div>
 <div class="view" id="inventory"><div class="eyebrow">СНАРЯЖЕНИЕ / РЮКЗАК</div><h1>Инвентарь</h1><div class="grid three"><div class="stat"><span>Вес</span><strong id="weight">—</strong></div><div class="stat"><span>Лимит</span><strong>35 кг</strong></div><div class="stat"><span>Предметов</span><strong id="itemCount">—</strong></div></div><div class="inventory-layout"><div><div class="section">Рюкзак · сетка предметов</div><div id="items" class="inventory-grid"></div></div><div><div class="section">Экипировка сталкера</div><div id="equipment" class="equipment-panel"></div><div class="section">Состояние снаряжения</div><div id="gearStats" class="mutedbox small"></div></div></div></div>
-<div class="view" id="trade"><div class="eyebrow">ЭКОНОМИКА / ОБМЕН</div><h1>Торговля</h1><div class="item"><div><b id="traderName">Торговец</b><div class="desc" id="traderPlace"></div></div><span class="tag">На связи</span></div><div class="section">Товары</div><div id="shop" class="list"></div><div class="section">Продать найденное</div><div id="sellList" class="list"></div></div>
+<div class="view" id="trade"><div class="eyebrow">ЭКОНОМИКА / ОБМЕН</div><h1>Торговля</h1><div class="item"><div><b id="traderName">Торговец</b><div class="desc" id="traderPlace"></div></div><span class="tag">На связи</span></div><div class="section">Товары</div><div id="shop" class="list"></div><div class="section">Продать найденное</div><div id="sellList" class="list"></div><div class="section">Обмен между игроками</div><div id="playerTrade" class="list"><div class="mutedbox small">Подключись к общей Зоне.</div></div><div class="section">Входящие предложения</div><div id="incomingTrades" class="list"></div></div>
 <div class="view" id="factions"><div class="eyebrow">ПОЛИТИКА / БАЛАНС СИЛ</div><h1>Группировки</h1><div id="factionList" class="list"></div><div class="section">Ваши отношения</div><div id="relations" class="list"></div></div>
 <div class="view" id="diplomacy"><div class="eyebrow">КОНТАКТЫ / ПЕРЕГОВОРЫ / ВЛИЯНИЕ</div><h1>Дипломатия группировок</h1><p class="muted small">Отношения меняются через переговоры, обмен информацией и торговые договорённости. Решения отражаются в репутации и новостях Зоны.</p><div id="diplomacySummary" class="grid three"></div><div class="section">Дипломатические каналы</div><div id="diplomacyList" class="list"></div></div>
 <div class="view" id="achievements"><div class="eyebrow">ЛИЧНОЕ ДЕЛО / НАГРАДЫ</div><h1>Достижения</h1><div class="grid three" id="achievementStats"></div><div class="section">Журнал достижений</div><div id="achievementList" class="achievement-grid"></div></div>
@@ -72,9 +72,9 @@ button{background:linear-gradient(180deg,#424735,#292f23);border:1px solid #7273
 <div class="section">Общий канал КПК</div>
 <div id="mpChat" class="log" style="max-height:260px;background:#111a13;border:1px solid var(--line);border-radius:8px"></div>
 <div class="rightbuttons" style="margin-top:8px"><input id="mpMessage" class="field" maxlength="240" placeholder="Сообщение в общий канал" style="flex:1;min-width:140px"><button onclick="mpSend()">Отправить</button></div>
-<p class="muted small">Единый серверный мир: общий список игроков, глобальный КПК-чат, серверные профили, синхронизация локаций и дипломатии. Прогресс хранится на сервере, а при подключении загружается на устройство.</p>
+<p class="muted small">Единый серверный мир: список игроков, общий чат, перемещение NPC, совместные задания, серверная торговля и дипломатия. Для обмена между игроками нужна PostgreSQL.</p>
 </div>
-<div class="view" id="settings"><div class="eyebrow">СИСТЕМА / ДАННЫЕ</div><h1>Настройки и сохранение</h1><div class="mutedbox small">Прогресс синхронизируется с серверным профилем и дополнительно кэшируется в браузере. Для переноса на другое устройство используй тот же профильный ID браузера или резервный экспорт.</div><div class="grid" style="margin-top:10px"><button onclick="exportSave()">⇩ Экспорт сохранения</button><button onclick="document.getElementById('importFile').click()">⇧ Импорт сохранения</button><button onclick="manualSave()">Сохранить сейчас</button><button onclick="resetGame()">Начать новую игру</button></div><input id="importFile" type="file" accept=".json,application/json" style="display:none" onchange="importSave(event)"><div class="section">Игровые правила</div><div class="mutedbox small">Время, перемещения, встречи, задания и контроль территорий работают в рамках локальной симуляции. Мультиплеер подключается через отдельный сервер: общий чат, список игроков и синхронизация локаций.</div></div>
+<div class="view" id="settings"><div class="eyebrow">СИСТЕМА / ДАННЫЕ</div><h1>Настройки и сохранение</h1><div class="mutedbox small">Прогресс синхронизируется с серверным профилем и дополнительно кэшируется в браузере. Для переноса на другое устройство используй тот же профильный ID браузера или резервный экспорт.</div><div class="grid" style="margin-top:10px"><button onclick="exportSave()">⇩ Экспорт сохранения</button><button onclick="document.getElementById('importFile').click()">⇧ Импорт сохранения</button><button onclick="manualSave()">Сохранить сейчас</button><button onclick="resetGame()">Начать новую игру</button></div><input id="importFile" type="file" accept=".json,application/json" style="display:none" onchange="importSave(event)"><div class="section">Игровые правила</div><div class="mutedbox small">Часть сюжетных заданий, диалогов и исследования пока рассчитывается в браузере. Онлайн-сделки, совместные задания, позиции основных NPC и дипломатия проверяются сервером.</div></div>
 </section>
 <aside class="right">
 <section class="panel"><h2>КПК / текущая ситуация</h2><div style="padding:11px" id="miniStatus"></div></section>
@@ -250,7 +250,7 @@ render();
 
 // GLOBAL ONLINE WORLD: one shared server, no private rooms.
 let zoneSocket=null, zonePlayerId=localStorage.getItem('zoneOnlinePlayerId')||'';
-let onlinePlayers=[], serverWorld=null, serverChat=[];
+let onlinePlayers=[], serverWorld=null, serverChat=[], incomingTrades=[];
 let applyingServerState=false;
 function renderOnlinePlayers(){
  const make=(p)=>`<div class="item"><div style="display:flex;justify-content:space-between;gap:8px;align-items:center"><div><b>🟢 ${escapeHtml(p.name)}</b><div class="desc">${escapeHtml(p.faction)} · ${escapeHtml(locationName(p.location))}</div></div><span class="tag">${p.hp}% HP</span></div></div>`;
@@ -262,6 +262,22 @@ function renderOnlinePlayers(){
 }
 function locationName(id){return g.locations.find(x=>x.id===id)?.name||id||'Неизвестно'}
 function escapeHtml(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function applySharedNpcPositions(positions){
+ if(!positions||typeof positions!=='object')return;
+ for(const n of g.npcs||[]){if(positions[n.id]&&g.locations.some(l=>l.id===positions[n.id]))n.loc=positions[n.id];}
+ for(const l of g.locations||[])l.people=(g.npcs||[]).filter(n=>n.loc===l.id).map(n=>n.id);
+ renderPeople();renderQuick();if($('people').classList.contains('active'))renderPeople();
+}
+function renderPlayerTrade(){const el=$('playerTrade');if(!el)return;const others=onlinePlayers.filter(p=>p.id!==zonePlayerId);if(!others.length){el.innerHTML='<div class="mutedbox small">Пока нет других игроков онлайн.</div>';return;}
+ const items=(g.items||[]).filter(x=>x.qty>0&&['med','bread','bolt','scrap','bandage','artifact'].includes(x.id));
+ el.innerHTML=others.map(p=>`<div class="item block"><b>${escapeHtml(p.name)}</b><div class="desc">${escapeHtml(p.faction)} · ${escapeHtml(locationName(p.location))}</div><div class="rightbuttons" style="margin-top:7px"><select class="field" id="tradeItem_${p.id}">${items.map(x=>`<option value="${escapeHtml(x.id)}">${escapeHtml(x.name)} · есть ${x.qty}</option>`).join('')}</select><input class="field" id="tradeQty_${p.id}" type="number" min="1" max="99" value="1" style="width:62px"><input class="field" id="tradePrice_${p.id}" type="number" min="0" max="1000000" value="0" style="width:82px" placeholder="₽"><button onclick="sendPlayerTrade('${p.id}')" ${items.length?'':'disabled'}>Предложить</button></div></div>`).join('');
+}
+function sendPlayerTrade(to){if(!zoneSocket?.connected)return alert('Нет соединения.');const item=$(`tradeItem_${to}`)?.value,qty=Number($(`tradeQty_${to}`)?.value),price=Number($(`tradePrice_${to}`)?.value);zoneSocket.emit('trade:offer',{to,item,qty,price});}
+function renderIncomingTrades(){const el=$('incomingTrades');if(!el)return;el.innerHTML=incomingTrades.map(o=>`<div class="item block"><b>${escapeHtml(o.fromName)}</b><div class="desc">Предлагает: ${escapeHtml(o.itemName)} ×${o.qty} за ${o.price} ₽</div><div class="rightbuttons"><button onclick="respondTrade('${o.id}',true)">Принять</button><button onclick="respondTrade('${o.id}',false)">Отклонить</button></div></div>`).join('')||'<div class="mutedbox small">Нет входящих предложений.</div>';}
+function respondTrade(offerId,accept){zoneSocket?.emit('trade:respond',{offerId,accept});incomingTrades=incomingTrades.filter(x=>x.id!==offerId);renderIncomingTrades();}
+function renderCoopQuests(list){const el=$('coopQuestList');if(!el)return;el.innerHTML=(list||[]).map(q=>{const joined=q.participants?.includes(zonePlayerId),arrived=q.arrivals?.includes(zonePlayerId);return `<div class="item block"><div style="display:flex;justify-content:space-between;gap:8px"><b>${escapeHtml(q.title)}</b><span class="tag">${q.done?'Выполнено':`${q.arrivals?.length||0}/${q.required} прибыли`}</span></div><div class="desc">${escapeHtml(q.description)} · сектор: ${escapeHtml(locationName(q.location))}</div><div class="small">Группа: ${q.participants?.length||0} · награда: ${q.reward} ₽ и ${q.xp} опыта</div><div class="rightbuttons" style="margin-top:7px">${!joined&&!q.done?`<button onclick="joinCoop('${q.id}')">Вступить</button>`:''}${joined&&!arrived&&!q.done?`<button onclick="contributeCoop('${q.id}')">Отметить прибытие</button>`:''}</div></div>`}).join('')||'<div class="mutedbox small">Пока нет совместных заданий.</div>';}
+function joinCoop(id){zoneSocket?.emit('coop:join',{questId:id});}
+function contributeCoop(id){zoneSocket?.emit('coop:contribute',{questId:id});}
 function renderServerChat(){const el=$('mpChat');if(!el)return;el.innerHTML='';for(const m of serverChat.slice(-80)){const row=document.createElement('div');row.style.padding='5px 8px';const time=new Date(m.time||Date.now()).toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'});row.textContent=`[${time}] ${m.name}: ${m.text}`;el.appendChild(row);}el.scrollTop=el.scrollHeight;}
 function mpSend(){const input=$('mpMessage');const text=input?.value?.trim();if(!text)return;if(!zoneSocket?.connected)return alert('Нет соединения с сервером.');zoneSocket.emit('world:chat:send',{text});input.value='';}
 function mpRename(){const n=$('mpName')?.value?.trim();if(!n)return alert('Введи позывной.');g.name=n.slice(0,24);save();if(zoneSocket?.connected)zoneSocket.emit('player:update',{name:g.name,location:g.loc,faction:g.faction});}
@@ -273,22 +289,32 @@ function connectZone(){
  zoneSocket.on('player:ready',data=>{
   zonePlayerId=data.id;localStorage.setItem('zoneOnlinePlayerId',zonePlayerId);
   if(data.savedState&&typeof data.savedState==='object'){applyingServerState=true;g=data.savedState;migrateWorld();localStorage.setItem('zoneExpandedSave',JSON.stringify(g));applyingServerState=false;render();}
-  serverWorld=data.world||null;if(serverWorld?.diplomacy){g.diplomacy=serverWorld.diplomacy;renderDiplomacy();}
+  serverWorld=data.world||null;if(serverWorld?.diplomacy){g.diplomacy=serverWorld.diplomacy;renderDiplomacy();}if(serverWorld?.npcPositions)applySharedNpcPositions(serverWorld.npcPositions);renderCoopQuests(serverWorld?.coOpQuests||[]);
   onlinePlayers=data.players||[];serverChat=data.chat||[];renderOnlinePlayers();renderServerChat();
   if($('mpName'))$('mpName').value=g.name;
   $('mpStatusText').textContent=data.persistent?'Сервер подключён · профиль и общий мир сохраняются в PostgreSQL.':'Сервер подключён · внимание: без PostgreSQL прогресс на сервере сбросится после перезапуска.';
   if(!data.savedState)zoneSocket.emit('player:save',g);
-  mpSyncLocation();
+  renderPlayerTrade();renderIncomingTrades();mpSyncLocation();
  });
- zoneSocket.on('world:players',list=>{onlinePlayers=list||[];renderOnlinePlayers();});
+ zoneSocket.on('world:players',list=>{onlinePlayers=list||[];renderOnlinePlayers();renderPlayerTrade();});
+ zoneSocket.on('world:npcs',positions=>applySharedNpcPositions(positions));
+ zoneSocket.on('world:coop',list=>renderCoopQuests(list));
+ zoneSocket.on('trade:incoming',offer=>{incomingTrades.push(offer);renderIncomingTrades();});
+ zoneSocket.on('market:result',data=>{if(data.state){g=data.state;localStorage.setItem('zoneExpandedSave',JSON.stringify(g));render();}alert(data.message||'Операция выполнена.');});
+ zoneSocket.on('trade:result',data=>{alert(data.message|| (data.ok?'Обмен выполнен.':'Обмен не выполнен.'));if(data.state){g=data.state;localStorage.setItem('zoneExpandedSave',JSON.stringify(g));render();}});
+ zoneSocket.on('coop:result',data=>{alert(data.message||'');});
+ zoneSocket.on('coop:reward',data=>{if(data.state){g=data.state;localStorage.setItem('zoneExpandedSave',JSON.stringify(g));render();}alert(`Совместное задание выполнено: +${data.reward} ₽ и ${data.xp} опыта.`);});
  zoneSocket.on('world:chat',m=>{serverChat.push(m);if(serverChat.length>100)serverChat=serverChat.slice(-100);renderServerChat();});
- zoneSocket.on('world:update',data=>{serverWorld=data.world||serverWorld;if(serverWorld?.diplomacy){g.diplomacy=serverWorld.diplomacy;localStorage.setItem('zoneExpandedSave',JSON.stringify(g));renderDiplomacy();}if(data.notice){g.news.unshift({day:g.day,hour:String(g.hour).padStart(2,'0')+':00',title:'Дипломатия Зоны',body:data.notice});g.news=g.news.slice(0,40);renderNews();}});
+ zoneSocket.on('world:update',data=>{serverWorld=data.world||serverWorld;renderCoopQuests(serverWorld?.coOpQuests||[]);if(serverWorld?.diplomacy){g.diplomacy=serverWorld.diplomacy;localStorage.setItem('zoneExpandedSave',JSON.stringify(g));renderDiplomacy();}if(data.notice){g.news.unshift({day:g.day,hour:String(g.hour).padStart(2,'0')+':00',title:'Дипломатия Зоны',body:data.notice});g.news=g.news.slice(0,40);renderNews();}});
  zoneSocket.on('diplomacy:result',data=>{if(!data.ok){alert(data.message||'Операция не выполнена.');return;}if(data.state){g.money=data.state.money;g.rep=data.state.rep;localStorage.setItem('zoneExpandedSave',JSON.stringify(g));}if(data.world?.diplomacy)g.diplomacy=data.world.diplomacy;render();});
  zoneSocket.on('server:error',e=>{console.warn(e.message);});
  zoneSocket.on('disconnect',()=>renderOnlinePlayers());
 }
 // All normal game saves are mirrored to the server. The server keeps one profile per player.
-save=function(){localStorage.setItem('zoneExpandedSave',JSON.stringify(g));render();if(!applyingServerState&&zoneSocket?.connected&&zonePlayerId)zoneSocket.emit('player:save',g);};
+save=function(){localStorage.setItem('zoneExpandedSave',JSON.stringify(g));render();if(!applyingServerState&&zoneSocket?.connected&&zonePlayerId){zoneSocket.emit('player:save',g);zoneSocket.emit('player:update',{name:g.name,location:g.loc,faction:g.faction});}};
+// Vendor transactions are validated by the server while online.
+buy=function(i){const x=tradeGoods()[i];if(!x)return;if(zoneSocket?.connected){zoneSocket.emit('market:buy',{item:x[1]});return;}if(g.money<x[3])return alert('Не хватает рублей.');g.money-=x[3];addItem(x[1],x[0],x[2],x[5],x[4],Math.floor(x[1]==='bolt'?5:1));log('Куплено: '+x[0]+'.');save();};
+sell=function(id){if(zoneSocket?.connected){zoneSocket.emit('market:sell',{item:id});return;}const x=g.items.find(i=>i.id===id);if(!x)return;const amount=Math.min(x.qty,1);x.qty-=amount;g.money+=Math.floor(x.value*.65);if(x.qty<=0)g.items=g.items.filter(i=>i.id!==id);log('Продан предмет: '+x.name+'.');save();};
 // Diplomacy is a shared server-side operation, not a client-only counter.
 adjustDiplomacy=function(name,action){if(!zoneSocket?.connected)return alert('Подключись к общей Зоне, чтобы вести переговоры.');zoneSocket.emit('diplomacy:action',{target:name,action});};
 if($('mpMessage'))$('mpMessage').addEventListener('keydown',e=>{if(e.key==='Enter')mpSend();});

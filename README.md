@@ -1,4 +1,4 @@
-# ZONE ONLINE 2.1 — Shared Zone Online
+# ZONE ONLINE 2.2 — Shared World Systems
 
 ## What's online now
 - One global world: players no longer need to join the same private room.
@@ -7,6 +7,10 @@
 - Global PDA chat visible to everyone online.
 - Persistent server-side player profiles: nickname, faction, location, money, health, XP, inventory, equipment, quests, achievements and other game progress are stored as the player's state.
 - Shared server-side faction diplomacy. Diplomatic actions are validated and applied on the server; changes are broadcast to everyone.
+- Shared NPC positions: named characters move between sectors on a server timer, and every connected client receives the same positions.
+- Shared co-op objectives: players join a common task, travel to its target sector, contribute an arrival, and receive a reward when the group requirement is met.
+- Server-validated vendor purchases and sales while online. Item quantities and ruble balances are updated in the server profile.
+- Player-to-player trade offers with accept/decline. Completion uses a PostgreSQL transaction to lock both profiles and atomically transfer items and rubles.
 - Automatic reconnection and profile restoration by browser player ID.
 - PostgreSQL persistence for player profiles, diplomacy/world state and chat history.
 - `/health` and `/api/status` endpoints.
@@ -41,7 +45,10 @@ Open `http://localhost:3000` in two browsers. Both will enter the same global Zo
 ## Current scope and honest limitations
 - This is a persistent online browser RPG, not a 3D real-time shooter. Other players are represented by their online profiles and sector presence.
 - Player progression is individually owned and saved on the server. Global chat and diplomacy are shared.
-- NPC conversations and most quest/economy rules still run in the player's game client; they are not yet a single authoritative shared NPC simulation. The next backend milestone is server-authoritative trading, shared NPC schedules, co-op quest state and anti-cheat validation.
+- NPC positions are shared, but NPC dialogue, daily routines, most story quests, exploration rewards, crafting and many progression rules still run in the browser. This is not yet a fully server-authoritative MMORPG.
+- Vendor purchases/sales and co-op rewards are server-side when connected. Player-to-player item/currency trades require PostgreSQL; without it, the server rejects trade completion rather than risking an in-memory-only transfer.
+- There is no email/password account system yet. The current profile identity is a random browser ID stored in localStorage, so clearing browser storage or switching devices does not automatically recover the same account.
+- Server validation covers the new online transactions, but the general profile-save endpoint still accepts a client game state. A determined client can still modify local-only progression; full anti-cheat requires moving more game rules to the server.
 - If the service runs without `DATABASE_URL`, it deliberately falls back to memory mode for development; that is not persistent across restarts.
 - Use HTTPS on deployment. Chat is public to all connected players and is not end-to-end encrypted.
 

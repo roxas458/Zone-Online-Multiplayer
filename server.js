@@ -14,7 +14,12 @@ const online = new Map();
 const recentChat = [];
 let pool = null;
 let dbReady = false;
-let world = { diplomacy: {}, events: [], revision: 1 };
+let world = { diplomacy: {}, events: [], revision: 1, npcPositions: {}, coOpQuests: [] };
+const NPC_HOME = { sid:'cordon', wolf:'cordon', fanatic:'cordon', scout:'dump', bandit:'dump', barman:'bar', seriy:'bar', scientist:'agro', merc:'dark', prof:'yantar', freedom:'army', guide:'red', loner:'pripyat' };
+const TRADE_ITEM_IDS = new Set(['med','bread','bolt','scrap','bandage','artifact']);
+const SHOP = {med:{name:'Аптечка',type:'Медицина',desc:'Восстанавливает здоровье.',weight:.4,price:180,qty:1,value:100},bread:{name:'Хлеб',type:'Еда',desc:'Восстанавливает выносливость.',weight:.3,price:45,qty:1,value:35},bandage:{name:'Бинт',type:'Медицина',desc:'Полевой расходный предмет.',weight:.2,price:70,qty:1,value:45},scrap:{name:'Металлолом',type:'Материал',desc:'Материал для ремесла.',weight:.8,price:55,qty:1,value:30},bolt:{name:'Болты ×5',type:'Инструмент',desc:'Набор болтов.',weight:.1,price:40,qty:5,value:5}};
+const SELL_VALUES = {med:100,bread:35,bolt:5,scrap:30,bandage:45,artifact:420};
+const COOP_TEMPLATES = [{id:'survey_cordon',title:'Общая разведка Кордона',description:'Два сталкера должны прибыть на Кордон и подтвердить наблюдения.',location:'cordon',reward:240,xp:25,required:2},{id:'survey_yantar',title:'Исследовательская группа Янтаря',description:'Соберите группу из двух сталкеров на Янтаре.',location:'yantar',reward:420,xp:45,required:2}];
 
 app.use(express.static(path.join(__dirname, 'public')));
 app.get('/health', (_req,res) => res.json({ ok:true, service:'ZONE ONLINE shared world', database:dbReady?'postgres':'memory-fallback', online:online.size }));
@@ -35,12 +40,17 @@ function publicPlayer(p){ return { id:p.id, name:p.name, faction:p.faction, loca
 function onlineList(){ return [...online.values()].map(publicPlayer).sort((a,b)=>a.name.localeCompare(b.name,'ru')); }
 function broadcastOnline(){ io.emit('world:players',onlineList()); }
 function systemMessage(text){ const m={id:crypto.randomUUID(),system:true,name:'Система',text:clean(text,240),time:Date.now()}; recentChat.push(m); if(recentChat.length>80)recentChat.shift(); io.emit('world:chat',m); }
+function initSharedWorld(){
+  world.npcPositions ||= {};
+  for(const [id,loc] of Object.entries(NPC_HOME)) if(!LOCATIONS.has(world.npcPositions[id])) world.npcPositions[id]=loc;
+  world.coOpQuests ||= COOP_TEMPLATES.map(q=>({...q,participants:[],done:false}));
+}
 function initDiplomacy(){
   const names=[...FACTIONS];
   const baseline={'Одиночки':15,'Долг':0,'Свобода':0,'Бандиты':-25,'Военные':-20,'Учёные':10,'Наёмники':-5,'Монолит':-35,'Чистое небо':8};
   for(const a of names){ world.diplomacy[a] ||= {}; for(const b of names){ if(a!==b && !Number.isFinite(world.diplomacy[a][b])) world.diplomacy[a][b]=Math.max(-60,Math.min(60,Math.round(((baseline[a]||0)+(baseline[b]||0))/2))); } }
 }
-initDiplomacy();
+initDiplomacy(); initSharedWorld();
 async function initDb(){
   if(!process.env.DATABASE_URL){ console.warn('DATABASE_URL missing: running in memory mode. Add Render PostgreSQL for persistence.'); return; }
   try {
@@ -52,7 +62,7 @@ async function initDb(){
     const wr=await pool.query('SELECT state FROM zone_world WHERE id=1');
     if(wr.rows[0]) world={...world,...wr.rows[0].state}; else await pool.query('INSERT INTO zone_world(id,state) VALUES(1,$1)',[world]);
     const cr=await pool.query('SELECT payload FROM zone_chat ORDER BY id DESC LIMIT 60');
-    recentChat.push(...cr.rows.reverse().map(x=>x.payload)); initDiplomacy(); dbReady=true;
+    recentChat.push(...cr.rows.reverse().map(x=>x.payload)); initDiplomacy(); initSharedWorld(); dbReady=true;
     console.log('PostgreSQL connected; shared world persistence enabled.');
   } catch(e){ console.error('PostgreSQL initialization failed; server will continue in memory mode:',e.message); pool=null; dbReady=false; }
 }
@@ -69,8 +79,9 @@ io.on('connection', socket=>{
       if(!saved && payload?.state) { saved=safeState(payload.state).state; await persistPlayer(id,saved); }
       const s=saved?safeState(saved):safeState(payload?.state);
       const p={ id, name:s.name, faction:s.faction, location:s.loc, hp:s.hp, xp:s.xp, joinedAt:Date.now(), lastSeen:Date.now(), state:saved||s.state };
-      socket.data.playerId=id; socket.data.name=p.name; online.set(id,p); socket.join('zone-world');
+      socket.data.playerId=id; socket.data.name=p.name; online.set(id,p); socket.join('zone-world'); socket.join(id);
       socket.emit('player:ready',{id, savedState:saved, world, chat:recentChat.slice(-60), players:onlineList(), persistent:dbReady});
+      io.emit('world:npcs',world.npcPositions); io.emit('world:coop',world.coOpQuests);
       systemMessage(`${p.name} вошёл в Зону.`); broadcastOnline();
     } catch(e){ socket.emit('server:error',{message:'Не удалось загрузить профиль.'}); console.error(e); }
   });
@@ -95,6 +106,90 @@ io.on('connection', socket=>{
     recentChat.push(m);if(recentChat.length>80)recentChat.shift();io.to('zone-world').emit('world:chat',m);
     try{await persistChat(m);}catch(e){console.error('chat persistence:',e.message);}
   });
+  socket.on('market:buy', async input=>{
+    const p=online.get(socket.data.playerId), itemId=String(input?.item||''), goods=SHOP[itemId];
+    if(!p||!goods){socket.emit('market:result',{ok:false,message:'Товар недоступен.'});return;}
+    const st=safeState(p.state);if(st.money<goods.price){socket.emit('market:result',{ok:false,message:'Недостаточно рублей.'});return;}
+    st.state.money=st.money-goods.price;st.state.items ||= [];
+    const existing=st.state.items.find(x=>x.id===itemId);
+    if(existing)existing.qty+=goods.qty;else st.state.items.push({id:itemId,name:itemId==='bolt'?'Болт':goods.name,type:goods.type,desc:goods.desc,weight:goods.weight,qty:goods.qty,value:goods.value});
+    p.state=st.state;await persistPlayer(p.id,p.state);socket.emit('market:result',{ok:true,message:`Куплено: ${goods.name}.`,state:p.state});
+  });
+  socket.on('market:sell', async input=>{
+    const p=online.get(socket.data.playerId), itemId=String(input?.item||''), st=p?safeState(p.state):null;
+    if(!p||!SELL_VALUES[itemId]){socket.emit('market:result',{ok:false,message:'Этот предмет нельзя продать.'});return;}
+    st.state.items ||= [];const item=st.state.items.find(x=>x.id===itemId);
+    if(!item||item.qty<1){socket.emit('market:result',{ok:false,message:'Предмет отсутствует в рюкзаке.'});return;}
+    item.qty-=1;if(item.qty<=0)st.state.items=st.state.items.filter(x=>x.id!==itemId);
+    const payout=Math.floor(SELL_VALUES[itemId]*.65);st.state.money=Math.min(99999999,(Number(st.state.money)||0)+payout);
+    p.state=st.state;await persistPlayer(p.id,p.state);socket.emit('market:result',{ok:true,message:`Продано: ${item.name} · +${payout} ₽.`,state:p.state});
+  });
+  socket.on('trade:offer', async input=>{
+    const fromId=socket.data.playerId, from=online.get(fromId), toId=String(input?.to||'');
+    const to=online.get(toId), itemId=String(input?.item||''), qty=Math.floor(Number(input?.qty)||0), rawPrice=Number(input?.price), price=Number.isFinite(rawPrice)?Math.floor(rawPrice):-1;
+    if(!from||!to||fromId===toId||!TRADE_ITEM_IDS.has(itemId)||qty<1||qty>99||price<0||price>1000000){socket.emit('trade:result',{ok:false,message:'Некорректное предложение обмена.'});return;}
+    const a=safeState(from.state), item=a.state.items?.find(x=>x.id===itemId);
+    if(!item||item.qty<qty){socket.emit('trade:result',{ok:false,message:'Недостаточно предметов в рюкзаке.'});return;}
+    const offer={id:crypto.randomUUID(),from:fromId,to:toId,fromName:from.name,toName:to.name,item:itemId,itemName:item.name,qty,price,createdAt:Date.now()};
+    world.events ||= []; world.events.push({type:'trade',offer}); world.events=world.events.slice(-100);
+    to && io.to(toId).emit('trade:incoming',offer); socket.emit('trade:result',{ok:true,message:'Предложение отправлено.',offer}); await persistWorld();
+  });
+  socket.on('trade:respond', async input=>{
+    const toId=socket.data.playerId, offerId=String(input?.offerId||''), accept=!!input?.accept;
+    const event=(world.events||[]).find(x=>x.type==='trade'&&x.offer?.id===offerId);
+    const offer=event?.offer;
+    if(!offer||offer.to!==toId||offer.status){socket.emit('trade:result',{ok:false,message:'Предложение уже недоступно.'});return;}
+    const from=online.get(offer.from), to=online.get(toId);
+    if(!from||!to){socket.emit('trade:result',{ok:false,message:'Один из игроков отключился.'});return;}
+    if(!accept){offer.status='declined';io.to(offer.from).emit('trade:result',{ok:false,message:`${to.name} отклонил обмен.`});socket.emit('trade:result',{ok:true,message:'Обмен отклонён.'});await persistWorld();return;}
+    offer.status='processing';
+    try{
+      if(!pool){offer.status=null;socket.emit('trade:result',{ok:false,message:'Для безопасного обмена требуется PostgreSQL на сервере.'});return;}
+      const client=await pool.connect();
+      try{
+        await client.query('BEGIN');
+        const rows=await client.query('SELECT id,state FROM zone_players WHERE id = ANY($1::text[]) FOR UPDATE',[[offer.from,offer.to]]);
+        const states=new Map(rows.rows.map(r=>[r.id,r.state])); const fs=states.get(offer.from), ts=states.get(offer.to);
+        if(!fs||!ts)throw new Error('Профиль игрока не найден.');
+        fs.items ||= []; ts.items ||= []; const fi=(fs.items||[]).find(x=>x.id===offer.item); if(!fi||fi.qty<offer.qty)throw new Error('У отправителя больше нет нужного количества предметов.');
+        if((Number(ts.money)||0)<offer.price)throw new Error('У покупателя недостаточно рублей.');
+        fi.qty-=offer.qty; if(fi.qty===0)fs.items=fs.items.filter(x=>x!==fi);
+        let ti=(ts.items||[]).find(x=>x.id===offer.item); if(ti)ti.qty+=offer.qty; else ts.items.push({...fi,qty:offer.qty});
+        fs.money=(Number(fs.money)||0)+offer.price; ts.money=(Number(ts.money)||0)-offer.price;
+        await client.query('UPDATE zone_players SET state=$2,updated_at=NOW() WHERE id=$1',[offer.from,fs]);
+        await client.query('UPDATE zone_players SET state=$2,updated_at=NOW() WHERE id=$1',[offer.to,ts]);
+        await client.query('COMMIT'); from.state=fs;to.state=ts; offer.status='accepted';
+        socket.emit('trade:result',{ok:true,message:'Обмен завершён.',state:ts});io.to(offer.from).emit('trade:result',{ok:true,message:`${to.name} принял обмен.`,state:fs});
+        io.emit('world:trade',{offer,from:from.name,to:to.name}); persistWorld().catch(e=>console.error('trade offer persistence:',e.message));
+      }catch(err){await client.query('ROLLBACK');throw err;}finally{client.release();}
+    }catch(e){offer.status=null;socket.emit('trade:result',{ok:false,message:e.message||'Не удалось выполнить обмен.'});}
+  });
+  socket.on('coop:join', async input=>{
+    const p=online.get(socket.data.playerId); if(!p)return;
+    const q=(world.coOpQuests||[]).find(x=>x.id===String(input?.questId||''));
+    if(!q||q.done){socket.emit('coop:result',{ok:false,message:'Задание недоступно.'});return;}
+    if(!q.participants.includes(p.id)){q.participants.push(p.id);q.participants=q.participants.slice(0,10);}
+    await persistWorld();io.emit('world:coop',world.coOpQuests);socket.emit('coop:result',{ok:true,message:'Ты записан в группу задания.'});
+  });
+  socket.on('coop:contribute', async input=>{
+    const p=online.get(socket.data.playerId);if(!p)return;
+    const q=(world.coOpQuests||[]).find(x=>x.id===String(input?.questId||''));
+    if(!q||q.done||!q.participants.includes(p.id)||p.location!==q.location){socket.emit('coop:result',{ok:false,message:'Нужно вступить в группу и прибыть в указанный сектор.'});return;}
+    q.arrivals ||= [];if(!q.arrivals.includes(p.id))q.arrivals.push(p.id);
+    if(q.arrivals.length>=q.required){
+      q.done=true; const winners=q.arrivals.slice();
+      if(pool){
+        const client=await pool.connect();
+        try{await client.query('BEGIN');const rows=await client.query('SELECT id,state FROM zone_players WHERE id = ANY($1::text[]) FOR UPDATE',[winners]);
+          for(const row of rows.rows){const st=safeState(row.state);st.state.money=Math.min(99999999,st.money+q.reward);st.state.xp=Math.min(1e7,st.xp+q.xp);await client.query('UPDATE zone_players SET state=$2,updated_at=NOW() WHERE id=$1',[row.id,st.state]);const pl=online.get(row.id);if(pl)pl.state=st.state;}
+          await client.query('COMMIT');
+        }catch(err){await client.query('ROLLBACK');q.done=false;throw err;}finally{client.release();}
+      }else{for(const id of winners){const pl=online.get(id);if(pl){const st=safeState(pl.state);st.state.money+=q.reward;st.state.xp+=q.xp;pl.state=st.state;}}}
+      for(const id of winners){const pl=online.get(id);if(pl)io.to(id).emit('coop:reward',{questId:q.id,reward:q.reward,xp:q.xp,state:pl.state});}
+      systemMessage(`Совместное задание «${q.title}» выполнено.`);
+    }
+    await persistWorld();io.emit('world:coop',world.coOpQuests);socket.emit('coop:result',{ok:true,message:q.done?'Группа выполнила задание!':'Твоё прибытие отмечено.'});
+  });
   socket.on('diplomacy:action', async input=>{
     const p=online.get(socket.data.playerId);if(!p)return;
     const target=clean(input?.target,32), action=input?.action;
@@ -116,4 +211,11 @@ io.on('connection', socket=>{
   });
 });
 
+setInterval(async()=>{
+  initSharedWorld();
+  const ids=Object.keys(world.npcPositions); if(!ids.length)return;
+  const id=ids[Math.floor(Math.random()*ids.length)], current=world.npcPositions[id], options=[...LOCATIONS].filter(x=>x!==current);
+  world.npcPositions[id]=options[Math.floor(Math.random()*options.length)]; world.revision=(world.revision||0)+1;
+  try{await persistWorld();io.emit('world:npcs',world.npcPositions);io.emit('world:update',{world,notice:`Сталкер ${id} замечен в новом секторе.`});}catch(e){console.error('NPC schedule:',e.message);}
+}, 5*60*1000).unref();
 initDb().finally(()=>server.listen(PORT,'0.0.0.0',()=>console.log(`ZONE ONLINE listening on ${PORT}`)));
