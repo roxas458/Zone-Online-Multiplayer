@@ -1,4 +1,4 @@
-# ZONE ONLINE 4.9.0 — HUMAN STORIES
+# ZONE ONLINE 4.10.0 — IMMERSION UPDATE
 
 A backward-compatible continuation of ZONE ONLINE 4.8.0.
 
@@ -28,7 +28,7 @@ npm test
 npm start
 ```
 
-Deploy the full project folder to the existing Node service. Keep the existing `DATABASE_URL` and PostgreSQL database; 4.9 does not require a schema migration. Do not delete browser local storage or reset the player profile. Existing 4.8 saves are migrated in place.
+Deploy the full project folder to the existing Node service. Keep the existing `DATABASE_URL` and PostgreSQL database; 4.10 does not require a schema migration. Do not delete browser local storage or reset the player profile. Existing 4.8 and 4.9 saves are migrated in place.
 
 ## Notes
 - Device clock is used for the client display; players with incorrect device clocks may see an incorrect local time. The authoritative server still timestamps shared-world events.
@@ -42,3 +42,13 @@ Deploy the full project folder to the existing Node service. Keep the existing `
 - Для телефонов добавлена нижняя панель быстрого доступа, увеличены зоны нажатия, учтены safe-area отступы iOS.
 - Добавлен раздел личных историй NPC с заданиями по локациям, наградами и сохранением прогресса.
 - Обновлена визуальная система КПК в индустриальном полевом стиле.
+
+
+## 4.10 — IMMERSION UPDATE
+
+- Atmospheric industrial panorama and updated field-PDA presentation.
+- Redesigned inventory cards with equipped-state, condition, weight, and armor protection.
+- Redesigned trader with category filters, item cards, balance, and stack selling.
+- Added 8 artifacts and 6 armor suits to the shared offline/online market catalogue.
+- Armor protection values are used by the combat damage calculation.
+- No PostgreSQL schema migration or save reset is required.

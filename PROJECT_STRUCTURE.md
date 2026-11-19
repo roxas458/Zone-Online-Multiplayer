@@ -1,4 +1,4 @@
-# ZONE ONLINE 4.9.0 project structure
+# ZONE ONLINE 4.10.0 project structure
 
 ```text
 ZONE_ONLINE/
@@ -40,3 +40,6 @@ ZONE_ONLINE/
 ```
 
 - `public/js/stories.js` — личные сюжетные линии NPC, прогресс и награды (4.9).
+
+- `public/assets/zone-atmosphere.svg` — авторская панорама индустриальной Зоны для главного экрана.
+- Версия 4.10: обновлённые карточки инвентаря и торговца, серверный каталог брони и артефактов.

@@ -125,3 +125,49 @@ test('4.9 map renders terrain, routes and current-sector points of interest', ()
   assert.match(svg, /map-sector/);
   assert.match(elements.get('mapCoordinates').textContent, /СЕКТОР/);
 });
+
+
+test('4.10 inventory and trader redesign expose expanded artifacts and armor', () => {
+  const { context, elements } = bootClient();
+  assert.doesNotThrow(() => context.view('inventory'));
+  assert.match(elements.get('items').innerHTML, /Аптечка|Бинт/);
+  assert.doesNotThrow(() => context.view('trade'));
+  assert.match(elements.get('shop').innerHTML, /Медуза/);
+  assert.match(elements.get('shop').innerHTML, /Экзоскелет/);
+  assert.match(elements.get('sellList').innerHTML, /Продать 1/);
+  assert.doesNotThrow(() => context.setTradeCategory('gear'));
+  assert.match(elements.get('shop').innerHTML, /Каменный цветок/);
+  assert.doesNotMatch(elements.get('shop').innerHTML, /Аптечка/);
+});
+
+test('4.10 market catalogue is shared with the online server and supports armor stats', () => {
+  const shared = fs.readFileSync(path.join(root,'src/shared/game-data.js'),'utf8');
+  const server = fs.readFileSync(path.join(root,'server.js'),'utf8');
+  assert.match(shared, /artifact_goldfish/);
+  assert.match(shared, /armor_exo/);
+  assert.match(shared, /defense:11/);
+  assert.match(server, /market:sell/);
+  assert.match(server, /input\?\.qty/);
+});
+
+
+test('4.10 armor can be bought, equipped and sold from the inventory flow', () => {
+  const { context, elements } = bootClient();
+  const goods = context.tradeGoods();
+  const armorIndex = goods.findIndex(item => item[1] === 'armor_leather');
+  assert.ok(armorIndex >= 0);
+  context.buy(armorIndex);
+  context.view('inventory');
+  assert.match(elements.get('items').innerHTML, /Кожаная куртка с пластинами/);
+  context.equipItem('armor_leather');
+  assert.match(elements.get('equipment').innerHTML, /Кожаная куртка с пластинами/);
+  assert.match(elements.get('gearStats').innerHTML, /Защита костюма/);
+});
+
+test('4.10 home screen atmosphere reports changing local light and weather state', () => {
+  const { context, elements } = bootClient();
+  assert.doesNotThrow(() => context.renderAtmosphere());
+  assert.ok(['clear','fog','rain','overcast','emission'].includes(elements.get('homeHero').dataset.weather));
+  assert.match(elements.get('atmosphereInfo').innerHTML, /ЯСНО|ТУМАН|ДОЖДЬ|ПАСМУРНО|РАДИАЦИОННЫЙ ФОН/);
+  assert.match(elements.get('atmosphereInfo').innerHTML, /НОЧЬ|РАССВЕТ|ДЕНЬ|СУМЕРКИ/);
+});

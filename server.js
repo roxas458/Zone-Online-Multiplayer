@@ -30,8 +30,8 @@ const io = new Server(server, { cors: { origin: true, methods: ['GET','POST'] },
 const PORT = process.env.PORT || 3000;
 
 app.use(express.static(path.join(__dirname, 'public')));
-app.get('/health', (_req,res) => res.json({ ok:true, service:'ZONE ONLINE 4.7.1 SOULS OF THE ZONE — STABILITY PATCH', database:dbReady?'postgres':'memory-fallback', online:online.size, revision:world.revision||1 }));
-app.get('/api/status', (_req,res) => res.json({ ...publicWorldStatus(world, online.size), persistent:dbReady, service:'ZONE ONLINE 4.7.1 SOULS OF THE ZONE — STABILITY PATCH' }));
+app.get('/health', (_req,res) => res.json({ ok:true, service:'ZONE ONLINE 4.10 IMMERSION UPDATE', database:dbReady?'postgres':'memory-fallback', online:online.size, revision:world.revision||1 }));
+app.get('/api/status', (_req,res) => res.json({ ...publicWorldStatus(world, online.size), persistent:dbReady, service:'ZONE ONLINE 4.10 IMMERSION UPDATE' }));
 app.get('/api/world/snapshot', (_req,res) => res.json({ status:publicWorldStatus(world, online.size), world }));
 app.get('/api/world/events', (req,res) => { const since=Number(req.query.since||0); const sync=buildWorldSync(world, Number.isSafeInteger(since)?since:0); res.json(sync); });
 
@@ -125,17 +125,17 @@ io.on('connection', socket=>{
     const st=safeState(p.state);if(st.money<goods.price){socket.emit('market:result',{ok:false,message:'Недостаточно рублей.'});return;}
     st.state.money=st.money-goods.price;st.state.items ||= [];
     const existing=st.state.items.find(x=>x.id===itemId);
-    if(existing)existing.qty+=goods.qty;else st.state.items.push({id:itemId,name:itemId==='bolt'?'Болт':goods.name,type:goods.type,desc:goods.desc,weight:goods.weight,qty:goods.qty,value:goods.value});
+    if(existing){existing.qty+=goods.qty;if(goods.defense){existing.defense=goods.defense;existing.condition=existing.condition??100;}}else st.state.items.push({id:itemId,name:itemId==='bolt'?'Болт':goods.name,type:goods.type,desc:goods.desc,weight:goods.weight,qty:goods.qty,value:goods.value,...(goods.defense?{defense:goods.defense,condition:100}:{})});
     p.state=st.state;await persistPlayer(p.id,p.state);socket.emit('market:result',{ok:true,message:`Куплено: ${goods.name}.`,state:p.state});
   });
   socket.on('market:sell', async input=>{
-    const p=online.get(socket.data.playerId), itemId=String(input?.item||''), st=p?safeState(p.state):null;
+    const p=online.get(socket.data.playerId), itemId=String(input?.item||''), amount=Math.max(1,Math.min(99,Math.floor(Number(input?.qty)||1))), st=p?safeState(p.state):null;
     if(!p||!SELL_VALUES[itemId]){socket.emit('market:result',{ok:false,message:'Этот предмет нельзя продать.'});return;}
     st.state.items ||= [];const item=st.state.items.find(x=>x.id===itemId);
-    if(!item||item.qty<1){socket.emit('market:result',{ok:false,message:'Предмет отсутствует в рюкзаке.'});return;}
-    item.qty-=1;if(item.qty<=0)st.state.items=st.state.items.filter(x=>x.id!==itemId);
-    const payout=Math.floor(SELL_VALUES[itemId]*.65);st.state.money=Math.min(99999999,(Number(st.state.money)||0)+payout);
-    p.state=st.state;await persistPlayer(p.id,p.state);socket.emit('market:result',{ok:true,message:`Продано: ${item.name} · +${payout} ₽.`,state:p.state});
+    if(!item||item.qty<amount){socket.emit('market:result',{ok:false,message:'Недостаточно предметов в рюкзаке.'});return;}
+    item.qty-=amount;if(item.qty<=0)st.state.items=st.state.items.filter(x=>x.id!==itemId);
+    const payout=Math.floor(SELL_VALUES[itemId]*.65)*amount;st.state.money=Math.min(99999999,(Number(st.state.money)||0)+payout);
+    p.state=st.state;await persistPlayer(p.id,p.state);socket.emit('market:result',{ok:true,message:`Продано: ${item.name} ×${amount} · +${payout} ₽.`,state:p.state});
   });
   socket.on('trade:offer', async input=>{
     const fromId=socket.data.playerId, from=online.get(fromId), toId=String(input?.to||'');

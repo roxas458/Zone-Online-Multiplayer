@@ -1,8 +1,8 @@
 {
   "name": "zone-online",
-  "version": "4.9.0",
+  "version": "4.10.0",
   "private": true,
-  "description": "HUMAN STORIES: field PDA redesign, tactical zone map, mobile controls and persistent NPC storylines",
+  "description": "IMMERSION UPDATE: atmospheric interface, redesigned inventory and expanded artifact and armor economy",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
