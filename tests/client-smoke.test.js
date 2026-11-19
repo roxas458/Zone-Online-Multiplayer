@@ -209,3 +209,46 @@ test('4.11 generated portrait sheet is split into sixteen optimized local charac
   assert.equal(portraits.length, 16);
   assert.ok(portraits.every(name => fs.statSync(path.join(assets, name)).size > 1000));
 });
+
+test('4.12 player direct messages are location-gated, persisted and rate-limited on server', () => {
+  const server = fs.readFileSync(path.join(root,'server.js'),'utf8');
+  const html = fs.readFileSync(path.join(root,'public/index.html'),'utf8');
+  assert.match(server,/socket\.on\('dm:send'/);
+  assert.match(server,/me\.location!==target\.location/);
+  assert.match(server,/persistPrivateMessage\(m\)/);
+  assert.match(server,/zone_private_messages/);
+  assert.match(server,/rate\.count>8/);
+  assert.match(html,/id="playerDmPanel"/);
+});
+
+test('4.12 NPC trade inspects gear, supports buy and sell, and verifies local presence server-side', () => {
+  const { context, elements } = bootClient();
+  assert.doesNotThrow(() => context.openNpcTrade('sid'));
+  assert.match(elements.get('npcDmPanel').innerHTML,/Снаряжение сталкера/);
+  assert.match(elements.get('npcDmPanel').innerHTML,/Полевой обмен/);
+  const server = fs.readFileSync(path.join(root,'server.js'),'utf8');
+  assert.match(server,/socket\.on\('npc:trade:buy'/);
+  assert.match(server,/socket\.on\('npc:trade:sell'/);
+  assert.match(server,/npc\.location!==p\.location/);
+});
+
+test('4.12 encyclopedia includes expanded anomaly field dossiers and longer reference entries', () => {
+  const { context, elements } = bootClient();
+  context.renderEncyclopedia();
+  assert.match(elements.get('encyclopediaList').innerHTML,/Жарка/);
+  assert.match(elements.get('encyclopediaList').innerHTML,/Пси-поле/);
+  assert.match(elements.get('encyclopediaList').innerHTML,/транспортировк|Полевые рекомендации|полевых условиях/i);
+  const html = fs.readFileSync(path.join(root,'public/index.html'),'utf8');
+  assert.match(html,/value="anomalies"/);
+});
+
+
+test('4.12 online NPC messages use server dialogue and update persistent NPC memory', () => {
+  const server = fs.readFileSync(path.join(root,'server.js'),'utf8');
+  const ai = fs.readFileSync(path.join(root,'src/systems/npc-ai.js'),'utf8');
+  const dialogue = fs.readFileSync(path.join(root,'src/systems/npc-dialogue.js'),'utf8');
+  assert.match(server,/socket\.on\('npc:message:send'/);
+  assert.match(server,/interactWithNpc\(npc,.*'message'/s);
+  assert.match(ai,/npc\.memory\.push/);
+  assert.match(dialogue,/action==='message'/);
+});

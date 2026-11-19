@@ -56,3 +56,7 @@ Deploy the full project folder to the existing Node service. Keep the existing `
 
 ### 4.11 — STALKER IDENTITY
 The player dossier now includes expedition and combat statistics. NPCs have original illustrated portrait assets and richer contact cards. Direct PDA messages are available for NPCs sharing the player's current location; message history is saved in the local profile. The main menu provides quick navigation and persistent accessibility settings (large text, reduced motion, compact layout).
+
+
+### 4.12 LIVING CONTACT
+Личные сообщения между игроками работают через Socket.IO только при нахождении в одном секторе. История хранится в таблице `zone_private_messages` PostgreSQL; таблица создаётся автоматически. Торговля с NPC проверяется сервером.

@@ -47,3 +47,9 @@
 - Added a new main menu with shortcuts to profile, map, inventory, contacts, trade and settings.
 - Added accessibility and layout options: larger text, reduced motion and compact interface; preferences persist with the player save.
 - Improved NPC contact cards and mobile messaging layout. Existing 4.10 saves are migrated without resetting progress.
+
+## 4.12.0 — LIVING CONTACT
+- Добавлены личные сообщения между игроками с проверкой общей локации, ограничением частоты и хранением истории в PostgreSQL.
+- Добавлена серверная торговля с NPC и осмотр полевого снаряжения.
+- Энциклопедия расширена отдельным разделом аномалий и более подробными досье.
+- Обновлён интерфейс личных каналов для мобильных экранов.

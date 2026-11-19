@@ -30,8 +30,8 @@ const io = new Server(server, { cors: { origin: true, methods: ['GET','POST'] },
 const PORT = process.env.PORT || 3000;
 
 app.use(express.static(path.join(__dirname, 'public')));
-app.get('/health', (_req,res) => res.json({ ok:true, service:'ZONE ONLINE 4.10 IMMERSION UPDATE', database:dbReady?'postgres':'memory-fallback', online:online.size, revision:world.revision||1 }));
-app.get('/api/status', (_req,res) => res.json({ ...publicWorldStatus(world, online.size), persistent:dbReady, service:'ZONE ONLINE 4.10 IMMERSION UPDATE' }));
+app.get('/health', (_req,res) => res.json({ ok:true, service:'ZONE ONLINE 4.12 LIVING CONTACT', database:dbReady?'postgres':'memory-fallback', online:online.size, revision:world.revision||1 }));
+app.get('/api/status', (_req,res) => res.json({ ...publicWorldStatus(world, online.size), persistent:dbReady, service:'ZONE ONLINE 4.12 LIVING CONTACT' }));
 app.get('/api/world/snapshot', (_req,res) => res.json({ status:publicWorldStatus(world, online.size), world }));
 app.get('/api/world/events', (req,res) => { const since=Number(req.query.since||0); const sync=buildWorldSync(world, Number.isSafeInteger(since)?since:0); res.json(sync); });
 
@@ -48,6 +48,8 @@ async function initDb(){
     await pool.query(`CREATE TABLE IF NOT EXISTS zone_players (id TEXT PRIMARY KEY, state JSONB NOT NULL, updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`);
     await pool.query(`CREATE TABLE IF NOT EXISTS zone_world (id INTEGER PRIMARY KEY CHECK (id=1), state JSONB NOT NULL, updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`);
     await pool.query(`CREATE TABLE IF NOT EXISTS zone_chat (id BIGSERIAL PRIMARY KEY, payload JSONB NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`);
+    await pool.query(`CREATE TABLE IF NOT EXISTS zone_private_messages (id BIGSERIAL PRIMARY KEY, message_id TEXT UNIQUE NOT NULL, from_id TEXT NOT NULL, to_id TEXT NOT NULL, payload JSONB NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS zone_private_messages_pair_idx ON zone_private_messages(from_id,to_id,id DESC)`);
     const wr=await pool.query('SELECT state FROM zone_world WHERE id=1');
     if(wr.rows[0]) world={...world,...wr.rows[0].state}; else await pool.query('INSERT INTO zone_world(id,state) VALUES(1,$1)',[world]);
     const cr=await pool.query('SELECT payload FROM zone_chat ORDER BY id DESC LIMIT 60');
@@ -64,6 +66,8 @@ async function dbFallback(error, operation){
 async function persistPlayer(id,state){ if(!pool)return; try{await pool.query('INSERT INTO zone_players(id,state,updated_at) VALUES($1,$2,NOW()) ON CONFLICT(id) DO UPDATE SET state=EXCLUDED.state,updated_at=NOW()',[id,state]);}catch(e){await dbFallback(e,'player save');} }
 async function loadPlayer(id){ if(!pool)return null; try{const r=await pool.query('SELECT state FROM zone_players WHERE id=$1',[id]);return r.rows[0]?.state||null;}catch(e){await dbFallback(e,'player load');return null;} }
 async function persistWorld(){ if(!pool)return; try{await pool.query('INSERT INTO zone_world(id,state,updated_at) VALUES(1,$1,NOW()) ON CONFLICT(id) DO UPDATE SET state=EXCLUDED.state,updated_at=NOW()',[world]);}catch(e){await dbFallback(e,'world save');} }
+async function persistPrivateMessage(m){ if(!pool)return; try{await pool.query('INSERT INTO zone_private_messages(message_id,from_id,to_id,payload) VALUES($1,$2,$3,$4) ON CONFLICT(message_id) DO NOTHING',[m.id,m.fromId,m.toId,m]);}catch(e){await dbFallback(e,'private message save');} }
+async function loadPrivateMessages(a,b){ if(!pool)return []; try{const r=await pool.query('SELECT payload FROM zone_private_messages WHERE (from_id=$1 AND to_id=$2) OR (from_id=$2 AND to_id=$1) ORDER BY id DESC LIMIT 80',[a,b]);return r.rows.reverse().map(x=>x.payload);}catch(e){await dbFallback(e,'private message load');return [];}}
 async function persistChat(m){ if(!pool)return; try{await pool.query('INSERT INTO zone_chat(payload) VALUES($1)',[m]);await pool.query('DELETE FROM zone_chat WHERE id NOT IN (SELECT id FROM zone_chat ORDER BY id DESC LIMIT 300)');}catch(e){await dbFallback(e,'chat save');} }
 
 io.on('connection', socket=>{
@@ -118,6 +122,37 @@ io.on('connection', socket=>{
     const m={id:crypto.randomUUID(),name:p?.name||'Сталкер',faction:p?.faction||'Одиночки',text,time:Date.now()};
     recentChat.push(m);if(recentChat.length>80)recentChat.shift();io.to('zone-world').emit('world:chat',m);
     try{await persistChat(m);}catch(e){console.error('chat persistence:',e.message);}
+  });
+  socket.on('dm:history', async input=>{
+    const me=online.get(socket.data.playerId), targetId=String(input?.targetId||'').slice(0,64), target=online.get(targetId);
+    if(!me||!target||me.id===targetId||me.location!==target.location){socket.emit('dm:error',{message:'Личный канал доступен только игрокам, находящимся в одном секторе.'});return;}
+    const history=await loadPrivateMessages(me.id,targetId);socket.emit('dm:history',{targetId,history});
+  });
+  socket.on('dm:send', async input=>{
+    const me=online.get(socket.data.playerId), targetId=String(input?.targetId||'').slice(0,64), target=online.get(targetId), text=clean(input?.text,500);
+    if(!me||!target||me.id===targetId||me.location!==target.location){socket.emit('dm:error',{message:'Игрок должен находиться с тобой в одной локации.'});return;}
+    if(!text){socket.emit('dm:error',{message:'Сообщение пустое.'});return;}
+    const now=Date.now(), rate=socket.data.dmRate||{at:0,count:0};if(now-rate.at>10000){rate.at=now;rate.count=0;}rate.count++;socket.data.dmRate=rate;
+    if(rate.count>8){socket.emit('dm:error',{message:'Слишком часто. Подожди несколько секунд.'});return;}
+    const m={id:crypto.randomUUID(),fromId:me.id,toId:target.id,fromName:me.name,toName:target.name,text,time:now};
+    await persistPrivateMessage(m);socket.emit('dm:message',m);io.to(target.id).emit('dm:message',m);
+  });
+  socket.on('npc:trade:buy', async input=>{
+    const p=online.get(socket.data.playerId), npcId=String(input?.npcId||'').slice(0,48), itemId=String(input?.item||''), goods=SHOP[itemId];
+    const npc=world.npcState?.[npcId], st=p?safeState(p.state):null;
+    if(!p||!npc||npc.alive===false||npc.location!==p.location||!goods){socket.emit('npc:trade:result',{ok:false,message:'Торговец недоступен в этой локации.'});return;}
+    if(!['sid','barman','scout','prof','scientist','beard'].includes(npcId)){socket.emit('npc:trade:result',{ok:false,message:'Этот сталкер не занимается торговлей.'});return;}
+    if(st.money<goods.price){socket.emit('npc:trade:result',{ok:false,message:'Недостаточно рублей.'});return;}
+    st.state.money=st.money-goods.price;st.state.items ||= [];const existing=st.state.items.find(x=>x.id===itemId);
+    if(existing)existing.qty+=goods.qty;else st.state.items.push({id:itemId,name:goods.name,type:goods.type,desc:goods.desc,weight:goods.weight,qty:goods.qty,value:goods.value});
+    p.state=st.state;await persistPlayer(p.id,p.state);socket.emit('npc:trade:result',{ok:true,message:`${npc.name}: сделка состоялась. ${goods.name} передан тебе.`,state:p.state});
+  });
+  socket.on('npc:trade:sell', async input=>{
+    const p=online.get(socket.data.playerId),npcId=String(input?.npcId||'').slice(0,48),itemId=String(input?.item||''),qty=Math.max(1,Math.min(10,Math.floor(Number(input?.qty)||1)));
+    const npc=world.npcState?.[npcId],st=p?safeState(p.state):null,base=SELL_VALUES[itemId];
+    if(!p||!npc||npc.alive===false||npc.location!==p.location||!['sid','barman','scout','prof','scientist','beard'].includes(npcId)||!base){socket.emit('npc:trade:result',{ok:false,message:'Этот торговец не принимает такой предмет.'});return;}
+    st.state.items ||= [];const item=st.state.items.find(x=>x.id===itemId);if(!item||item.qty<qty){socket.emit('npc:trade:result',{ok:false,message:'Недостаточно предметов для продажи.'});return;}
+    item.qty-=qty;if(item.qty<=0)st.state.items=st.state.items.filter(x=>x.id!==itemId);const payout=Math.floor(base*.5)*qty;st.state.money=Math.min(99999999,st.money+payout);p.state=st.state;await persistPlayer(p.id,p.state);socket.emit('npc:trade:result',{ok:true,message:`${npc.name}: забираю. Получено ${payout} ₽.`,state:p.state});
   });
   socket.on('market:buy', async input=>{
     const p=online.get(socket.data.playerId), itemId=String(input?.item||''), goods=SHOP[itemId];
@@ -251,6 +286,14 @@ io.on('connection', socket=>{
     world.warHistory ||= [];world.warHistory.unshift(record);world.warHistory=world.warHistory.slice(0,30);const syncEvent=appendWorldEvent(world,'war_resolved',record);
     for(const participant of op.participants){const pl=online.get(participant.playerId);if(!pl)continue;const st=safeState(pl.state);st.state.xp=Math.min(1e7,st.xp+35);st.state.rep=Math.max(-1000,Math.min(1000,st.rep+(participant.side===result.winner?5:-2)));if(participant.side===result.winner)st.state.money=Math.min(99999999,st.money+180);pl.state=st.state;await persistPlayer(pl.id,pl.state);io.to(pl.id).emit('war:reward',{state:pl.state,winner:result.winner,won:participant.side===result.winner});}
     await persistWorld();io.emit('world:event',syncEvent);io.emit('war:state',{operations:world.warOperations,history:world.warHistory});io.emit('world:update',{world,notice:result.captured?`«${op.attacker}» захватили сектор ${op.location}.`:`Оборона «${op.defender}» удержала сектор ${op.location}.`});socket.emit('war:result',{ok:true,message:result.captured?'Победа! Территория перешла под контроль твоей группировки.':'Оборона удержала сектор.',world});
+  });
+  socket.on('npc:message:send', async input=>{
+    const p=online.get(socket.data.playerId);if(!p)return;
+    const npcId=String(input?.npcId||'').slice(0,48),message=clean(input?.text,240),npc=world.npcState?.[npcId];
+    if(!message||!npc||npc.alive===false||npc.location!==p.location){socket.emit('npc:message:result',{ok:false,npcId,message:'Сталкер должен находиться с тобой в одной локации.'});return;}
+    const result=interactWithNpc(npc,{id:p.id,location:p.location},'message',Date.now(),{recentWorldEvent:world.zoneEvents?.at(-1)?.title||'',locationName:npc.location,messageText:message,friendName:world.npcState?.[npc.friends?.[0]]?.name||'',rivalName:world.npcState?.[npc.rivals?.[0]]?.name||''});
+    const event=appendWorldEvent(world,'npc_private_message',{npcId,playerId:p.id,relationship:result.relationship});await persistWorld();
+    socket.emit('npc:message:result',{ok:true,npcId,text:message,reply:result.reply,relationship:result.relationship,at:Date.now()});io.to('zone-world').emit('world:event',event);
   });
   socket.on('npc:interact', async input=>{
     const p=online.get(socket.data.playerId); if(!p)return;

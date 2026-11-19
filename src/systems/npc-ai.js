@@ -24,6 +24,7 @@ function tickNpcWorld(world, locations, random = Math.random, now = Date.now()) 
   const events = [];
   const allLocations = [...locations];
   for (const npc of Object.values(world.npcState)) {
+    if (!npc.equipment) { const role=npc.role||'сталкер'; npc.equipment={suit:role.includes('учёный')?'Научный комбинезон':role.includes('торговец')?'Куртка торговца':'Комбинезон сталкера',weapon:role.includes('охотник')?'ТОЗ-34':role.includes('разведчик')?'АКС-74У':'ПМ',tool:'Обычный детектор',backpack:'Полевой рюкзак'}; }
     if (!npc.alive) continue;
     const cycle=Math.floor(now/900000); if(npc.dialogueCycle!==cycle){npc.dialogueCycle=cycle;npc.dialogueVersion=(npc.dialogueVersion||0)+1;events.push({type:'npc_dialogue_updated',npcId:npc.id,text:`${npc.name}: появились новые темы и слухи для разговора.`,at:now});}
     npc.dialogue = buildDialogue(npc, {recentWorldEvent:world.zoneEvents?.at(-1)?.title || ''}, now);
@@ -65,9 +66,9 @@ function tickNpcWorld(world, locations, random = Math.random, now = Date.now()) 
 function interactWithNpc(npc, player, action, now = Date.now(), context = {}) {
   if (!npc || !npc.alive) return { ok:false, reason:'Этот сталкер больше не может ответить.' };
   if (!player || player.location !== npc.location) return { ok:false, reason:'Нужно находиться в одном секторе со сталкером.' };
-  if (!['greet','ask','trade','help','topic'].includes(action)) return { ok:false, reason:'Неизвестное действие.' };
+  if (!['greet','ask','trade','help','topic','message'].includes(action)) return { ok:false, reason:'Неизвестное действие.' };
   npc.relationships ||= {}; const current = Number(npc.relationships[player.id]) || 0;
-  const delta = action === 'help' ? 5 : action === 'greet' ? 2 : action === 'trade' ? 1 : 0;
+  const delta = action === 'help' ? 5 : action === 'greet' ? 2 : action === 'trade' ? 1 : action === 'message' ? 1 : 0;
   npc.relationships[player.id] = clamp(current + delta, -100, 100);
   npc.memory ||= []; npc.memory.push({type:'player_interaction',playerId:player.id,action,at:now}); npc.memory=npc.memory.slice(-30);
   const result=interactDialogue(npc,player,action,context,now);

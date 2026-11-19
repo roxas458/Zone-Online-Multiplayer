@@ -164,3 +164,14 @@ body.reduce-motion *,body.reduce-motion *:before,body.reduce-motion *:after{anim
 @media(max-width:390px){.profile-hero{gap:9px}.portrait-large{width:86px;flex-basis:86px}.portrait-xl{width:86px;height:104px;flex-basis:86px}.profile-identity h2{font-size:18px}.main-menu-grid button b{font-size:12px}}
 
 .npc-portrait img{display:block;width:100%;height:100%;object-fit:cover;object-position:center 30%;filter:saturate(.78) contrast(1.04)}
+
+/* 4.12 Living Contact: rugged field-terminal styling, CoP-inspired layout language */
+.player-dm-panel,.npc-dm-panel,.npc-trade-window{background:linear-gradient(145deg,rgba(37,43,32,.96),rgba(18,23,19,.98));border:1px solid #596047;border-radius:8px;padding:12px;box-shadow:inset 0 1px rgba(220,220,180,.08),0 8px 24px #0005}
+.dm-head,.npc-trade-title{display:flex;justify-content:space-between;align-items:center;gap:8px;border-bottom:1px solid #596047;padding-bottom:9px;margin-bottom:9px}
+.dm-history{display:flex;flex-direction:column;gap:8px;max-height:300px;overflow:auto;padding:4px}
+.dm-line{align-self:flex-start;max-width:88%;background:#30382b;border:1px solid #586047;border-radius:7px;padding:8px 10px}
+.dm-line.mine{align-self:flex-end;background:#3d4931}.dm-line p{margin:4px 0;white-space:pre-wrap;overflow-wrap:anywhere}.dm-line small,.dm-line b{font-size:11px;color:#c4c8a8}
+.dm-compose{display:flex;gap:8px;margin-top:10px}.dm-compose input{flex:1;min-width:0}.player-contact{display:flex;justify-content:space-between;align-items:center;gap:8px}.player-contact small,.npc-stock-row small{display:block;color:#aeb49a;font-size:11px;margin-top:3px}
+.npc-trade-window{margin-top:10px}.npc-equipment{margin:8px 0 14px;padding:10px;background:#171d17;border:1px solid #444d39;border-radius:6px}.npc-equipment-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:8px}.npc-equipment-grid div{display:flex;flex-direction:column;gap:3px;background:#2b3327;padding:8px;border-radius:4px}.npc-equipment-grid small{color:#aeb49a}.npc-equipment-grid b{font-size:12px}.npc-stock{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin:8px 0}.npc-stock-row{display:flex;align-items:center;justify-content:space-between;gap:6px;padding:8px;background:#252d23;border:1px solid #46503a;border-radius:5px}.npc-stock-row b{font-size:12px}.npc-stock-row button{flex-shrink:0}
+.encyclopedia-entry{background:linear-gradient(135deg,#292f25,#1b211b);border:1px solid #4a533d;border-left:3px solid #89945f;border-radius:5px;padding:12px;margin-bottom:8px}.encyclopedia-entry p{line-height:1.55;color:#d1d2bc}.encyclopedia-entry small{color:#b4b994}
+@media(max-width:640px){.dm-compose{flex-direction:column}.dm-compose button{width:100%;min-height:42px}.npc-stock{grid-template-columns:1fr}.npc-equipment-grid{grid-template-columns:1fr 1fr}.player-contact{align-items:flex-start;flex-direction:column}.player-contact button{width:100%}.dm-line{max-width:96%}}

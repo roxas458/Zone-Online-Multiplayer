@@ -1,8 +1,8 @@
 {
   "name": "zone-online",
-  "version": "4.11.0",
+  "version": "4.12.0",
   "private": true,
-  "description": "STALKER IDENTITY: illustrated stalker portraits, personal dossier statistics, local NPC messaging and responsive PDA menu",
+  "description": "LIVING CONTACT: persistent player direct messages, NPC trading, equipment inspection, expanded anomaly field encyclopedia",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",

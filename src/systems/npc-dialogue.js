@@ -44,6 +44,7 @@ function interactDialogue(npc, player, action, context={}, now=Date.now()) {
     action==='ask'?`${prefix}${d.topics[1][1]} ${d.topics[2][1]}`:
     action==='topic'?`${prefix}${selected?selected[1]:'Сейчас не могу подобрать слова. Давай вернёмся к этому позже.'}`:
     action==='help'?`${prefix}Спасибо, это не пустяк. В Зоне помощь помнят дольше, чем обещания. ${d.topics[2][1]}`:
+    action==='message'?`${prefix}${/привет|здрав|добрый/i.test(context.messageText||'')?'Здорово, сталкер. Рад, что написал.':/слух|новост|аномал/i.test(context.messageText||'')?d.topics[0][1]+' '+d.topics[1][1]:/работ|задани|помощ/i.test(context.messageText||'')?d.topics[2][1]:'Прочитал твоё сообщение. Сейчас обстановка непростая, но я запомню наш разговор. '+d.topics[0][1]}`:
     `${prefix}Давай без спешки обсудим условия. ${d.topics[0][1]}`;
   npc.dialogueHistory.push({playerId:player.id,action,day:d.day,at:now}); npc.dialogueHistory=npc.dialogueHistory.slice(-20);
   npc.lastDialogueAt=now;
