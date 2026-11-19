@@ -28,6 +28,7 @@ test('world bootstrap creates NPC positions, quests and diplomacy', () => {
   assert.ok(world.diplomacy['Одиночки']['Долг'] !== undefined);
   assert.equal(world.territoryOwners.dump, 'Бандиты');
   assert.equal(world.warOperations.length, 0);
+  assert.equal(Object.values(world.npcState).filter(n => n.generated).length, 60);
 });
 
 test('expanded world includes Great Swamps and server-side food items', () => {
@@ -148,12 +149,12 @@ const { buildDialogue } = require('../src/systems/npc-dialogue');
 const { initEcosystem, tickEcosystem, upgradeBase, createClan, joinClan } = require('../src/systems/ecosystem');
 test('ECOSYSTEM creates a persistent roster of oddly nicknamed supporting stalkers', () => {
   const world = { npcState: {}, npcPositions: {} };
-  ensureRandomNpcs(world, 36);
+  ensureRandomNpcs(world, 60);
   const generated = Object.values(world.npcState).filter(n => n.generated);
-  assert.equal(generated.length, 36);
+  assert.equal(generated.length, 60);
   assert.ok(generated.some(n => /Спагетти|Табак|Пельмень|Болт|Чебурек/.test(n.name)));
   const firstName = generated[0].name;
-  ensureRandomNpcs(world, 36);
+  ensureRandomNpcs(world, 60);
   assert.equal(world.npcState.wanderer_001.name, firstName);
 });
 test('NPC dialogue is long-form and changes with the 15-minute dialogue cycle', () => {
@@ -183,10 +184,10 @@ const { initSouls, tickSouls } = require('../src/systems/souls');
 const { interactDialogue } = require('../src/systems/npc-dialogue');
 test('SOULS OF THE ZONE adds persistent biographies, friendships and squads', () => {
   const world = { npcState: {}, npcPositions: {} };
-  ensureRandomNpcs(world, 36);
+  ensureRandomNpcs(world, 60);
   initSouls(world, () => 0.2);
   const generated = Object.values(world.npcState).filter(n => n.generated);
-  assert.equal(generated.length, 36);
+  assert.equal(generated.length, 60);
   assert.ok(generated.every(n => typeof n.biography === 'string' && n.biography.length > 30));
   assert.ok(generated.some(n => n.friends.length > 0));
   assert.ok(world.npcSquads.length > 0);
@@ -202,7 +203,7 @@ test('SOULS OF THE ZONE replaces a dead stalker once and preserves a memorial', 
   tickSouls(world, new Set(['cordon','dump','bar']), () => 0.3, 181001);
   assert.equal(world.npcMemorial.length, 1);
   assert.equal(world.npcMemorial[0].name, dead.name);
-  assert.equal(Object.values(world.npcState).filter(n => n.generated && n.alive).length, 36);
+  assert.equal(Object.values(world.npcState).filter(n => n.generated && n.alive).length, 60);
   const memorialCount = world.npcMemorial.length;
   tickSouls(world, new Set(['cordon','dump','bar']), () => 0.3, 400000);
   assert.equal(world.npcMemorial.length, memorialCount);

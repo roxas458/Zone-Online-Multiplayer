@@ -5,7 +5,7 @@ const FACTIONS = ['Одиночки','Долг','Свобода','Бандиты
 const ROLES = ['сталкер','разведчик','механик','собиратель артефактов','проводник','торговец','охотник'];
 const ICONS = ['◉','⌁','⚙','☢','◆','✚','☼','▣','◈','♟'];
 const LOCATIONS = ['cordon','dump','bar','agro','dark','yantar','army','red','pripyat','zaton','jupiter','yanov','kopachi','volkhov','iron','swamps'];
-function ensureRandomNpcs(world, count = 36) {
+function ensureRandomNpcs(world, count = 60) {
   world.npcState ||= {}; world.npcPositions ||= {};
   const used = new Set(Object.values(world.npcState).map(n => n.name));
   for (let i=0; i<count; i++) {

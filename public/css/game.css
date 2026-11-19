@@ -74,3 +74,6 @@ button{background:linear-gradient(180deg,#424735,#292f23);border:1px solid #7273
 .timeline-entry>b{display:block;margin-top:7px;color:var(--green)}
 .timeline-entry p{margin:6px 0 0}
 @media(max-width:650px){.leader-grid{grid-template-columns:1fr}}
+
+/* 4.8 encyclopedia */
+.encyclopedia-entry{padding:12px;background:linear-gradient(145deg,#202e23,#151f18);border:1px solid var(--line);border-radius:8px}.encyclopedia-entry>b{display:block;color:var(--green);font-size:15px;margin:3px 0}.encyclopedia-entry p{margin:7px 0;color:var(--text)}.encyclopedia-entry small{color:var(--gold)}

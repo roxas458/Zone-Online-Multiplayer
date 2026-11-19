@@ -1,28 +1,19 @@
-# Changelog — ZONE ONLINE 4.7.1 SOULS OF THE ZONE — STABILITY PATCH
+# ZONE ONLINE 4.8.0 — REAL STALKER LIFE
 
-## Multiplayer reliability fixes
-- Fixed missing `safeState` initialization that caused `player:hello` to throw before emitting `player:ready`.
-- Added Socket.IO handshake acknowledgement and explicit error responses.
-- Added client-side 12-second handshake timeout, connect-error feedback, reconnect status and polling-to-WebSocket upgrade.
-- PostgreSQL failures now fall back to in-memory mode rather than leaving a connected player stuck during profile loading.
-- Prevented stale duplicate sockets for a reconnecting player ID.
+## Added
+- Real-time-only game clock based on the device wall clock. Day count advances once per real 24-hour period from the first 4.8 launch; displayed hour/minute follow local device time.
+- Removed the time fast-forward control. Exploration, travel, rest, searching, POI discovery and camp actions no longer increment the in-game clock or consume simulated hours.
+- Offline local-world pulse runs on a 15-minute wall-clock cadence; connected play continues to use the authoritative server scheduler.
+- Increased the persistent generated server-side stalker roster from 36 to 60. Existing NPC IDs and biographies remain intact; new IDs are appended.
+- Expanded the weapon catalogue with additional pistols, shotguns, rifles, assault rifles and special weapons.
+- Added the Encyclopedia PDA section with searchable dossiers for sectors, points of interest, factions, NPCs, weapons, mutants and artifacts.
+- Added three additional discoverable points of interest to every existing sector/map location.
 
-## Souls of the Zone
-- Added persistent NPC biographies, quirks, friend and rival links.
-- Added NPC squads with shared membership, movement and simulated raids.
-- Added memorial entries and replacement stalkers after NPC deaths.
-- Added personalized long-form server-side dialogue using biography, relationships, social links and recent events.
-- Dialogue topics are now fetched from the server, and rotate on the 15-minute cycle.
-- Added NPC panel sections for squads and the memorial.
+## Stability
+- Kept the 4.7.1 client bootstrap ordering and multiplayer handshake unchanged.
+- Made replacement-NPC nickname generation bounded so deterministic/random test sources cannot cause an infinite name-collision loop.
+- Existing browser saves are migrated in place; no save reset or database schema migration is required.
 
-## Compatibility
-- Existing player saves and world state are retained; new NPC fields are initialized lazily.
-- Existing WAR SYSTEM, ONLINE WORLD, ecosystem, markets and clans remain in place.
-
-
-## 4.7.1 — STABILITY PATCH
-- Fixed critical client startup ReferenceError caused by the first render accessing `serverWorld` before its `let` initialization.
-- Added browser bootstrap and all-view smoke tests.
-- Added same-origin Socket.IO loading with CDN fallback.
-- Added configurable multiplayer server URL and clearer connection diagnostics.
-- Preserved all existing 4.7 gameplay systems and saves.
+## Verification
+- `npm run check`
+- `npm test` — 26 tests passing.

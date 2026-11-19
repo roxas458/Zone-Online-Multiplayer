@@ -12,7 +12,7 @@ const BIOGRAPHY_BITS=[
 const QUIRKS=['собирает пустые гильзы','боится заводных игрушек','всегда носит лишнюю ложку','пишет заметки на пачках патронов','разговаривает с детектором','мечтает открыть столовую у костра','никогда не садится спиной к двери'];
 function pick(list,random){return list[Math.floor(random()*list.length)]||list[0];}
 function initSouls(world,random=Math.random){
-  ensureRandomNpcs(world,36);
+  ensureRandomNpcs(world,60);
   const npcs=Object.values(world.npcState||{}).filter(n=>n.generated);
   for(const npc of npcs){
     npc.biography ||= `${npc.name} ${pick(BIOGRAPHY_BITS,random)} Его странная привычка: ${pick(QUIRKS,random)}.`;
@@ -75,7 +75,7 @@ function tickSouls(world,locations,random=Math.random,now=Date.now()){
 function makeReplacement(id,locations,random,now,used){
   const first=['Вадим','Вовка','Гена','Серёга','Мишаня','Костян','Рома','Федя','Жека','Лёха','Тимоха','Борис','Данила','Егор','Стас','Ярик','Игнат','Славик','Гриша','Толя'];
   const last=['Спагетти','Табак','Кабачок','Пельмень','Шуруп','Кефир','Бублик','Картридж','Сухарь','Болт','Кирпич','Шпрот','Самовар','Квас','Чебурек','Комар','Фонарик','Пончик','Гвоздь'];
-  let name;do{name=`${pick(first,random)} ${pick(last,random)}`;}while(used.has(name));
+  let name;let attempts=0;do{name=`${pick(first,random)} ${pick(last,random)}`;attempts++;if(attempts>100)name=`Новый сталкер ${id}`;}while(used.has(name));
   const factions=['Одиночки','Долг','Свобода','Бандиты','Наёмники','Чистое небо'];
   const roles=['сталкер','разведчик','механик','проводник','охотник'];
   const locs=[...locations];const location=pick(locs,random)||'cordon';

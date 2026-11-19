@@ -1,8 +1,8 @@
 {
   "name": "zone-online",
-  "version": "4.7.1",
+  "version": "4.8.0",
   "private": true,
-  "description": "SOULS OF THE ZONE stability patch: repaired browser bootstrap, configurable Socket.IO endpoint and robust client loading",
+  "description": "REAL STALKER LIFE: real-time world clock, expanded NPC roster, weapons, encyclopedia and expanded sector points",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",

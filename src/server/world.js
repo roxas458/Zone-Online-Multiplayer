@@ -19,7 +19,7 @@ function initSharedWorld(world, NPC_HOME, LOCATIONS, COOP_TEMPLATES) {
   }
   const defaults = createNpcRoster(NPC_HOME);
   for (const [id, npc] of Object.entries(defaults)) world.npcState[id] ||= npc;
-  ensureRandomNpcs(world,36);
+  ensureRandomNpcs(world,60);
   for (const [id, npc] of Object.entries(world.npcState)) { if (!LOCATIONS.has(npc.location)) npc.location = world.npcPositions[id] || NPC_HOME[id] || 'cordon'; npc.alive = npc.alive !== false; npc.dialogueCycle ??= Math.floor(Date.now()/900000); npc.dialogueVersion ??= 0; npc.dialogue = buildDialogue(npc,{},Date.now()); }
   world.npcPositions = Object.fromEntries(Object.values(world.npcState).filter(n => n.alive).map(n => [n.id, n.location]));
   world.coOpQuests ||= COOP_TEMPLATES.map(q => ({ ...q, participants: [], done: false }));
