@@ -1,8 +1,8 @@
 {
   "name": "zone-online",
-  "version": "4.15.0",
+  "version": "4.16.0",
   "private": true,
-  "description": "FREE ROAM MAP: overall Zone and local maps, click-to-walk, keyboard and mobile controls, live world markers",
+  "description": "REALISTIC FREE ROAM: supplied satellite map, animated stalker sprite, keyboard/mobile movement and first-pass collision bounds",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",

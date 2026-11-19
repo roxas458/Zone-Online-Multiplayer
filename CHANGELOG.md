@@ -1,4 +1,13 @@
-# ZONE ONLINE CHANGELOG
+# Changelog
+
+## 4.16.0 — Realistic free roam foundation
+- Replaced the low-resolution map texture with the user's supplied 1024×2048 Zone map.
+- Added a realistic 4-direction stalker sprite atlas and animated walking frames.
+- Changed local-map movement from sector-radius-limited walking to free movement across the full map.
+- Added continuous WASD/arrow-key movement, hold-to-walk mobile controls, click-to-walk, map-edge bounds, and first-pass structure collision rectangles.
+- Local map camera now follows the player's world coordinates.
+- Kept existing world coordinate dimensions (1000×2000) and multiplayer position event contract.
+
 
 ## 4.9.0 — HUMAN STORIES
 

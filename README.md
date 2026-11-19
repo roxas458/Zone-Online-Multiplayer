@@ -1,6 +1,16 @@
-# ZONE ONLINE 4.10.0 — IMMERSION UPDATE
+# ZONE ONLINE 4.16.0 — REALISTIC FREE ROAM
 
 A backward-compatible continuation of ZONE ONLINE 4.8.0.
+
+
+## 4.16 — Realistic free roam foundation
+
+- The map texture now uses the 1024×2048 satellite image supplied for this project.
+- Added a realistic four-direction stalker sprite atlas with four walk frames per direction.
+- Local-map camera follows the player; movement is no longer constrained to a small sector-radius circle.
+- Added click-to-walk, continuous WASD/arrow-key movement, and press-and-hold mobile controls.
+- Added map-edge limits and an editable first-pass set of structure collision rectangles in `WORLD_OBSTACLES`. These are initial approximations, not a finished per-building collision mesh.
+- Kept the existing 1000×2000 world-coordinate contract and `player:position` multiplayer event.
 
 ## 4.8 inherited features
 

@@ -311,3 +311,20 @@ test('4.14 squads synchronize leader travel, field roles, journal and NPC escort
   assert.match(client, /squad:encounter/);
   assert.match(client, /Журнал отряда/);
 });
+
+test('4.16 realistic free-roam uses supplied satellite map, animated player and world-space collision', () => {
+  const client = fs.readFileSync(path.join(root, 'public/js/game.js'), 'utf8');
+  const html = fs.readFileSync(path.join(root, 'public/index.html'), 'utf8');
+  const css = fs.readFileSync(path.join(root, 'public/css/game.css'), 'utf8');
+  assert.match(client, /function playerSpriteMarkup\(/);
+  assert.match(client, /stalker-walk-atlas\.png/);
+  assert.match(client, /const WORLD_OBSTACLES=/);
+  assert.match(client, /function blockedAt\(/);
+  assert.match(client, /function walkHold\(/);
+  assert.match(client, /function mapPointer\(/);
+  assert.match(client, /player:position/);
+  assert.match(html, /onpointerdown="walkHold/);
+  assert.match(css, /\.player-sprite/);
+  assert.ok(fs.existsSync(path.join(root, 'public/assets/zone-master-map.jpg')));
+  assert.ok(fs.existsSync(path.join(root, 'public/assets/stalker-walk-atlas.png')));
+});
