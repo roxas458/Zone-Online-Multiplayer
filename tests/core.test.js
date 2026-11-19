@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { LOCATIONS, FACTIONS, NPC_HOME, COOP_TEMPLATES } = require('../src/shared/game-data');
+const { LOCATIONS, FACTIONS, NPC_HOME, COOP_TEMPLATES, TRADE_ITEM_IDS, SHOP } = require('../src/shared/game-data');
 const { clean, validId, createSafeState } = require('../src/server/validation');
 const { initSharedWorld, initDiplomacy } = require('../src/server/world');
 
@@ -26,4 +26,13 @@ test('world bootstrap creates NPC positions, quests and diplomacy', () => {
   assert.ok(Object.keys(world.npcPositions).length >= Object.keys(NPC_HOME).length);
   assert.equal(world.coOpQuests.length, COOP_TEMPLATES.length);
   assert.ok(world.diplomacy['Одиночки']['Долг'] !== undefined);
+});
+
+test('expanded world includes Great Swamps and server-side food items', () => {
+  assert.equal(LOCATIONS.has('swamps'), true);
+  assert.equal(NPC_HOME.lebedev, 'swamps');
+  for (const id of ['canned','sausage','condensed','water','tea','ration']) {
+    assert.equal(TRADE_ITEM_IDS.has(id), true);
+    assert.ok(SHOP[id]);
+  }
 });

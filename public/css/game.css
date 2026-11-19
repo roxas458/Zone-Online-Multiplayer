@@ -63,3 +63,14 @@ button{background:linear-gradient(180deg,#424735,#292f23);border:1px solid #7273
 /* 3.1 character setup and turn-based encounters */
 .overlay{position:fixed;inset:0;z-index:50;background:#080c09ed;display:none;align-items:center;justify-content:center;padding:16px}.overlay.show{display:flex}.dialog-card{width:min(560px,100%);max-height:92vh;overflow:auto;background:linear-gradient(145deg,#303728,#151b14);border:1px solid #8a855d;box-shadow:0 20px 70px #000b;padding:20px}.dialog-card h2{margin:0 0 6px;color:#e1d39b}.setup-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:12px 0}.faction-choice{padding:10px;border:1px solid #596147;background:#22291f;cursor:pointer;text-align:left}.faction-choice.selected{border-color:#e0ce87;background:#3a402d;box-shadow:inset 0 0 0 1px #b8a96e}.combat-card{border:1px solid #887451;background:linear-gradient(145deg,#292e22,#171c15);padding:14px;margin:10px 0}.combat-head{display:flex;justify-content:space-between;gap:10px;align-items:center}.combat-actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:12px}.combat-log{max-height:150px;overflow:auto;background:#10160f;border:1px solid #48513d;padding:9px;font-size:12px}.combat-log div{padding:3px 0;border-bottom:1px solid #293226}.combat-meter{height:9px;background:#414538;margin:5px 0 10px}.combat-meter i{display:block;height:100%;background:#b96f5c}.enemy-art{font-size:34px;float:right;margin:5px 12px}.battle-button{border-color:#a47c5b}.battle-button:hover{background:#5a3d2c}
 @media(max-width:520px){.setup-grid{grid-template-columns:1fr}.dialog-card{padding:14px}}
+
+/* ZONE ONLINE 4.1: faction dossiers, chronology and survival indicators */
+.leader-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+.leader-card{padding:12px;background:linear-gradient(145deg,#26372a,#19251d);border:1px solid var(--line);border-radius:8px}
+.leader-card>b{display:block;color:var(--green);font-size:15px;margin:4px 0}
+.leader-card p{margin:7px 0}
+.timeline-list{display:grid;gap:8px;margin:12px 0}
+.timeline-entry{padding:12px;border-left:3px solid #7f9c69;background:#1d2a20;border-radius:0 8px 8px 0}
+.timeline-entry>b{display:block;margin-top:7px;color:var(--green)}
+.timeline-entry p{margin:6px 0 0}
+@media(max-width:650px){.leader-grid{grid-template-columns:1fr}}

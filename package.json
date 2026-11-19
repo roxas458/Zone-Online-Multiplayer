@@ -1,12 +1,12 @@
 {
   "name": "zone-online",
-  "version": "4.0.0",
+  "version": "4.1.0",
   "private": true,
-  "description": "Modular browser RPG with shared world, character creation and combat foundations",
+  "description": "Modular browser RPG with expanded Zone lore, factions, survival needs and story campaign",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "check": "node --check server.js && node --check src/shared/game-data.js && node --check src/server/validation.js && node --check src/server/world.js && node --check public/js/game.js",
+    "check": "node --check server.js && node --check src/shared/game-data.js && node --check src/server/validation.js && node --check src/server/world.js && node --check public/js/content.js && node --check public/js/game.js",
     "test": "node --test"
   },
   "engines": {

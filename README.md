@@ -1,39 +1,37 @@
-# ZONE ONLINE 4.0 — Modular Project
+# ZONE ONLINE 4.1 — Chronicle & Survival Update
 
-ZONE ONLINE 4.0 restructures the 3.1 project into smaller, maintainable files while preserving the existing game behavior.
+This release expands the modular 4.0 project with a new lore archive, faction dossiers, the Great Swamps sector, additional points of interest, new NPCs, a story campaign, and food/water survival needs.
 
-## Project tree
+## New in 4.1
+
+- **Chronicle / archive:** concise, original summaries of the broad historical periods of the S.T.A.L.K.E.R. trilogy.
+- **Faction dossiers:** a leader or key representative for all nine factions, with notes that distinguish canon figures from original campaign roles. Some groups do not have a single permanent leader in the trilogy.
+- **New sector:** Great Swamps, with a connection to Cordon and Agroprom.
+- **More POIs:** four extra points per existing sector plus five in Great Swamps.
+- **New NPCs:** Lebedev, Novikov, Cold, Lukash, Voronin, Sultan, Beard, Charon, Wolfhound, Archivist and an original local military commander.
+- **Original campaign:** five missions across three chapters. The campaign takes inspiration from trilogy themes and locations, but dialogue and new mission text are written for ZONE ONLINE.
+- **Food and water:** canned food, sausage, condensed milk, water, tea and dry rations. Hunger and thirst rise as in-game time passes; supplies reduce them.
+- **Migration:** existing local/server profile data is extended with new fields and content rather than intentionally resetting progress.
+
+## Project layout
 
 ```text
-zone-online/
-├── public/
-│   ├── index.html
-│   ├── css/
-│   │   └── game.css          # PDA and game interface styles
-│   └── js/
-│       └── game.js           # Browser game logic and Socket.IO client
-├── src/
-│   ├── shared/
-│   │   └── game-data.js      # Factions, locations, NPC homes, shop and quest data
-│   └── server/
-│       ├── validation.js     # Input sanitizing and player state validation
-│       └── world.js          # Shared-world initialization and diplomacy
-├── tests/
-│   └── core.test.js          # Automated tests for shared data and core helpers
-├── server.js                # HTTP/Socket.IO composition and event handlers
-├── package.json
-├── render.yaml
-└── README.md
+public/
+  index.html
+  css/game.css
+  js/content.js
+  js/game.js
+src/
+  shared/game-data.js
+  server/validation.js
+  server/world.js
+tests/
+  core.test.js
+server.js
+package.json
+render.yaml
+README.md
 ```
-
-## Why the structure is better
-
-- Shared game definitions live in one place, instead of being mixed with server networking.
-- Server validation is isolated and can be tested independently.
-- Shared-world initialization is isolated from Socket.IO event handlers.
-- Browser styles and JavaScript no longer occupy the HTML document.
-- Automated tests cover basic validation and world initialization.
-- Future systems can be added as separate modules without rewriting the entire application.
 
 ## Run locally
 
@@ -44,16 +42,24 @@ npm run check
 npm start
 ```
 
-Then open `http://localhost:3000`.
+Open `http://localhost:3000`.
 
-## Deploy on Render
+## Render
 
 - Build command: `npm install`
 - Start command: `npm start`
-- Keep the existing PostgreSQL `DATABASE_URL` environment variable.
+- Keep `DATABASE_URL` connected to the Render PostgreSQL database.
 
-## Notes
+## Lore and canon notes
 
-This is an architectural refactor of the uploaded 3.1 project. It preserves the existing combat, character creation, inventory, NPC, quest, trade and multiplayer logic; it does not claim that all game systems have become server-authoritative. The browser game logic is currently extracted into `public/js/game.js` as a first modular boundary. Further extraction into combat, inventory, PDA, map and multiplayer client modules can follow incrementally.
+The archive is a short, paraphrased overview, not a reproduction of the games' scripts or quest text. Canonical leaders and historical figures are labeled as such in faction dossiers. Where the trilogy does not establish one permanent faction leader (for example, the mercenaries and the loosely organized loners), the game clearly marks its coordinator as an original ZONE ONLINE role.
 
-No original S.T.A.L.K.E.R. copyrighted game assets are bundled.
+The campaign's new dialogue, characters and objectives are original. The timeline's high-level background draws on the trilogy's depiction of Clear Sky's research in the Great Swamps, the faction conflicts in Clear Sky, and the northern events around Jupiter, Yanov and Pripyat in Call of Pripyat.
+
+No original game textures, icons, voice lines, or other copyrighted game assets are bundled.
+
+## Current limitations
+
+- Main campaign quest checks and hunger/thirst calculations currently run in the browser and are mirrored to the player profile; they are not yet fully server-authoritative.
+- NPC positions and multiplayer presence are synchronized, but most NPC dialogue behavior remains client-side.
+- This update does not claim a fully simulated MMORPG or a production-ready authentication system.
