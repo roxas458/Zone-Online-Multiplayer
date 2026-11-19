@@ -36,3 +36,25 @@ test('expanded world includes Great Swamps and server-side food items', () => {
     assert.ok(SHOP[id]);
   }
 });
+
+const { changeRelationship, relationshipLabel } = require('../src/systems/relationships');
+const { rankForXp } = require('../src/systems/ranks');
+const { addInfluence, resolveControl } = require('../src/systems/territories');
+const { canComplete } = require('../src/systems/contracts');
+
+test('Living Zone relationship and rank systems have bounded progression', () => {
+  assert.equal(changeRelationship(98, 10), 100);
+  assert.equal(relationshipLabel(-50), 'Враждебность');
+  assert.equal(rankForXp(500).name, 'Старший боец');
+});
+
+test('territory influence transfers control only at full influence', () => {
+  assert.equal(addInfluence(85, 25), 100);
+  assert.deepEqual(resolveControl('Бандиты', 'Одиночки', 100), { owner: 'Одиночки', control: 55 });
+});
+
+test('contract requires acceptance, location and required items', () => {
+  const c = { accepted: true, done: false, location: 'cordon', item: 'scrap', qty: 2 };
+  assert.equal(canComplete(c, { location: 'cordon', items: [{ id: 'scrap', qty: 2 }] }), true);
+  assert.equal(canComplete(c, { location: 'dump', items: [{ id: 'scrap', qty: 2 }] }), false);
+});

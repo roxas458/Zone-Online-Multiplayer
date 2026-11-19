@@ -63,3 +63,7 @@ No original game textures, icons, voice lines, or other copyrighted game assets 
 - Main campaign quest checks and hunger/thirst calculations currently run in the browser and are mirrored to the player profile; they are not yet fully server-authoritative.
 - NPC positions and multiplayer presence are synchronized, but most NPC dialogue behavior remains client-side.
 - This update does not claim a fully simulated MMORPG or a production-ready authentication system.
+
+
+## Version 4.2 — Living Zone
+The Living Zone panel adds NPC relationships, faction rank progression, contracts, patrol sightings, territory influence, camp activities, PDA rumors and emission alerts. New fields are added through save migration, so an existing 4.1 save can be continued. Reusable domain helpers are located in `src/systems/`.
