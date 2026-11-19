@@ -26,6 +26,8 @@ test('world bootstrap creates NPC positions, quests and diplomacy', () => {
   assert.ok(Object.keys(world.npcPositions).length >= Object.keys(NPC_HOME).length);
   assert.equal(world.coOpQuests.length, COOP_TEMPLATES.length);
   assert.ok(world.diplomacy['Одиночки']['Долг'] !== undefined);
+  assert.equal(world.territoryOwners.dump, 'Бандиты');
+  assert.equal(world.warOperations.length, 0);
 });
 
 test('expanded world includes Great Swamps and server-side food items', () => {
@@ -57,4 +59,28 @@ test('contract requires acceptance, location and required items', () => {
   const c = { accepted: true, done: false, location: 'cordon', item: 'scrap', qty: 2 };
   assert.equal(canComplete(c, { location: 'cordon', items: [{ id: 'scrap', qty: 2 }] }), true);
   assert.equal(canComplete(c, { location: 'dump', items: [{ id: 'scrap', qty: 2 }] }), false);
+});
+
+const { createOperation, deploymentPower, addDeployment, resolveOperation, WAR_CONFIG } = require('../src/systems/war');
+
+test('WAR SYSTEM creates operations, validates deployments and resolves territory capture', () => {
+  const op = createOperation({ id: 'op-1', location: 'dump', attacker: 'Одиночки', defender: 'Бандиты', createdBy: 'p1', territoryControl: 40, now: 100 });
+  assert.equal(op.status, 'active');
+  assert.equal(op.defenseScore, 40);
+  const power = deploymentPower({ xp: 500, rep: 20, action: 'attack' });
+  assert.equal(addDeployment(op, { id: 'p1', name: 'Север', faction: 'Одиночки' }, 'attack', power, 110).ok, true);
+  assert.equal(addDeployment(op, { id: 'p1', name: 'Север', faction: 'Одиночки' }, 'attack', power, 120).ok, false);
+  assert.equal(addDeployment(op, { id: 'p2', name: 'Клык', faction: 'Одиночки' }, 'attack', 80, 130).ok, true);
+  const result = resolveOperation(op);
+  assert.equal(result.ok, true);
+  assert.equal(result.winner, 'Одиночки');
+  assert.equal(result.captured, true);
+  assert.equal(op.status, 'resolved');
+  assert.equal(WAR_CONFIG.operationCost, 350);
+});
+
+test('WAR SYSTEM rejects premature resolution and unauthorized side deployments', () => {
+  const op = createOperation({ id: 'op-2', location: 'bar', attacker: 'Свобода', defender: 'Долг', createdBy: 'p1' });
+  assert.equal(resolveOperation(op).ok, false);
+  assert.equal(addDeployment(op, { id: 'p2', name: 'Игрок', faction: 'Бандиты' }, 'defend', 20).ok, false);
 });

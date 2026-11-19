@@ -161,7 +161,7 @@ function news(t,b){g.news.unshift({day:g.day,hour:String(g.hour).padStart(2,"0")
 function addItem(id,name,type,desc,weight,value,qty=1){let x=g.items.find(i=>i.id===id);if(x)x.qty+=qty;else g.items.push({id,name,type,desc,weight,value,qty})}
 function count(id){return g.items.find(i=>i.id===id)?.qty||0}
 function take(id,n){let x=g.items.find(i=>i.id===id);if(!x||x.qty<n)return false;x.qty-=n;if(x.qty<=0)g.items=g.items.filter(i=>i.id!==id);return true}
-function view(id){document.querySelectorAll(".view").forEach(v=>v.classList.toggle("active",v.id===id));document.querySelectorAll("[data-v]").forEach(b=>b.classList.toggle("active",b.dataset.v===id))}
+function view(id){document.querySelectorAll(".view").forEach(v=>v.classList.toggle("active",v.id===id));document.querySelectorAll("[data-v]").forEach(b=>b.classList.toggle("active",b.dataset.v===id));if(id==="war")renderWar()}
 document.querySelectorAll("[data-v]").forEach(b=>b.onclick=()=>{view(b.dataset.v);if(b.dataset.v==="armory")renderArmory();if(b.dataset.v==="inventory")renderInventory()});
 function here(){return g.locations.find(l=>l.id===g.loc)}
 function npcBy(id){return g.npcs.find(n=>n.id===id)}
@@ -417,6 +417,22 @@ function livingTerritory(id){let l=g.locations.find(x=>x.id===id);if(!l)return;i
 function livingWorldTick(){initLivingState();g.worldTick++;if(Math.random()<.16){g.emission.warning=true;livingNews("Предупреждение КПК: выброс","Зафиксирован рост радиационного фона. Найди укрытие и не задерживайся на открытой местности.");}else if(g.emission.warning&&Math.random()<.45){g.emission.warning=false;g.emission.active=true;g.hp=Math.max(1,g.hp-12);livingNews("Выброс","Волна накрыла сектор. Без укрытия ты получил повреждения.");}if(Math.random()<.22)livingPatrol();}
 initLivingState();
 
+function renderWar(){
+ const ops=serverWorld?.warOperations||[],history=serverWorld?.warHistory||[],owners=serverWorld?.territoryOwners||{};
+ if(serverWorld?.territoryOwners){for(const l of g.locations){if(owners[l.id])l.owner=owners[l.id];if(serverWorld.territoryControl?.[l.id]!==undefined)l.control=serverWorld.territoryControl[l.id];}renderMap();}
+ const active=ops.filter(x=>x.status==='active');
+ if($('warStats'))$('warStats').innerHTML=[["Активные операции",active.length],["Твоя сторона",g.faction],["Текущий сектор",here().name]].map(x=>`<div class="stat"><span>${escapeHtml(String(x[0]))}</span><strong style="font-size:15px">${escapeHtml(String(x[1]))}</strong></div>`).join('');
+ const current=active.find(x=>x.location===g.loc);
+ if($('warCurrent'))$('warCurrent').innerHTML=current?warOperationHtml(current):`<div class="mutedbox small">В секторе ${escapeHtml(here().name)} активной операции нет.</div>${(owners[g.loc]||here().owner)!==g.faction?`<div class="item"><span>Контроль сектора: ${escapeHtml(owners[g.loc]||here().owner)}</span><button onclick="warCreate()">Объявить штурм · 350 ₽</button></div>`:'<div class="mutedbox small">Сектор под контролем твоей группировки. Здесь нельзя объявить штурм.</div>'}`;
+ if($('warOperations'))$('warOperations').innerHTML=active.map(warOperationHtml).join('')||'<div class="mutedbox small">Активных операций нет. Фронт пока спокоен.</div>';
+ if($('warTerritories'))$('warTerritories').innerHTML=g.locations.map(l=>{let owner=owners[l.id]||l.owner;let control=serverWorld?.territoryControl?.[l.id]??l.control;return `<div class="item"><div><b>${escapeHtml(l.name)}</b><div class="desc">Контроль: ${escapeHtml(owner)} · устойчивость ${control}%</div></div><span class="tag">${owner===g.faction?'Свой сектор':'Чужая территория'}</span></div>`}).join('');
+ if($('warHistory'))$('warHistory').innerHTML=history.slice(0,12).map(x=>`<div class="item"><div><b>${escapeHtml(g.locations.find(l=>l.id===x.location)?.name||x.location)}</b><div class="desc">${escapeHtml(x.attacker)} против ${escapeHtml(x.defender)} · победитель: ${escapeHtml(x.winner)}</div></div><span class="tag">${x.captured?'Захват':'Оборона'}</span></div>`).join('')||'<div class="mutedbox small">История сражений пока пуста.</div>';
+}
+function warOperationHtml(op){const mine=op.participants?.some(x=>x.playerId===zonePlayerId);const side=g.faction===op.attacker?'attack':g.faction===op.defender?'defend':null;const commander=op.createdBy===zonePlayerId;const location=g.locations.find(l=>l.id===op.location);return `<div class="item block"><div class="row" style="justify-content:space-between;align-items:center"><b>⚔ ${escapeHtml(location?.name||op.location)}</b><span class="tag">${op.phase==='mobilization'?'Сбор отрядов':'После боя'}</span></div><div class="desc">${escapeHtml(op.attacker)} ⚔ ${escapeHtml(op.defender)}</div><div class="grid three"><div class="stat"><span>Штурм</span><strong>${op.attackScore}</strong></div><div class="stat"><span>Оборона</span><strong>${op.defenseScore}</strong></div><div class="stat"><span>Бойцы</span><strong>${op.participants?.length||0}</strong></div></div><div class="desc">${(op.log||[]).slice(-3).map(x=>escapeHtml(x.text)).join('<br>')}</div><div class="rightbuttons">${side&&!mine&&op.status==='active'&&g.loc===op.location?`<button onclick="warDeploy('${op.id}','${side}')">${side==='attack'?'Вступить в штурм':'Встать на защиту'} · 100 ₽</button>`:''}${commander&&op.status==='active'?`<button onclick="warResolve('${op.id}')">Подвести итог</button>`:''}${mine?'<span class="tag">Ты в операции</span>':''}</div></div>`}
+function warCreate(){if(!zoneSocket?.connected)return alert('Для военной операции нужно подключение к общей Зоне.');const owner=serverWorld?.territoryOwners?.[g.loc]||here().owner;zoneSocket.emit('war:operation:create',{location:g.loc,defender:owner,control:serverWorld?.territoryControl?.[g.loc]??here().control});}
+function warDeploy(id,action){if(!zoneSocket?.connected)return alert('Нет связи с сервером.');zoneSocket.emit('war:operation:deploy',{operationId:id,action});}
+function warResolve(id){if(!confirm('Завершить операцию и зафиксировать результат?'))return;zoneSocket.emit('war:operation:resolve',{operationId:id});}
+
 function connectZone(){
  if(typeof io!=='function'){$('mpStatusText').textContent='Не удалось загрузить Socket.IO. Обнови страницу.';return;}
  zoneSocket=io({transports:['websocket','polling'],reconnection:true,reconnectionAttempts:Infinity,reconnectionDelay:1000,reconnectionDelayMax:8000});
@@ -424,7 +440,7 @@ function connectZone(){
  zoneSocket.on('player:ready',data=>{
   zonePlayerId=data.id;localStorage.setItem('zoneOnlinePlayerId',zonePlayerId);
   if(data.savedState&&typeof data.savedState==='object'){applyingServerState=true;g=data.savedState;if(g.characterCreated===undefined)g.characterCreated=true;migrateWorld();localStorage.setItem('zoneExpandedSave',JSON.stringify(g));applyingServerState=false;render();if(g.characterCreated)$('characterSetup')?.classList.remove('show');else if(!$('characterSetup')?.classList.contains('show'))openCharacterSetup();}
-  serverWorld=data.world||null;if(serverWorld?.discoveredPoints)applySharedDiscoveredPoints(serverWorld.discoveredPoints);if(serverWorld?.diplomacy){g.diplomacy=serverWorld.diplomacy;renderDiplomacy();}if(serverWorld?.npcPositions)applySharedNpcPositions(serverWorld.npcPositions);renderCoopQuests(serverWorld?.coOpQuests||[]);
+  serverWorld=data.world||null;renderWar();if(serverWorld?.discoveredPoints)applySharedDiscoveredPoints(serverWorld.discoveredPoints);if(serverWorld?.diplomacy){g.diplomacy=serverWorld.diplomacy;renderDiplomacy();}if(serverWorld?.npcPositions)applySharedNpcPositions(serverWorld.npcPositions);renderCoopQuests(serverWorld?.coOpQuests||[]);
   onlinePlayers=data.players||[];serverChat=data.chat||[];renderOnlinePlayers();renderServerChat();
   if($('mpName'))$('mpName').value=g.name;
   $('mpStatusText').textContent=data.persistent?'Сервер подключён · профиль и общий мир сохраняются в PostgreSQL.':'Сервер подключён · внимание: без PostgreSQL прогресс на сервере сбросится после перезапуска.';
@@ -436,13 +452,16 @@ function connectZone(){
  zoneSocket.on('world:poi',points=>applySharedDiscoveredPoints(points));
  zoneSocket.on('world:zoneEvent',ev=>{g.news.unshift({day:g.day,hour:String(g.hour).padStart(2,'0')+':00',title:ev.title,body:ev.body});g.news=g.news.slice(0,60);renderNews();log('Сводка КПК: '+ev.title+'.');});
  zoneSocket.on('world:coop',list=>renderCoopQuests(list));
+ zoneSocket.on('war:state',data=>{serverWorld=serverWorld||{};serverWorld.warOperations=data.operations||[];serverWorld.warHistory=data.history||[];renderWar();});
+ zoneSocket.on('war:result',data=>{if(data.state){g=data.state;localStorage.setItem('zoneExpandedSave',JSON.stringify(g));render();}if(data.world)serverWorld=data.world;alert(data.message||'');renderWar();});
+ zoneSocket.on('war:reward',data=>{if(data.state){g=data.state;localStorage.setItem('zoneExpandedSave',JSON.stringify(g));render();}alert(data.won?'Победа! +180 ₽, +35 опыта и +5 репутации.':'Операция завершена. +35 опыта, репутация скорректирована.');});
  zoneSocket.on('trade:incoming',offer=>{incomingTrades.push(offer);renderIncomingTrades();});
  zoneSocket.on('market:result',data=>{if(data.state){g=data.state;localStorage.setItem('zoneExpandedSave',JSON.stringify(g));render();}alert(data.message||'Операция выполнена.');});
  zoneSocket.on('trade:result',data=>{alert(data.message|| (data.ok?'Обмен выполнен.':'Обмен не выполнен.'));if(data.state){g=data.state;localStorage.setItem('zoneExpandedSave',JSON.stringify(g));render();}});
  zoneSocket.on('coop:result',data=>{alert(data.message||'');});
  zoneSocket.on('coop:reward',data=>{if(data.state){g=data.state;localStorage.setItem('zoneExpandedSave',JSON.stringify(g));render();}alert(`Совместное задание выполнено: +${data.reward} ₽ и ${data.xp} опыта.`);});
  zoneSocket.on('world:chat',m=>{serverChat.push(m);if(serverChat.length>100)serverChat=serverChat.slice(-100);renderServerChat();});
- zoneSocket.on('world:update',data=>{serverWorld=data.world||serverWorld;renderCoopQuests(serverWorld?.coOpQuests||[]);if(serverWorld?.diplomacy){g.diplomacy=serverWorld.diplomacy;localStorage.setItem('zoneExpandedSave',JSON.stringify(g));renderDiplomacy();}if(data.notice){g.news.unshift({day:g.day,hour:String(g.hour).padStart(2,'0')+':00',title:'Дипломатия Зоны',body:data.notice});g.news=g.news.slice(0,40);renderNews();}});
+ zoneSocket.on('world:update',data=>{serverWorld=data.world||serverWorld;renderWar();renderCoopQuests(serverWorld?.coOpQuests||[]);if(serverWorld?.diplomacy){g.diplomacy=serverWorld.diplomacy;localStorage.setItem('zoneExpandedSave',JSON.stringify(g));renderDiplomacy();}if(data.notice){g.news.unshift({day:g.day,hour:String(g.hour).padStart(2,'0')+':00',title:'Мировая сводка',body:data.notice});g.news=g.news.slice(0,40);renderNews();}});
  zoneSocket.on('diplomacy:result',data=>{if(!data.ok){alert(data.message||'Операция не выполнена.');return;}if(data.state){g.money=data.state.money;g.rep=data.state.rep;localStorage.setItem('zoneExpandedSave',JSON.stringify(g));}if(data.world?.diplomacy)g.diplomacy=data.world.diplomacy;render();});
  zoneSocket.on('server:error',e=>{console.warn(e.message);});
  zoneSocket.on('disconnect',()=>renderOnlinePlayers());

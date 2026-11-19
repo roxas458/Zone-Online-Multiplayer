@@ -20,3 +20,14 @@
 - Added emission warning/shelter gameplay hooks to world-time progression.
 - Added modular domain helpers under `src/systems/` for reputation, relationships, ranks, contracts, patrols, territories, emissions, rumors and camp life.
 - Existing local saves are migrated in place; existing player progress is preserved.
+
+
+## 4.3.0 — WAR SYSTEM
+
+- Added server-authoritative faction operations: create, deploy, resolve.
+- Added per-sector operation locks, active operation cap, participant limits and duplicate-deployment protection.
+- Added attack/defense scores, XP/reputation-based deployment power, operation log and commander-only resolution.
+- Added persistent territory ownership/control, battle history, PDA War System view and victory rewards.
+- Added initial territory registry for all 16 sectors.
+- Preserved the 4.2 save format and extended shared-world bootstrap for existing PostgreSQL worlds.
+- Added automated tests for operation lifecycle, territory capture and invalid deployment/resolution.

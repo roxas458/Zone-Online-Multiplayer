@@ -1,4 +1,4 @@
-# ZONE ONLINE 4.1 — Chronicle & Survival Update
+# ZONE ONLINE 4.3 — WAR SYSTEM
 
 This release expands the modular 4.0 project with a new lore archive, faction dossiers, the Great Swamps sector, additional points of interest, new NPCs, a story campaign, and food/water survival needs.
 
@@ -67,3 +67,27 @@ No original game textures, icons, voice lines, or other copyrighted game assets 
 
 ## Version 4.2 — Living Zone
 The Living Zone panel adds NPC relationships, faction rank progression, contracts, patrol sightings, territory influence, camp activities, PDA rumors and emission alerts. New fields are added through save migration, so an existing 4.1 save can be continued. Reusable domain helpers are located in `src/systems/`.
+
+
+## Version 4.3 — WAR SYSTEM
+
+The 4.3 update adds server-authoritative faction operations and persistent territory control. The PDA now has a dedicated War System screen.
+
+- **Operations:** a player can organize an assault while physically present in a hostile-controlled sector. Only one active operation can exist per sector, with a global cap on active operations.
+- **Deployment:** members of the attacking and defending factions can deploy once per operation while present in the target sector. Deployment consumes 100 ₽ and adds combat power based on XP and reputation.
+- **Command:** only the operation creator can resolve the operation; at least two players must have deployed. Attack score is compared with the defending garrison plus defender deployments.
+- **Territory control:** a successful assault transfers the sector to the attacking faction. The new owner and control value are stored in the shared world and PostgreSQL JSONB state.
+- **Rewards and history:** participants receive XP and reputation changes; winners receive a cash reward. Completed operations are written to the shared war history and PDA news.
+- **Validation:** faction membership, location, costs, duplicate deployment, operation ownership and operation limits are checked on the server.
+
+### WAR SYSTEM files
+
+- `src/systems/war.js` — operation creation, deployment power, participant validation and battle resolution rules.
+- `src/shared/game-data.js` — initial territory owners and control values.
+- `server.js` — Socket.IO commands and authoritative persistence/rewards.
+- `public/index.html` / `public/js/game.js` — War System PDA screen and multiplayer controls.
+- `tests/core.test.js` — battle lifecycle and validation tests.
+
+### Current WAR SYSTEM scope
+
+This is the first playable strategic layer, not a real-time tactical shooter: battles are resolved from player deployments and server-side scores. NPC armies, live combat units, supply convoys and autonomous front movement are reserved for the NPC AI and later Online World phases. Existing 4.1/4.2 player saves are retained; older world records receive initial territory data during world bootstrap.

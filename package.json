@@ -1,12 +1,12 @@
 {
   "name": "zone-online",
-  "version": "4.2.0",
+  "version": "4.3.0",
   "private": true,
-  "description": "Living Zone browser RPG with faction relations, contracts, patrols, territory influence and dynamic events",
+  "description": "Living Zone browser RPG with server-authoritative faction warfare, operations and territory control",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "check": "node --check server.js && node --check src/shared/game-data.js && node --check src/server/validation.js && node --check src/server/world.js && node --check public/js/content.js && node --check public/js/game.js && node --check src/systems/relationships.js && node --check src/systems/ranks.js && node --check src/systems/contracts.js && node --check src/systems/patrols.js && node --check src/systems/territories.js && node --check src/systems/emissions.js && node --check src/systems/rumors.js && node --check src/systems/camp-life.js",
+    "check": "node --check server.js && node --check src/shared/game-data.js && node --check src/server/validation.js && node --check src/server/world.js && node --check public/js/content.js && node --check public/js/game.js && node --check src/systems/relationships.js && node --check src/systems/ranks.js && node --check src/systems/contracts.js && node --check src/systems/patrols.js && node --check src/systems/territories.js && node --check src/systems/emissions.js && node --check src/systems/rumors.js && node --check src/systems/camp-life.js && node --check src/systems/war.js",
     "test": "node --test"
   },
   "engines": {

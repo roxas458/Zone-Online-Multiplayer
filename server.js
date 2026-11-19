@@ -4,17 +4,18 @@ const path = require('path');
 const crypto = require('crypto');
 const { Server } = require('socket.io');
 const {
-  LOCATIONS, FACTIONS, NPC_HOME, TRADE_ITEM_IDS, SHOP, SELL_VALUES,
+  LOCATIONS, FACTIONS, TERRITORY_START, NPC_HOME, TRADE_ITEM_IDS, SHOP, SELL_VALUES,
   COOP_TEMPLATES, ZONE_EVENTS
 } = require('./src/shared/game-data');
 const { clean, validId, createSafeState } = require('./src/server/validation');
 const { initSharedWorld, initDiplomacy } = require('./src/server/world');
+const { WAR_CONFIG, createOperation, deploymentPower, addDeployment, resolveOperation } = require('./src/systems/war');
 
 const online = new Map();
 const recentChat = [];
 let pool = null;
 let dbReady = false;
-let world = { diplomacy: {}, events: [], revision: 1, npcPositions: {}, coOpQuests: [], discoveredPoints: {}, zoneEvents: [] };
+let world = { diplomacy: {}, events: [], revision: 1, npcPositions: {}, coOpQuests: [], discoveredPoints: {}, zoneEvents: [], warOperations: [], warHistory: [] };
 
 
 const app = express();
@@ -61,7 +62,7 @@ io.on('connection', socket=>{
       const p={ id, name:s.name, faction:s.faction, location:s.loc, hp:s.hp, xp:s.xp, joinedAt:Date.now(), lastSeen:Date.now(), state:saved||s.state };
       socket.data.playerId=id; socket.data.name=p.name; online.set(id,p); socket.join('zone-world'); socket.join(id);
       socket.emit('player:ready',{id, savedState:saved, world, chat:recentChat.slice(-60), players:onlineList(), persistent:dbReady});
-      io.emit('world:npcs',world.npcPositions); io.emit('world:coop',world.coOpQuests);
+      io.emit('world:npcs',world.npcPositions); io.emit('world:coop',world.coOpQuests); io.emit('war:state',{operations:world.warOperations||[],history:(world.warHistory||[]).slice(0,12)});
       systemMessage(`${p.name} вошёл в Зону.`); broadcastOnline();
     } catch(e){ socket.emit('server:error',{message:'Не удалось загрузить профиль.'}); console.error(e); }
   });
@@ -176,6 +177,48 @@ io.on('connection', socket=>{
     if(!LOCATIONS.has(location)||p.location!==location||!new RegExp('^'+location+'_poi_[0-9]+$').test(id))return;
     world.discoveredPoints ||= {};world.discoveredPoints[location] ||= [];
     if(!world.discoveredPoints[location].includes(id)){world.discoveredPoints[location].push(id);world.revision=(world.revision||0)+1;await persistWorld();io.emit('world:poi',world.discoveredPoints);systemMessage(`${p.name} обнаружил новую точку интереса: ${name} (${location}).`);}
+  });
+  socket.on('war:operation:create', async input=>{
+    const p=online.get(socket.data.playerId); if(!p)return;
+    const location=String(input?.location||'');
+    if(!LOCATIONS.has(location)||p.location!==location){socket.emit('war:result',{ok:false,message:'Нужно находиться в секторе, где начинается операция.'});return;}
+    world.territoryOwners ||= Object.fromEntries(Object.entries(TERRITORY_START).map(([id,v])=>[id,v.owner]));
+    world.territoryControl ||= Object.fromEntries(Object.entries(TERRITORY_START).map(([id,v])=>[id,v.control]));
+    const owner=world.territoryOwners[location];
+    if(!FACTIONS.has(owner)||owner===p.faction){socket.emit('war:result',{ok:false,message:'Нельзя объявить штурм собственной территории.'});return;}
+    world.warOperations ||= [];
+    if(world.warOperations.some(x=>x.location===location&&x.status==='active')){socket.emit('war:result',{ok:false,message:'В этом секторе уже идёт операция.'});return;}
+    if(world.warOperations.filter(x=>x.status==='active').length>=WAR_CONFIG.maxActiveOperations){socket.emit('war:result',{ok:false,message:'Слишком много активных операций. Дождись завершения одной из них.'});return;}
+    const st=safeState(p.state); if(st.money<WAR_CONFIG.operationCost){socket.emit('war:result',{ok:false,message:`Для организации операции нужно ${WAR_CONFIG.operationCost} ₽.`});return;}
+    st.state.money=st.money-WAR_CONFIG.operationCost;p.state=st.state;await persistPlayer(p.id,p.state);
+    const op=createOperation({id:crypto.randomUUID(),location,attacker:p.faction,defender:owner,createdBy:p.id,territoryControl:world.territoryControl[location]||50});
+    world.warOperations.unshift(op);world.warOperations=world.warOperations.slice(0,20);world.revision=(world.revision||0)+1;
+    await persistWorld();io.emit('war:state',{operations:world.warOperations,history:world.warHistory||[]});io.emit('world:update',{world,notice:`В секторе ${location} группировка «${p.faction}» начала военную операцию против «${owner}».`});
+    socket.emit('war:result',{ok:true,message:'Операция объявлена. Собирай бойцов и отдавай приказы.',state:p.state});
+  });
+  socket.on('war:operation:deploy', async input=>{
+    const p=online.get(socket.data.playerId);if(!p)return;
+    const op=(world.warOperations||[]).find(x=>x.id===String(input?.operationId||''));
+    if(!op||op.status!=='active'||p.location!==op.location){socket.emit('war:result',{ok:false,message:'Операция недоступна или ты находишься в другом секторе.'});return;}
+    const action=String(input?.action||'');
+    if((action==='attack'&&p.faction!==op.attacker)||(action==='defend'&&p.faction!==op.defender)){socket.emit('war:result',{ok:false,message:'Твоя группировка не может выполнить этот приказ в данной операции.'});return;}
+    const st=safeState(p.state);if(st.money<WAR_CONFIG.deploymentCost){socket.emit('war:result',{ok:false,message:`Для снабжения бойца нужно ${WAR_CONFIG.deploymentCost} ₽.`});return;}
+    const power=deploymentPower({xp:st.xp,rep:st.rep,action});
+    const result=addDeployment(op,{id:p.id,name:p.name,faction:p.faction},action,power);
+    if(!result.ok){socket.emit('war:result',{ok:false,message:result.reason});return;}
+    st.state.money=st.money-WAR_CONFIG.deploymentCost;p.state=st.state;await persistPlayer(p.id,p.state);
+    world.revision=(world.revision||0)+1;await persistWorld();io.emit('war:state',{operations:world.warOperations,history:world.warHistory||[]});socket.emit('war:result',{ok:true,message:`Приказ выполнен. Боевая сила отряда: +${power}.`,state:p.state});
+  });
+  socket.on('war:operation:resolve', async input=>{
+    const p=online.get(socket.data.playerId);if(!p)return;
+    const op=(world.warOperations||[]).find(x=>x.id===String(input?.operationId||''));
+    if(!op||op.status!=='active'||op.createdBy!==p.id){socket.emit('war:result',{ok:false,message:'Завершить операцию может только её командир.'});return;}
+    const result=resolveOperation(op);if(!result.ok){socket.emit('war:result',{ok:false,message:result.reason});return;}
+    if(result.captured){world.territoryOwners ||= {};world.territoryOwners[op.location]=op.attacker;world.territoryControl ||= {};world.territoryControl[op.location]=55;}
+    const record={id:op.id,location:op.location,attacker:op.attacker,defender:op.defender,winner:result.winner,captured:result.captured,at:Date.now()};
+    world.warHistory ||= [];world.warHistory.unshift(record);world.warHistory=world.warHistory.slice(0,30);world.revision=(world.revision||0)+1;
+    for(const participant of op.participants){const pl=online.get(participant.playerId);if(!pl)continue;const st=safeState(pl.state);st.state.xp=Math.min(1e7,st.xp+35);st.state.rep=Math.max(-1000,Math.min(1000,st.rep+(participant.side===result.winner?5:-2)));if(participant.side===result.winner)st.state.money=Math.min(99999999,st.money+180);pl.state=st.state;await persistPlayer(pl.id,pl.state);io.to(pl.id).emit('war:reward',{state:pl.state,winner:result.winner,won:participant.side===result.winner});}
+    await persistWorld();io.emit('war:state',{operations:world.warOperations,history:world.warHistory});io.emit('world:update',{world,notice:result.captured?`«${op.attacker}» захватили сектор ${op.location}.`:`Оборона «${op.defender}» удержала сектор ${op.location}.`});socket.emit('war:result',{ok:true,message:result.captured?'Победа! Территория перешла под контроль твоей группировки.':'Оборона удержала сектор.',world});
   });
   socket.on('diplomacy:action', async input=>{
     const p=online.get(socket.data.playerId);if(!p)return;

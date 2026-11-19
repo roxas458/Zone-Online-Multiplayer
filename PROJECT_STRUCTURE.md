@@ -37,3 +37,11 @@ ZONE_ONLINE/
 ```
 
 The existing repository uses a compact Express/Socket.IO layout. This map shows the logical module boundaries; the existing runtime paths are retained to avoid breaking deployment.
+
+
+## 4.3 WAR SYSTEM runtime additions
+
+- `world.territoryOwners` and `world.territoryControl` store authoritative sector control.
+- `world.warOperations` stores active and recently completed operations.
+- `world.warHistory` stores the latest 30 resolved battles.
+- Socket.IO events: `war:operation:create`, `war:operation:deploy`, `war:operation:resolve`, `war:state`, `war:result`, `war:reward`.

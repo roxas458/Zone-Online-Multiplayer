@@ -1,6 +1,11 @@
 // Shared world bootstrap helpers.
+const { TERRITORY_START } = require('../shared/game-data');
 function initSharedWorld(world, NPC_HOME, LOCATIONS, COOP_TEMPLATES) {
   world.npcPositions ||= {};
+  world.territoryOwners ||= Object.fromEntries(Object.entries(TERRITORY_START).map(([id,v]) => [id,v.owner]));
+  world.territoryControl ||= Object.fromEntries(Object.entries(TERRITORY_START).map(([id,v]) => [id,v.control]));
+  world.warOperations ||= [];
+  world.warHistory ||= [];
   world.discoveredPoints ||= {};
   world.zoneEvents ||= [];
   for (const [id, loc] of Object.entries(NPC_HOME)) {
