@@ -1,4 +1,4 @@
-# ZONE ONLINE 4.5 — ONLINE WORLD
+# ZONE ONLINE 4.7 — SOULS OF THE ZONE
 
 ZONE ONLINE 4.5 extends 4.4 NPC AI and 4.3 WAR SYSTEM with revisioned shared-world replication and reconnect recovery.
 
@@ -51,3 +51,27 @@ npm test
 npm start
 ```
 Set `DATABASE_URL` to a PostgreSQL connection string for persistence across server restarts. Without PostgreSQL, the server runs in memory fallback mode.
+
+
+## 4.7 SOULS OF THE ZONE
+- Generated stalkers now receive persistent biographies, personality quirks, friends, rivalries and squad membership.
+- NPC squads travel between sectors on simulated raids; their positions and status are part of the shared world state.
+- NPCs that die are retained in a memorial record. After a short in-world grace period, a new wanderer joins the Zone under a fresh nickname.
+- Dialogue topics are requested from the authoritative server, use the current NPC state and rotate on a 15-minute cycle. Biographies, recent world events, friendships and rivalries can influence replies.
+- The NPC panel shows nearby characters, biographies, squad activity and recent memorial entries.
+
+## Multiplayer connection repair
+- Fixed a fatal server bootstrap error: the Socket.IO `player:hello` handler called `safeState` without creating it. The handler now uses `createSafeState(FACTIONS, LOCATIONS)`.
+- The hello handshake now has an acknowledgement, explicit failure response and a 12-second client timeout, so the UI no longer remains in an endless connecting state after the socket transport connects but profile loading fails.
+- The client prefers HTTP long-polling first and upgrades to WebSocket, with visible connect/reconnect/error status.
+- Database read/write errors degrade to in-memory mode instead of preventing player login. `/health` reports whether PostgreSQL persistence is active.
+- Replacing an existing session with the same player ID disconnects the stale socket before registering the new one.
+
+## Run and deploy
+```bash
+npm install
+npm run check
+npm test
+npm start
+```
+Set `DATABASE_URL` to a PostgreSQL connection string for durable player/world state. Without it, multiplayer works while the process is running, but world and profile persistence reset when the server restarts. Deploy the whole folder to the Node service; do not open `public/index.html` as a local file. The browser must load `/socket.io/socket.io.js` from the same deployed server origin. After deployment, open `https://YOUR-SERVER/health`; the response should contain `ok: true`. Then reload the game. If the page is still served from an old static-host URL while the socket points elsewhere, configure the client and server under the same origin or use an explicit Socket.IO server URL.

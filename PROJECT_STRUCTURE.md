@@ -1,4 +1,4 @@
-# ZONE ONLINE 4.6 — Project Structure
+# ZONE ONLINE 4.7 — Project Structure
 
 ```text
 ZONE_ONLINE/
@@ -20,6 +20,7 @@ ZONE_ONLINE/
 │       ├── npc-ai.js
 │       ├── npc-roster.js
 │       ├── npc-dialogue.js
+│       ├── souls.js
 │       ├── ecosystem.js
 │       ├── online-world.js
 │       ├── war.js
@@ -41,3 +42,10 @@ ZONE_ONLINE/
 - `ecosystem.js` simulates mutant packs, faction bases, clan membership and sector market scarcity.
 - `public/js/game.js` merges the server NPC roster into the player's sector list and renders updated dialogue and ecosystem information.
 ```
+
+
+## 4.7 additions
+- `src/systems/souls.js` — biographies, social links, squads, raids, memorial and replacement stalkers.
+- `src/systems/npc-dialogue.js` — contextual long-form dialogue and server-selected topic replies.
+- `server.js` — repaired safe-state wiring and acknowledged multiplayer login handshake.
+- `public/js/game.js` — visible connection diagnostics, server-driven dialogue topics, squad and memorial UI.

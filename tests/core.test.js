@@ -177,3 +177,44 @@ test('ECOSYSTEM simulates mutant packs, faction bases, markets and clan membersh
   assert.ok(Array.isArray(events));
   assert.ok(eco.markets.cordon.priceIndex > 0);
 });
+
+
+const { initSouls, tickSouls } = require('../src/systems/souls');
+const { interactDialogue } = require('../src/systems/npc-dialogue');
+test('SOULS OF THE ZONE adds persistent biographies, friendships and squads', () => {
+  const world = { npcState: {}, npcPositions: {} };
+  ensureRandomNpcs(world, 36);
+  initSouls(world, () => 0.2);
+  const generated = Object.values(world.npcState).filter(n => n.generated);
+  assert.equal(generated.length, 36);
+  assert.ok(generated.every(n => typeof n.biography === 'string' && n.biography.length > 30));
+  assert.ok(generated.some(n => n.friends.length > 0));
+  assert.ok(world.npcSquads.length > 0);
+});
+test('SOULS OF THE ZONE replaces a dead stalker once and preserves a memorial', () => {
+  const world = { npcState: {}, npcPositions: {} };
+  ensureRandomNpcs(world, 3);
+  const dead = world.npcState.wanderer_001;
+  dead.alive = false; dead.deathCause = 'испытание'; dead.diedAt = 100;
+  initSouls(world, () => 0.3);
+  const events = tickSouls(world, new Set(['cordon','dump','bar']), () => 0.3, 1000);
+  assert.equal(events.length, 0);
+  tickSouls(world, new Set(['cordon','dump','bar']), () => 0.3, 181001);
+  assert.equal(world.npcMemorial.length, 1);
+  assert.equal(world.npcMemorial[0].name, dead.name);
+  assert.equal(Object.values(world.npcState).filter(n => n.generated && n.alive).length, 36);
+  const memorialCount = world.npcMemorial.length;
+  tickSouls(world, new Set(['cordon','dump','bar']), () => 0.3, 400000);
+  assert.equal(world.npcMemorial.length, memorialCount);
+});
+test('server state validator is wired to the game faction and location sets', () => {
+  const serverSource = require('node:fs').readFileSync(require('node:path').join(__dirname, '..', 'server.js'), 'utf8');
+  assert.match(serverSource, /const safeState = createSafeState\(FACTIONS, LOCATIONS\)/);
+  assert.match(serverSource, /socket\.on\('player:hello', async \(payload, ack\)/);
+});
+test('dialogue topic selection returns the chosen current server-side topic', () => {
+  const npc = { id:'npc', name:'Вадим Спагетти', role:'сталкер', faction:'Одиночки', location:'cordon', relationships:{}, dialogueHistory:[] };
+  const d = buildDialogue(npc, {locationName:'Кордон'}, 900000);
+  const result = interactDialogue(npc, {id:'player'}, 'topic', {topicIndex:1,locationName:'Кордон'}, 900000);
+  assert.equal(result.reply.includes(d.topics[1][1]), true);
+});

@@ -1,28 +1,20 @@
-# Changelog
+# Changelog — ZONE ONLINE 4.7 SOULS OF THE ZONE
 
-## 4.5.0 — ONLINE WORLD
-- Added a monotonic world revision and bounded 500-event replication journal.
-- Added reconnect recovery: replay missed world events or fall back to a complete snapshot.
-- Added shared event replication for player presence, sector movement, NPC ticks/encounters, wars, diplomacy and discovered points.
-- Added read-only world status, snapshot and event-history HTTP endpoints.
-- Added multiplayer status UI with online count, living NPC count, active wars, sector count and revision cursor.
-- Added an in-process guard to prevent overlapping NPC world ticks.
-- Preserved existing 4.4 NPC AI, 4.3 WAR SYSTEM and earlier save migrations.
-- Added automated tests for revision ordering, event replay, stale-cursor snapshot recovery and world status.
-- Documented the single-authoritative-process deployment model and requirements for future horizontal scaling.
+## Multiplayer reliability fixes
+- Fixed missing `safeState` initialization that caused `player:hello` to throw before emitting `player:ready`.
+- Added Socket.IO handshake acknowledgement and explicit error responses.
+- Added client-side 12-second handshake timeout, connect-error feedback, reconnect status and polling-to-WebSocket upgrade.
+- PostgreSQL failures now fall back to in-memory mode rather than leaving a connected player stuck during profile loading.
+- Prevented stale duplicate sockets for a reconnecting player ID.
 
-## 4.4.0 — NPC AI
-- Added persistent server-side NPC profiles, roles, faction assignments and needs.
-- Added autonomous patrol, travel, trade, search and rest behaviors.
-- Added shared NPC movement updates and PDA event notifications.
-- Added simulated hostile encounters with health, morale and death state.
-- Added server-validated player/NPC interactions and per-player trust.
+## Souls of the Zone
+- Added persistent NPC biographies, quirks, friend and rival links.
+- Added NPC squads with shared membership, movement and simulated raids.
+- Added memorial entries and replacement stalkers after NPC deaths.
+- Added personalized long-form server-side dialogue using biography, relationships, social links and recent events.
+- Dialogue topics are now fetched from the server, and rotate on the 15-minute cycle.
+- Added NPC panel sections for squads and the memorial.
 
-## 4.6.0 — ECOSYSTEM
-- Added 36 persistent procedural supporting stalkers with humorous, generated nicknames.
-- Added long-form, role-specific dialogue that rotates every 15 minutes and reacts to relationships, NPC history and recent world events.
-- Added generated NPCs to sector people lists and conversation screens.
-- Added mutant packs with migration and population simulation.
-- Added faction base upgrades, player clans and dynamic sector market scarcity.
-- Added server events and shared-state replication for ecosystem updates.
-- Added tests for procedural NPCs, dialogue rotation, mutant ecology, base upgrades and clan membership.
+## Compatibility
+- Existing player saves and world state are retained; new NPC fields are initialized lazily.
+- Existing WAR SYSTEM, ONLINE WORLD, ecosystem, markets and clans remain in place.

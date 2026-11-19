@@ -53,7 +53,7 @@ function tickNpcWorld(world, locations, random = Math.random, now = Date.now()) 
       const rival = group.find(b => b.id !== pair.id && b.faction !== pair.faction && b.faction !== 'Учёные' && pair.faction !== 'Учёные');
       if (rival) {
         const damage = 5 + Math.floor(random() * 11); rival.health = clamp(rival.health - damage, 0, 100); pair.morale = clamp(pair.morale + 3, 0, 100);
-        if (rival.health === 0) { rival.alive = false; rival.action = 'dead'; }
+        if (rival.health === 0) { rival.alive = false; rival.action = 'dead'; rival.deathCause = `перестрелка с отрядом ${pair.faction}`; rival.diedAt = now; for(const friendId of rival.friends||[]){const friend=world.npcState[friendId];if(friend){friend.mood='скорбит';friend.memory ||= [];friend.memory.push({type:'friend_lost',npcId:rival.id,at:now});friend.memory=friend.memory.slice(-20);}} }
         events.push({ type:'npc_skirmish', location, participants:[pair.id,rival.id], text:`Столкновение: ${pair.faction} и ${rival.faction} в секторе ${location}.`, at:now });
       }
     }
@@ -65,10 +65,11 @@ function tickNpcWorld(world, locations, random = Math.random, now = Date.now()) 
 function interactWithNpc(npc, player, action, now = Date.now(), context = {}) {
   if (!npc || !npc.alive) return { ok:false, reason:'Этот сталкер больше не может ответить.' };
   if (!player || player.location !== npc.location) return { ok:false, reason:'Нужно находиться в одном секторе со сталкером.' };
-  if (!['greet','ask','trade','help'].includes(action)) return { ok:false, reason:'Неизвестное действие.' };
+  if (!['greet','ask','trade','help','topic'].includes(action)) return { ok:false, reason:'Неизвестное действие.' };
   npc.relationships ||= {}; const current = Number(npc.relationships[player.id]) || 0;
   const delta = action === 'help' ? 5 : action === 'greet' ? 2 : action === 'trade' ? 1 : 0;
   npc.relationships[player.id] = clamp(current + delta, -100, 100);
+  npc.memory ||= []; npc.memory.push({type:'player_interaction',playerId:player.id,action,at:now}); npc.memory=npc.memory.slice(-30);
   const result=interactDialogue(npc,player,action,context,now);
   npc.lastInteractionAt = now;
   return { ok:true, ...result, relationship:npc.relationships[player.id], npcId:npc.id };
