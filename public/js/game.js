@@ -402,34 +402,65 @@ const WORLD_OBSTACLES=[
  {x:340,y:1280,w:105,h:72,name:'Южный комплекс'},
  {x:742,y:1400,w:72,h:72,name:'Восточный лагерь'}
 ];
-const zoneSectorCoords={cordon:[285,1430],dump:[420,1130],bar:[510,1000],agro:[520,800],dark:[430,650],yantar:[570,540],army:[760,480],red:[650,700],pripyat:[520,245],zaton:[210,570],jupiter:[735,1220],yanov:[760,1430],kopachi:[690,1040],volkhov:[850,900],iron:[365,340],swamps:[190,930]};
-const zoneLinks=[['cordon','dump'],['dump','bar'],['bar','agro'],['agro','dark'],['dark','yantar'],['yantar','army'],['army','red'],['red','pripyat'],['cordon','zaton'],['zaton','jupiter'],['jupiter','yanov'],['yanov','kopachi'],['kopachi','volkhov'],['jupiter','iron'],['iron','yantar'],['cordon','swamps'],['swamps','agro']];
+// Coordinates are aligned to the ORIGINAL unlabeled satellite map (1000 x 2000).
+// The second, labeled screenshot is used only as a geographic naming/boundary reference.
+const zoneSectorCoords={
+ cordon:[500,1980],dump:[468,1185],bar:[470,950],agro:[218,1195],dark:[810,1155],
+ yantar:[180,1015],army:[470,790],red:[330,550],pripyat:[625,265],zaton:[455,1815],
+ jupiter:[150,1805],yanov:[735,790],kopachi:[740,1070],volkhov:[870,1460],iron:[585,430],swamps:[160,1510]
+};
+const zoneLinks=[['dump','bar'],['bar','army'],['army','red'],['red','pripyat'],['bar','agro'],['agro','yantar'],['dump','dark'],['swamps','jupiter'],['jupiter','zaton']];
+// Region outlines traced approximately from the user's labeled reference image.
+// x/y/w/h are in reference-image pixels (620 x 1240), not a replacement map texture.
+const MAP_REGIONS=[
+ {name:'Генераторы',x:8,y:2,w:163,h:84},
+ {name:'Станция-2',x:180,y:2,w:145,h:108},
+ {name:'Станция',x:325,y:2,w:83,h:82},
+ {name:'Припять (ТЧ)',x:300,y:68,w:155,h:210,id:'pripyat'},
+ {name:'Припять (ЗП)',x:455,y:80,w:158,h:202},
+ {name:'Лиманск',x:5,y:138,w:135,h:143},
+ {name:'Больница',x:112,y:126,w:197,h:145},
+ {name:'Рыжий лес',x:132,y:260,w:137,h:164,id:'red'},
+ {name:'Радар',x:300,y:274,w:202,h:155},
+ {name:'Мёртвый город',x:10,y:425,w:140,h:145},
+ {name:'Военные склады',x:140,y:420,w:325,h:182,id:'army'},
+ {name:'Предбанник',x:500,y:420,w:112,h:145},
+ {name:'Янтарь',x:72,y:570,w:86,h:125,id:'yantar'},
+ {name:'Росток',x:150,y:540,w:98,h:115},
+ {name:'Бар',x:245,y:540,w:96,h:115,id:'bar'},
+ {name:'Свалка',x:220,y:650,w:145,h:153,id:'dump'},
+ {name:'Агропром',x:88,y:690,w:96,h:112,id:'agro'},
+ {name:'Тёмная долина',x:400,y:630,w:210,h:180,id:'dark'},
+ {name:'Болота',x:5,y:850,w:198,h:170,id:'swamps'},
+ {name:'Побег',x:225,y:800,w:138,h:205},
+ {name:'Тёмный край',x:405,y:815,w:204,h:170},
+ {name:'Юпитер',x:10,y:1030,w:170,h:175,id:'jupiter'},
+ {name:'Затон',x:202,y:1025,w:165,h:180,id:'zaton'}
+];
+const MAP_SCALE=1000/620;
+function mapRegionMarkup(){return MAP_REGIONS.map((r,i)=>{const x=r.x*MAP_SCALE,y=r.y*MAP_SCALE,w=r.w*MAP_SCALE,h=r.h*MAP_SCALE;return `<g class="map-region ${r.id?'map-region-linked':''}" ${r.id?`data-location="${r.id}" role="button" tabindex="0" onclick="selectLocation('${r.id}')"`:''}><rect x="${x}" y="${y}" width="${w}" height="${h}" rx="5"/><text x="${x+w/2}" y="${y+Math.min(25,h/2)}" text-anchor="middle">${escapeHtml(r.name)}</text></g>`}).join('')}
 function mapZoom(step){zoneMapZoom=step===0?1:Math.max(.8,Math.min(2.4,zoneMapZoom+step*.2));renderZoneMap()}
 function setMapMode(mode){zoneMapMode=mode==='local'?'local':'zone';$('mapModeZone')?.classList.toggle('active',zoneMapMode==='zone');$('mapModeLocal')?.classList.toggle('active',zoneMapMode==='local');$('mapHint').textContent=zoneMapMode==='local'?'Нажми на свободное место, чтобы пройти туда · WASD или кнопки на экране.':'Общая карта: выбери сектор, чтобы открыть его подробную карту.';renderZoneMap()}
 function sectorCenter(id){return zoneSectorCoords[id]||[500,1000]}
-function playerWorldPosition(){if(!g.worldPosition||!Number.isFinite(g.worldPosition.x)||!Number.isFinite(g.worldPosition.y)){const c=sectorCenter(g.loc);g.worldPosition={x:c[0],y:c[1]+24};}return g.worldPosition}
-function playerSpriteMarkup(p){const rows={up:0,left:1,right:2,down:3},cols=playerMoving?playerFrame:0,row=rows[playerFacing]??3;return `<g class="player-sprite" transform="translate(${p.x} ${p.y})"><ellipse cx="0" cy="27" rx="13" ry="5" fill="#080b08" opacity=".65"/><svg x="-23" y="-38" width="46" height="69" viewBox="${cols*256} ${row*384} 256 384" preserveAspectRatio="xMidYMid meet"><image href="/assets/stalker-walk-atlas.png" x="0" y="0" width="1024" height="1536"/></svg></g>`}
-function mapPoint(x,y,cls,label,extra=''){return `<g class="world-marker ${cls||''}" transform="translate(${x} ${y})" ${extra}><circle r="13"/><text y="4" text-anchor="middle">${escapeHtml(label||'•')}</text></g>`}
+function playerWorldPosition(){if(g.mapCoordinateVersion!==2||!g.worldPosition||!Number.isFinite(g.worldPosition.x)||!Number.isFinite(g.worldPosition.y)){const c=sectorCenter(g.loc);g.worldPosition={x:c[0],y:c[1]+24};g.mapCoordinateVersion=2;}return g.worldPosition}
+function playerDotMarkup(p){return `<g class="world-marker marker-self" transform="translate(${p.x} ${p.y})" aria-label="Твоё положение"><circle class="marker-pulse" r="23"/><circle class="marker-dot" r="8"/><circle class="marker-center" r="2.5"/></g>`}
+function mapPoint(x,y,cls,label,extra=''){return `<g class="world-marker ${cls||''}" transform="translate(${x} ${y})" ${extra}><circle class="marker-pulse" r="15"/><circle class="marker-dot" r="7"/><title>${escapeHtml(label||'Отметка')}</title></g>`}
+function npcMarkerClass(n){if(n.faction===g.faction)return 'marker-friendly';const f=(g.factions||[]).find(x=>x.name===n.faction);if(Number(n.relationship??0)<-10||Number(f?.relation??0)<-15)return 'marker-enemy';return 'marker-neutral'}
+function sectorMarkerPosition(id,index=0){const q=zoneSectorCoords[id];if(!q)return null;const angle=index*2.399963;const radius=18+((index%3)*9);return [q[0]+Math.cos(angle)*radius,q[1]+Math.sin(angle)*radius]}
 function renderZoneMap(){
  const esc=s=>escapeHtml(String(s??'')),centers=zoneSectorCoords;
- const edges=zoneLinks.map(([a,b])=>{const A=centers[a],B=centers[b];return `<path class="map-route-line" d="M${A[0]} ${A[1]} Q${(A[0]+B[0])/2+25} ${(A[1]+B[1])/2-20} ${B[0]} ${B[1]}"/>`}).join('');
- const sectors=g.locations.map(l=>{const [x,y]=centers[l.id]||[500,1000],cur=g.loc===l.id;return `<g class="map-sector ${cur?'current':''}" role="button" tabindex="0" aria-label="${esc(l.name)}" onclick="selectLocation('${l.id}')" onkeydown="if(event.key==='Enter'){selectLocation('${l.id}')}"><circle class="sector-halo" r="48"/><circle class="sector-ring" r="25"/><circle class="sector-core" r="10"/><text class="sector-label" y="47" text-anchor="middle">${esc(l.name)}</text><text class="sector-owner" y="62" text-anchor="middle">${esc(l.owner).toUpperCase()}</text></g>`}).join('');
- const me=playerWorldPosition(),self=playerSpriteMarkup(me);let overlays='';
- if(zoneMapMode==='zone'){
-  overlays=Object.values(serverWorld?.npcState||{}).filter(n=>n.alive!==false).slice(0,45).map((n,i)=>{const q=centers[n.location];if(!q)return '';const a=i*2.399,rr=42+(i%3)*9;return mapPoint(q[0]+Math.cos(a)*rr,q[1]+Math.sin(a)*rr,'marker-npc','Н')}).join('');
-  overlays+=(onlinePlayers||[]).filter(p=>p.id!==zonePlayerId).map((p,i)=>{const q=centers[p.location];return q?mapPoint(Number.isFinite(p.x)?p.x:q[0]+((i%5)-2)*13,Number.isFinite(p.y)?p.y:q[1]+70+Math.floor(i/5)*12,'marker-player','И'):''}).join('');
-  overlays+=Object.entries(g.keyPoints||{}).flatMap(([loc,arr])=>(arr||[]).filter(p=>p.discovered).map(p=>({loc,p}))).map(({loc},i)=>{const q=centers[loc];return q?mapPoint(q[0]+60+(i%4)*12,q[1]-42-(i%3)*12,'marker-cache','Т'):''}).join('');
- }else{
-  const q=centers[g.loc]||[500,1000];
-  overlays=(g.npcs||[]).filter(n=>n.loc===g.loc).map((n,i)=>mapPoint(q[0]+Math.cos(i*2.4)*54,q[1]+Math.sin(i*2.4)*54,'marker-npc','Н',`onclick="openTalk('${n.id}')"`)).join('');
-  overlays+=(onlinePlayers||[]).filter(p=>p.id!==zonePlayerId&&p.location===g.loc).map((p,i)=>mapPoint(Number.isFinite(p.x)?p.x:q[0]+((i%3)-1)*24,Number.isFinite(p.y)?p.y:q[1]+82+Math.floor(i/3)*18,'marker-player','И')).join('');
-  overlays+=(g.keyPoints?.[g.loc]||[]).filter(p=>p.discovered).map((p,i)=>mapPoint(q[0]-72+(i%4)*34,q[1]-68-Math.floor(i/4)*28,'marker-cache','Т')).join('');
-  overlays+=Object.values(g.keyPoints?.[g.loc]||[]).filter(a=>/аномал|anomal/i.test(String(a.kind||a.type||'')) && a.discovered).map((a,i)=>mapPoint(q[0]+80+i*22,q[1]-30,'marker-anomaly','А')).join('');
-  overlays+=(serverWorld?.ecosystem?.mutantPacks||[]).filter(m=>m.location===g.loc).map((m,i)=>mapPoint(q[0]-90-i*20,q[1]+40,'marker-mutant','М')).join('');
- }
- const view=zoneMapMode==='zone'?(()=>{const m=playerWorldPosition(),w=1000/zoneMapZoom,h=2000/zoneMapZoom;return `${Math.max(0,Math.min(1000-w,m.x-w/2))} ${Math.max(0,Math.min(2000-h,m.y-h/2))} ${w} ${h}`})():(()=>{const q=playerWorldPosition(),size=470/zoneMapZoom;return `${Math.max(0,Math.min(1000-size,q.x-size/2))} ${Math.max(0,Math.min(2000-size,q.y-size/2))} ${size} ${size}`})();
- $('zoneMap').innerHTML=`<svg id="zoneMapSvg" viewBox="${view}" preserveAspectRatio="none" aria-label="${zoneMapMode==='zone'?'Общая карта Зоны':'Подробная карта '+(here()?.name||'локации')}" ${zoneMapMode==='local'?'onpointerdown="mapPointer(event)"':''}><image href="/assets/zone-master-map.jpg" x="0" y="0" width="1000" height="2000" preserveAspectRatio="none"/><rect x="0" y="0" width="1000" height="2000" fill="#182017" opacity=".17"/>${edges}${sectors}${overlays}${self}<g transform="translate(920 110)"><circle r="28" fill="#151b13cc" stroke="#c9c092"/><path d="M0 -20L7 7 0 2 -7 7Z" fill="#e1d49a"/><text y="-38" text-anchor="middle" fill="#e1d49a" font-size="16">N</text></g></svg>`;
- $('mapCoordinates').textContent=`${zoneMapMode==='zone'?'ВСЯ ЗОНА':'ЛОКАЦИЯ: '+(here()?.name||'—')} · ${Math.round(zoneMapZoom*100)}%`;
+ const edges=zoneLinks.map(([a,b])=>{const A=centers[a],B=centers[b];return `<path class="map-route-line" d="M${A[0]} ${A[1]} Q${(A[0]+B[0])/2+20} ${(A[1]+B[1])/2-15} ${B[0]} ${B[1]}"/>`}).join('');
+ const regions=mapRegionMarkup();
+ const me=playerWorldPosition();let overlays='';
+ const allNpcs=zoneMapMode==='zone'?(serverWorld?.npcState?Object.values(serverWorld.npcState):g.npcs||[]):(g.npcs||[]).filter(n=>(n.loc||n.location)===g.loc);
+ overlays+=allNpcs.filter(n=>n.alive!==false).slice(0,80).map((n,i)=>{const loc=n.location||n.loc;const p=Number.isFinite(n.x)&&Number.isFinite(n.y)?[n.x,n.y]:sectorMarkerPosition(loc,i);if(!p)return '';const cls=npcMarkerClass(n);return mapPoint(p[0],p[1],cls,`${n.name||'NPC'} · ${n.faction||'нейтрал'}`,`onclick="${zoneMapMode==='local'?`openTalk('${esc(n.id)}')`:''}"`)}).join('');
+ overlays+=(onlinePlayers||[]).filter(p=>p.id!==zonePlayerId).map((p,i)=>{const q=Number.isFinite(p.x)&&Number.isFinite(p.y)?[p.x,p.y]:sectorMarkerPosition(p.location,i+2);return q?mapPoint(q[0],q[1],'marker-player',p.name||'Игрок'):''}).join('');
+ const caches=Object.entries(g.keyPoints||{}).flatMap(([loc,arr])=>(arr||[]).filter(p=>p.discovered).map((p,i)=>({loc,p,i}))); 
+ overlays+=caches.map(({loc,i})=>{const q=sectorMarkerPosition(loc,i+4);return q?mapPoint(q[0]+12,q[1]-14,'marker-cache','Тайник'):''}).join('');
+ const meDot=playerDotMarkup(me);
+ const view=zoneMapMode==='zone'?(()=>{const w=1000/zoneMapZoom,h=2000/zoneMapZoom;return `${Math.max(0,Math.min(1000-w,me.x-w/2))} ${Math.max(0,Math.min(2000-h,me.y-h/2))} ${w} ${h}`})():(()=>{const size=470/zoneMapZoom;return `${Math.max(0,Math.min(1000-size,me.x-size/2))} ${Math.max(0,Math.min(2000-size,me.y-size/2))} ${size} ${size}`})();
+ $('zoneMap').innerHTML=`<svg id="zoneMapSvg" viewBox="${view}" preserveAspectRatio="none" aria-label="${zoneMapMode==='zone'?'Карта Зоны':'Карта '+(here()?.name||'локации')}" ${zoneMapMode==='local'?'onpointerdown="mapPointer(event)"':''}><image href="/assets/zone-master-map.jpg" x="0" y="0" width="1000" height="2000" preserveAspectRatio="none"/><rect x="0" y="0" width="1000" height="2000" fill="#10170f" opacity=".08"/><g class="map-region-layer">${regions}</g>${edges}<g class="map-marker-layer">${overlays}${meDot}</g><g class="map-compass" transform="translate(920 110)"><circle r="28"/><path d="M0 -20L7 7 0 2 -7 7Z"/><text y="-38" text-anchor="middle">N</text></g></svg>`;
+ $('mapCoordinates').textContent=`${zoneMapMode==='zone'?'ВСЯ ЗОНА':'ЛОКАЦИЯ: '+(here()?.name||'—')} · ${Math.round(zoneMapZoom*100)}% · X ${Math.round(me.x)} / Y ${Math.round(me.y)}`;
 }
 function mapPointer(ev){if(zoneMapMode!=='local'||ev.target?.closest?.('.world-marker,.map-sector'))return;const svg=$('zoneMapSvg');if(!svg)return;const pt=svg.createSVGPoint();pt.x=ev.clientX;pt.y=ev.clientY;const p=pt.matrixTransform(svg.getScreenCTM().inverse());walkTarget={x:Math.max(8,Math.min(992,p.x)),y:Math.max(8,Math.min(1992,p.y))};pendingSectorExit=null;startWalking()}
 function blockedAt(x,y){const r=9;return x<r||y<r||x>1000-r||y>2000-r||WORLD_OBSTACLES.some(o=>x+r>o.x&&x-r<o.x+o.w&&y+r>o.y&&y-r<o.y+o.h)}

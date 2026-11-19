@@ -121,7 +121,9 @@ test('4.15 map supports supplied Zone image, overview/local modes and free-walk 
   const { context, elements } = bootClient();
   const svg = elements.get('zoneMap').innerHTML;
   assert.match(svg, /zone-master-map\.jpg/);
-  assert.match(svg, /map-sector/);
+  assert.match(svg, /map-region/);
+  assert.match(svg, /Генераторы/);
+  assert.match(svg, /Тёмная долина/);
   assert.match(elements.get('mapCoordinates').textContent, /ВСЯ ЗОНА/);
   assert.match(fs.readFileSync(path.join(root, 'public/index.html'), 'utf8'), /mapModeLocal/);
   assert.match(fs.readFileSync(path.join(root, 'public/js/game.js'), 'utf8'), /function mapPointer/);
@@ -312,19 +314,23 @@ test('4.14 squads synchronize leader travel, field roles, journal and NPC escort
   assert.match(client, /Журнал отряда/);
 });
 
-test('4.16 realistic free-roam uses supplied satellite map, animated player and world-space collision', () => {
+test('4.16.1 tactical map uses the original satellite image, point markers and world-space collision', () => {
   const client = fs.readFileSync(path.join(root, 'public/js/game.js'), 'utf8');
   const html = fs.readFileSync(path.join(root, 'public/index.html'), 'utf8');
   const css = fs.readFileSync(path.join(root, 'public/css/game.css'), 'utf8');
-  assert.match(client, /function playerSpriteMarkup\(/);
-  assert.match(client, /stalker-walk-atlas\.png/);
+  assert.match(client, /function playerDotMarkup\(/);
+  assert.match(client, /marker-enemy/);
+  assert.match(client, /marker-neutral/);
+  assert.match(client, /marker-friendly/);
+  assert.match(client, /marker-cache/);
   assert.match(client, /const WORLD_OBSTACLES=/);
   assert.match(client, /function blockedAt\(/);
   assert.match(client, /function walkHold\(/);
   assert.match(client, /function mapPointer\(/);
   assert.match(client, /player:position/);
   assert.match(html, /onpointerdown="walkHold/);
-  assert.match(css, /\.player-sprite/);
+  assert.match(css, /\.marker-enemy/);
+  assert.match(css, /\.marker-friendly/);
   assert.ok(fs.existsSync(path.join(root, 'public/assets/zone-master-map.jpg')));
   assert.ok(fs.existsSync(path.join(root, 'public/assets/stalker-walk-atlas.png')));
 });

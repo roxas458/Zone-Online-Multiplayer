@@ -1,5 +1,15 @@
 # Changelog
 
+## 4.16.1 — Reference-aligned tactical map
+- Kept the original unlabeled 1024×2048 satellite image as the only map background.
+- Used the user's second, labeled image only to trace approximate territory outlines and preserve its region names; it is not bundled or displayed as the game map.
+- Added labels and outline overlays for Generators, Stancia 2, Stancia, both Pripyat regions, Limansk, Hospital, Red Forest, Radar, Dead City, Military Warehouses, Predbannik, Yantar, Rostok, Bar, Garbage, Agroprom, Dark Valley, Marsh, Escape, Darkscape, Jupiter and Zaton.
+- Replaced the visible stalker sprite with a clear player-position dot.
+- Added tactical NPC colors: hostile red, neutral yellow, player's faction green; discovered stashes blue; other online players cyan.
+- Updated canonical sector anchor points to the original map layout and added a one-time coordinate-version migration for existing saves.
+- Kept free-walk controls, world-space bounds, collision checks, and the existing multiplayer position event contract.
+- Territory rectangles and NPC positions without authoritative x/y remain approximate; per-building collision and exact per-NPC coordinates are still future work.
+
 ## 4.16.0 — Realistic free roam foundation
 - Replaced the low-resolution map texture with the user's supplied 1024×2048 Zone map.
 - Added a realistic 4-direction stalker sprite atlas and animated walking frames.

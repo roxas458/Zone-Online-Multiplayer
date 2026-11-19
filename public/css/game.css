@@ -198,3 +198,25 @@ body.reduce-motion *,body.reduce-motion *:before,body.reduce-motion *:after{anim
 .player-sprite svg{overflow:hidden;pointer-events:none}
 .player-sprite svg image{image-rendering:auto}
 .map-move-pad button{user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+
+/* 4.16.1 field-map cartography: restrained territory boundaries and tactical dots */
+.zone-map .map-region rect{fill:#c6bd83;fill-opacity:.035;stroke:#d1c58d;stroke-opacity:.42;stroke-width:4;stroke-dasharray:12 8;vector-effect:non-scaling-stroke;pointer-events:none}
+.zone-map .map-region text{font:700 29px Tahoma,Arial,sans-serif;letter-spacing:.5px;fill:#f1e9c9;paint-order:stroke;stroke:#151a13;stroke-width:8px;stroke-linejoin:round;pointer-events:none}
+.zone-map .map-region-linked{cursor:pointer}
+.zone-map .map-region-linked rect{stroke:#d5ca91;stroke-opacity:.68;fill-opacity:.055}
+.zone-map .map-region-linked:hover rect{fill-opacity:.15;stroke-opacity:.95}
+.zone-map .world-marker{cursor:default}
+.zone-map .marker-pulse{fill:currentColor;opacity:.16;stroke:none;r:25px}
+.zone-map .marker-dot{fill:currentColor;stroke:#f4edcf;stroke-width:3.5;vector-effect:non-scaling-stroke;filter:drop-shadow(0 1px 3px #000d)}
+.zone-map .marker-center{fill:#fffbe7;stroke:none;r:4px}
+.zone-map .marker-self{color:#f4f1df}
+.zone-map .marker-self .marker-dot{stroke:#fff;stroke-width:3.5}
+.zone-map .marker-self .marker-pulse{fill:#fff;opacity:.2}
+.zone-map .marker-enemy{color:#e34e43}
+.zone-map .marker-neutral{color:#e7c34f}
+.zone-map .marker-friendly{color:#70c66b}
+.zone-map .marker-player{color:#72c7e8}
+.zone-map .marker-cache{color:#55a9f4}
+.zone-map .map-route-line{stroke:#d9d0a5;stroke-width:2.5;stroke-dasharray:7 9;opacity:.36;fill:none;pointer-events:none}
+.map-legend i.legend-enemy{background:#e34e43}.map-legend i.legend-neutral{background:#e7c34f}.map-legend i.legend-friendly{background:#70c66b}.map-legend i.legend-cache{background:#55a9f4}
+.map-legend i.legend-current{background:#f4f1df}

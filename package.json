@@ -1,8 +1,8 @@
 {
   "name": "zone-online",
-  "version": "4.16.0",
+  "version": "4.16.1",
   "private": true,
-  "description": "REALISTIC FREE ROAM: supplied satellite map, animated stalker sprite, keyboard/mobile movement and first-pass collision bounds",
+  "description": "Tactical free-roam map with reference-aligned territory overlays, faction-colored point markers, click-to-walk and collision bounds",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
