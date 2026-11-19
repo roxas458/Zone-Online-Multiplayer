@@ -48,3 +48,11 @@ ZONE_ONLINE/
 ### New assets in 4.13
 - `public/assets/portraits/` — 16 optimized male stalker portraits.
 - `public/assets/factions/` — nine original faction insignia SVG files.
+
+
+## 4.15 — FREE ROAM MAP
+- Added the supplied aerial Zone map as the shared cartographic background.
+- Added overview and current-location map modes with sector, NPC, player and discovered-cache markers.
+- Added click-to-walk, WASD/arrow-key movement and touch movement controls.
+- Added validated multiplayer position updates; position is scoped to the player's current sector.
+- Local map uses schematic sector centers and a bounded movement area; detailed collision/navigation mesh and physical-device testing remain future work.

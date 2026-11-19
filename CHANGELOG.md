@@ -70,3 +70,11 @@
 - Added friendly NPC escort orders; escorted NPC position follows the squad between sectors.
 - Added contextual encounters when two active squads enter the same sector, with faction-sensitive warning text and a cooldown.
 - Added mobile-friendly squad roster and journal presentation. No voice channel added.
+
+
+## 4.15 — FREE ROAM MAP
+- Added the supplied aerial Zone map as the shared cartographic background.
+- Added overview and current-location map modes with sector, NPC, player and discovered-cache markers.
+- Added click-to-walk, WASD/arrow-key movement and touch movement controls.
+- Added validated multiplayer position updates; position is scoped to the player's current sector.
+- Local map uses schematic sector centers and a bounded movement area; detailed collision/navigation mesh and physical-device testing remain future work.

@@ -35,7 +35,7 @@ app.get('/api/status', (_req,res) => res.json({ ...publicWorldStatus(world, onli
 app.get('/api/world/snapshot', (_req,res) => res.json({ status:publicWorldStatus(world, online.size), world }));
 app.get('/api/world/events', (req,res) => { const since=Number(req.query.since||0); const sync=buildWorldSync(world, Number.isSafeInteger(since)?since:0); res.json(sync); });
 
-function publicPlayer(p){ return { id:p.id, name:p.name, faction:p.faction, location:p.location, hp:p.hp, xp:p.xp, joinedAt:p.joinedAt, lastSeen:p.lastSeen }; }
+function publicPlayer(p){ return { id:p.id, name:p.name, faction:p.faction, location:p.location, x:p.x, y:p.y, hp:p.hp, xp:p.xp, joinedAt:p.joinedAt, lastSeen:p.lastSeen }; }
 function onlineList(){ return [...online.values()].map(publicPlayer).sort((a,b)=>a.name.localeCompare(b.name,'ru')); }
 function broadcastOnline(){ io.emit('world:players',onlineList()); }
 function systemMessage(text){ const m={id:crypto.randomUUID(),system:true,name:'Система',text:clean(text,240),time:Date.now()}; recentChat.push(m); if(recentChat.length>80)recentChat.shift(); io.emit('world:chat',m); }
@@ -113,7 +113,7 @@ io.on('connection', socket=>{
   });
   socket.on('player:save', async input=>{
     const id=socket.data.playerId, p=online.get(id); if(!id||!p)return;
-    const s=safeState(input); const previousLocation=p.location; const squad=squadOf(id); if(squad&&squad.leader!==id&&s.loc!==squad.location)s.state.loc=squad.location; p.name=s.name;p.faction=s.faction;p.location=squad&&squad.leader!==id?squad.location:s.loc;p.hp=s.hp;p.xp=s.xp;p.lastSeen=Date.now();p.state=s.state;socket.data.name=s.name;
+    const s=safeState(input); const previousLocation=p.location; const squad=squadOf(id); if(squad&&squad.leader!==id&&s.loc!==squad.location)s.state.loc=squad.location; p.name=s.name;p.faction=s.faction;p.location=squad&&squad.leader!==id?squad.location:s.loc;p.x=Number.isFinite(Number(s.state?.worldPosition?.x))?Math.max(0,Math.min(1000,Math.round(Number(s.state.worldPosition.x)))):p.x;p.y=Number.isFinite(Number(s.state?.worldPosition?.y))?Math.max(0,Math.min(2000,Math.round(Number(s.state.worldPosition.y)))):p.y;p.hp=s.hp;p.xp=s.xp;p.lastSeen=Date.now();p.state=s.state;socket.data.name=s.name;
     try{ await persistPlayer(id,s.state); }catch(e){socket.emit('server:error',{message:'Не удалось сохранить профиль на сервере.'});console.error(e);}
     if(previousLocation!==p.location){ world.onlineMetrics ||= {totalJoins:0,totalMoves:0,lastTickAt:0}; world.onlineMetrics.totalMoves+=1; const ev=appendWorldEvent(world,'player_moved',{playerId:id,name:p.name,faction:p.faction,from:previousLocation,to:p.location}); io.to('zone-world').emit('world:event',ev); if(squad&&squad.leader===id)publishSquadMove(squad,previousLocation,p.location,p.name); await persistWorld(); }
     broadcastOnline();
@@ -133,6 +133,7 @@ io.on('connection', socket=>{
     }
     broadcastOnline();
   });
+  socket.on('player:position', input=>{const p=online.get(socket.data.playerId);if(!p||!Number.isFinite(Number(input?.x))||!Number.isFinite(Number(input?.y))||input?.location!==p.location)return;p.x=Math.max(0,Math.min(1000,Math.round(Number(input.x))));p.y=Math.max(0,Math.min(2000,Math.round(Number(input.y))));p.lastSeen=Date.now();broadcastOnline();});
   socket.on('world:sync', input=>{
     if(!socket.data.playerId)return;
     socket.emit('world:sync',buildWorldSync(world,Number(input?.sinceRevision)||0));

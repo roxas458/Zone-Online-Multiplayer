@@ -73,3 +73,11 @@ The player dossier now includes expedition and combat statistics. NPCs have orig
 
 ### Version 4.14 — Squad Expeditions
 The multiplayer squad system now supports synchronized leader-led travel, member roles, a persistent expedition journal, friendly NPC escort, and encounters with other player squads. Squad/world state continues to use the existing shared-world persistence in PostgreSQL. No voice feature is included. Keep the existing `DATABASE_URL`; no database reset is required.
+
+
+## 4.15 — FREE ROAM MAP
+- Added the supplied aerial Zone map as the shared cartographic background.
+- Added overview and current-location map modes with sector, NPC, player and discovered-cache markers.
+- Added click-to-walk, WASD/arrow-key movement and touch movement controls.
+- Added validated multiplayer position updates; position is scoped to the player's current sector.
+- Local map uses schematic sector centers and a bounded movement area; detailed collision/navigation mesh and physical-device testing remain future work.

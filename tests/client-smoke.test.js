@@ -117,13 +117,18 @@ test('4.9 personal NPC stories persist progress and reward completion', () => {
 });
 
 
-test('4.9 map renders terrain, routes and current-sector points of interest', () => {
-  const { elements } = bootClient();
+test('4.15 map supports supplied Zone image, overview/local modes and free-walk controls', () => {
+  const { context, elements } = bootClient();
   const svg = elements.get('zoneMap').innerHTML;
-  assert.match(svg, /map-water/);
-  assert.match(svg, /map-road/);
+  assert.match(svg, /zone-master-map\.jpg/);
   assert.match(svg, /map-sector/);
-  assert.match(elements.get('mapCoordinates').textContent, /СЕКТОР/);
+  assert.match(elements.get('mapCoordinates').textContent, /ВСЯ ЗОНА/);
+  assert.match(fs.readFileSync(path.join(root, 'public/index.html'), 'utf8'), /mapModeLocal/);
+  assert.match(fs.readFileSync(path.join(root, 'public/js/game.js'), 'utf8'), /function mapPointer/);
+  assert.match(fs.readFileSync(path.join(root, 'public/js/game.js'), 'utf8'), /function walkNudge/);
+  assert.match(fs.readFileSync(path.join(root, 'public/js/game.js'), 'utf8'), /pendingSectorExit/);
+  assert.doesNotThrow(() => context.setMapMode('local'));
+  assert.match(elements.get('zoneMap').innerHTML, /onpointerdown=\"mapPointer/);
 });
 
 
