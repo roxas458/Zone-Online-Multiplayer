@@ -1,11 +1,13 @@
 {
   "name": "zone-online",
-  "version": "3.1.0",
+  "version": "4.0.0",
   "private": true,
-  "description": "Expanded PDA RPG with character creation, turn-based combat and global multiplayer",
+  "description": "Modular browser RPG with shared world, character creation and combat foundations",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "check": "node --check server.js && node --check src/shared/game-data.js && node --check src/server/validation.js && node --check src/server/world.js && node --check public/js/game.js",
+    "test": "node --test"
   },
   "engines": {
     "node": ">=18"

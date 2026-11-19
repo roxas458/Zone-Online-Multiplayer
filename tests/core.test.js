@@ -1,0 +1,29 @@
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const { LOCATIONS, FACTIONS, NPC_HOME, COOP_TEMPLATES } = require('../src/shared/game-data');
+const { clean, validId, createSafeState } = require('../src/server/validation');
+const { initSharedWorld, initDiplomacy } = require('../src/server/world');
+
+test('input helpers sanitize text and validate player IDs', () => {
+  assert.equal(clean('< stalker >\n', 20), 'stalker');
+  assert.equal(validId('12345678-1234-1234'), true);
+  assert.equal(validId('bad id'), false);
+});
+
+test('safeState clamps values and validates faction/location', () => {
+  const safeState = createSafeState(FACTIONS, LOCATIONS);
+  const result = safeState({ name: 'Tester', faction: 'Unknown', loc: 'unknown', hp: 999, money: -5 });
+  assert.equal(result.faction, 'Одиночки');
+  assert.equal(result.loc, 'cordon');
+  assert.equal(result.hp, 100);
+  assert.equal(result.money, 0);
+});
+
+test('world bootstrap creates NPC positions, quests and diplomacy', () => {
+  const world = { diplomacy: {}, revision: 1 };
+  initSharedWorld(world, NPC_HOME, LOCATIONS, COOP_TEMPLATES);
+  initDiplomacy(world, FACTIONS);
+  assert.ok(Object.keys(world.npcPositions).length >= Object.keys(NPC_HOME).length);
+  assert.equal(world.coOpQuests.length, COOP_TEMPLATES.length);
+  assert.ok(world.diplomacy['Одиночки']['Долг'] !== undefined);
+});

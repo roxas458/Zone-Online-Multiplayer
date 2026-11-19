@@ -1,47 +1,59 @@
-# ZONE ONLINE 3.0 — Expanded PDA RPG
+# ZONE ONLINE 4.0 — Modular Project
 
-Browser RPG update based on the supplied ZONE ONLINE 2.2 project.
+ZONE ONLINE 4.0 restructures the 3.1 project into smaller, maintainable files while preserving the existing game behavior.
 
-## New in 3.0
-- PDA inventory with search, category filters, sorting, item weight, prices and equipment condition.
-- Dedicated weapon catalogue with 24 fictional in-game entries across pistols, shotguns, assault rifles, rifles and special equipment.
-- Weapon entries can be discovered while investigating location points and added to the backpack.
-- Authored key points for all 15 sectors, including safe areas, routes, research sites, stashes and anomaly locations.
-- Each point can be investigated; discovery grants XP and may reveal equipment.
-- Expanded generated NPC population across sectors, using varied names and roles.
-- Original abstract item/weapon glyphs and a custom visual style. No proprietary S.T.A.L.K.E.R. game icons or extracted assets are included.
-- Existing local saves are migrated without intentionally resetting player progress.
+## Project tree
+
+```text
+zone-online/
+├── public/
+│   ├── index.html
+│   ├── css/
+│   │   └── game.css          # PDA and game interface styles
+│   └── js/
+│       └── game.js           # Browser game logic and Socket.IO client
+├── src/
+│   ├── shared/
+│   │   └── game-data.js      # Factions, locations, NPC homes, shop and quest data
+│   └── server/
+│       ├── validation.js     # Input sanitizing and player state validation
+│       └── world.js          # Shared-world initialization and diplomacy
+├── tests/
+│   └── core.test.js          # Automated tests for shared data and core helpers
+├── server.js                # HTTP/Socket.IO composition and event handlers
+├── package.json
+├── render.yaml
+└── README.md
+```
+
+## Why the structure is better
+
+- Shared game definitions live in one place, instead of being mixed with server networking.
+- Server validation is isolated and can be tested independently.
+- Shared-world initialization is isolated from Socket.IO event handlers.
+- Browser styles and JavaScript no longer occupy the HTML document.
+- Automated tests cover basic validation and world initialization.
+- Future systems can be added as separate modules without rewriting the entire application.
 
 ## Run locally
-Node.js 18 or newer:
+
 ```bash
 npm install
+npm test
+npm run check
 npm start
 ```
-Open `http://localhost:3000`.
 
-## Render
-Keep the existing Web Service and PostgreSQL configuration:
-- Build: `npm install`
-- Start: `npm start`
-- Environment: `DATABASE_URL` set to the Render PostgreSQL Internal Database URL.
+Then open `http://localhost:3000`.
+
+## Deploy on Render
+
+- Build command: `npm install`
+- Start command: `npm start`
+- Keep the existing PostgreSQL `DATABASE_URL` environment variable.
 
 ## Notes
-This remains a browser RPG, not a 3D shooter. The PDA, NPC dialogue, exploration and most quest mechanics are client-side game systems; the existing global multiplayer server handles presence, chat, profiles and the shared systems already implemented in 2.2. The weapon catalogue is an original game-facing reference, not a reproduction of proprietary source assets. The original S.T.A.L.K.E.R. icons are not bundled.
 
+This is an architectural refactor of the uploaded 3.1 project. It preserves the existing combat, character creation, inventory, NPC, quest, trade and multiplayer logic; it does not claim that all game systems have become server-authoritative. The browser game logic is currently extracted into `public/js/game.js` as a first modular boundary. Further extraction into combat, inventory, PDA, map and multiplayer client modules can follow incrementally.
 
-## ZONE ONLINE 3.1 — Character & Combat Update
-
-- Новый экран создания персонажа: выбор позывного и одной из девяти группировок до начала игры.
-- Выбор группировки и позывной сохраняются в профиле и передаются в общий онлайн-мир.
-- Пошаговые условные столкновения: атака, укрытие, аптечка и отступление.
-- Сила игрового действия зависит от экипированного оружия и его состояния; защита учитывает надетый костюм.
-- Случайные столкновения могут возникать при исследовании и переходах между секторами.
-- Есть тренировочный запуск столкновения из главного экрана.
-
-Боевая система — абстрактная игровая механика, не руководство по реальному применению оружия. Столкновения пока рассчитываются на клиенте; для соревновательной защиты и честного PvP потребуется перенести их расчёт на сервер.
-
-- Авторские векторные SVG-иконки категорий предметов вместо простых текстовых символов.
-- Общие открытия ключевых точек: найденные одним игроком места становятся известны остальным.
-- Серверные мировые сводки и динамические события рассылаются всем подключённым игрокам.
-- Расписание перемещения NPC продолжает работать на сервере и синхронизируется с клиентами.
+No original S.T.A.L.K.E.R. copyrighted game assets are bundled.

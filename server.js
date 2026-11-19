@@ -3,56 +3,34 @@ const http = require('http');
 const path = require('path');
 const crypto = require('crypto');
 const { Server } = require('socket.io');
+const {
+  LOCATIONS, FACTIONS, NPC_HOME, TRADE_ITEM_IDS, SHOP, SELL_VALUES,
+  COOP_TEMPLATES, ZONE_EVENTS
+} = require('./src/shared/game-data');
+const { clean, validId, createSafeState } = require('./src/server/validation');
+const { initSharedWorld, initDiplomacy } = require('./src/server/world');
 
-const app = express();
-const server = http.createServer(app);
-const io = new Server(server, { cors: { origin: true, methods: ['GET','POST'] }, pingInterval: 25000, pingTimeout: 20000, maxHttpBufferSize: 1e6 });
-const PORT = process.env.PORT || 3000;
-const LOCATIONS = new Set(['cordon','dump','bar','agro','dark','yantar','army','red','pripyat','zaton','jupiter','yanov','kopachi','volkhov','iron']);
-const FACTIONS = new Set(['Одиночки','Долг','Свобода','Бандиты','Военные','Учёные','Наёмники','Монолит','Чистое небо']);
 const online = new Map();
 const recentChat = [];
 let pool = null;
 let dbReady = false;
 let world = { diplomacy: {}, events: [], revision: 1, npcPositions: {}, coOpQuests: [], discoveredPoints: {}, zoneEvents: [] };
-const NPC_HOME = { sid:'cordon', wolf:'cordon', fanatic:'cordon', scout:'dump', bandit:'dump', barman:'bar', seriy:'bar', scientist:'agro', merc:'dark', prof:'yantar', freedom:'army', guide:'red', loner:'pripyat' };
-const TRADE_ITEM_IDS = new Set(['med','bread','bolt','scrap','bandage','artifact']);
-const SHOP = {med:{name:'Аптечка',type:'Медицина',desc:'Восстанавливает здоровье.',weight:.4,price:180,qty:1,value:100},bread:{name:'Хлеб',type:'Еда',desc:'Восстанавливает выносливость.',weight:.3,price:45,qty:1,value:35},bandage:{name:'Бинт',type:'Медицина',desc:'Полевой расходный предмет.',weight:.2,price:70,qty:1,value:45},scrap:{name:'Металлолом',type:'Материал',desc:'Материал для ремесла.',weight:.8,price:55,qty:1,value:30},bolt:{name:'Болты ×5',type:'Инструмент',desc:'Набор болтов.',weight:.1,price:40,qty:5,value:5}};
-const SELL_VALUES = {med:100,bread:35,bolt:5,scrap:30,bandage:45,artifact:420};
-const COOP_TEMPLATES = [{id:'survey_cordon',title:'Общая разведка Кордона',description:'Два сталкера должны прибыть на Кордон и подтвердить наблюдения.',location:'cordon',reward:240,xp:25,required:2},{id:'survey_yantar',title:'Исследовательская группа Янтаря',description:'Соберите группу из двух сталкеров на Янтаре.',location:'yantar',reward:420,xp:45,required:2}];
+
+
+const app = express();
+const server = http.createServer(app);
+const io = new Server(server, { cors: { origin: true, methods: ['GET','POST'] }, pingInterval: 25000, pingTimeout: 20000, maxHttpBufferSize: 1e6 });
+const PORT = process.env.PORT || 3000;
 
 app.use(express.static(path.join(__dirname, 'public')));
 app.get('/health', (_req,res) => res.json({ ok:true, service:'ZONE ONLINE shared world', database:dbReady?'postgres':'memory-fallback', online:online.size }));
 app.get('/api/status', (_req,res) => res.json({ online:online.size, persistent:dbReady, worldRevision:world.revision }));
 
-function clean(value,max=80){ return String(value ?? '').replace(/[<>\u0000-\u001f]/g,'').trim().slice(0,max); }
-function validId(value){ return /^[a-f0-9-]{16,64}$/i.test(String(value||'')); }
-function safeState(input){
-  const s = input && typeof input === 'object' ? input : {};
-  return {
-    name:clean(s.name,24)||'Сталкер', faction:FACTIONS.has(s.faction)?s.faction:'Одиночки', characterCreated:s.characterCreated===true,
-    loc:LOCATIONS.has(s.loc)?s.loc:'cordon', money:Math.max(0,Math.min(99999999,Number(s.money)||0)),
-    hp:Math.max(0,Math.min(100,Number(s.hp)||100)), xp:Math.max(0,Math.min(1e7,Number(s.xp)||0)),
-    rep:Math.max(-1000,Math.min(1000,Number(s.rep)||0)), state:s
-  };
-}
 function publicPlayer(p){ return { id:p.id, name:p.name, faction:p.faction, location:p.location, hp:p.hp, xp:p.xp, joinedAt:p.joinedAt, lastSeen:p.lastSeen }; }
 function onlineList(){ return [...online.values()].map(publicPlayer).sort((a,b)=>a.name.localeCompare(b.name,'ru')); }
 function broadcastOnline(){ io.emit('world:players',onlineList()); }
 function systemMessage(text){ const m={id:crypto.randomUUID(),system:true,name:'Система',text:clean(text,240),time:Date.now()}; recentChat.push(m); if(recentChat.length>80)recentChat.shift(); io.emit('world:chat',m); }
-function initSharedWorld(){
-  world.npcPositions ||= {};
-  world.discoveredPoints ||= {};
-  world.zoneEvents ||= [];
-  for(const [id,loc] of Object.entries(NPC_HOME)) if(!LOCATIONS.has(world.npcPositions[id])) world.npcPositions[id]=loc;
-  world.coOpQuests ||= COOP_TEMPLATES.map(q=>({...q,participants:[],done:false}));
-}
-function initDiplomacy(){
-  const names=[...FACTIONS];
-  const baseline={'Одиночки':15,'Долг':0,'Свобода':0,'Бандиты':-25,'Военные':-20,'Учёные':10,'Наёмники':-5,'Монолит':-35,'Чистое небо':8};
-  for(const a of names){ world.diplomacy[a] ||= {}; for(const b of names){ if(a!==b && !Number.isFinite(world.diplomacy[a][b])) world.diplomacy[a][b]=Math.max(-60,Math.min(60,Math.round(((baseline[a]||0)+(baseline[b]||0))/2))); } }
-}
-initDiplomacy(); initSharedWorld();
+initDiplomacy(world, FACTIONS); initSharedWorld(world, NPC_HOME, LOCATIONS, COOP_TEMPLATES);
 async function initDb(){
   if(!process.env.DATABASE_URL){ console.warn('DATABASE_URL missing: running in memory mode. Add Render PostgreSQL for persistence.'); return; }
   try {
@@ -64,7 +42,7 @@ async function initDb(){
     const wr=await pool.query('SELECT state FROM zone_world WHERE id=1');
     if(wr.rows[0]) world={...world,...wr.rows[0].state}; else await pool.query('INSERT INTO zone_world(id,state) VALUES(1,$1)',[world]);
     const cr=await pool.query('SELECT payload FROM zone_chat ORDER BY id DESC LIMIT 60');
-    recentChat.push(...cr.rows.reverse().map(x=>x.payload)); initDiplomacy(); initSharedWorld(); dbReady=true;
+    recentChat.push(...cr.rows.reverse().map(x=>x.payload)); initDiplomacy(world, FACTIONS); initSharedWorld(world, NPC_HOME, LOCATIONS, COOP_TEMPLATES); dbReady=true;
     console.log('PostgreSQL connected; shared world persistence enabled.');
   } catch(e){ console.error('PostgreSQL initialization failed; server will continue in memory mode:',e.message); pool=null; dbReady=false; }
 }
@@ -221,19 +199,12 @@ io.on('connection', socket=>{
 });
 
 setInterval(async()=>{
-  initSharedWorld();
+  initSharedWorld(world, NPC_HOME, LOCATIONS, COOP_TEMPLATES);
   const ids=Object.keys(world.npcPositions); if(!ids.length)return;
   const id=ids[Math.floor(Math.random()*ids.length)], current=world.npcPositions[id], options=[...LOCATIONS].filter(x=>x!==current);
   world.npcPositions[id]=options[Math.floor(Math.random()*options.length)]; world.revision=(world.revision||0)+1;
   try{await persistWorld();io.emit('world:npcs',world.npcPositions);io.emit('world:update',{world,notice:`Сталкер ${id} замечен в новом секторе.`});}catch(e){console.error('NPC schedule:',e.message);}
 }, 5*60*1000).unref();
-const ZONE_EVENTS=[
- {title:'Выброс на подходе',body:'По каналам КПК поступило предупреждение о нестабильной активности. Сталкеры ищут укрытия.'},
- {title:'Торговый караван',body:'Между безопасными секторами замечен караван. Торговцы ожидают новые поставки.'},
- {title:'Необычный сигнал',body:'Несколько детекторов зафиксировали странный сигнал. Источник пока не установлен.'},
- {title:'Ночная активность',body:'Проводники сообщают о движении в отдалённых районах. Некоторые маршруты временно обходят.'},
- {title:'Сводка группировок',body:'На нескольких территориях замечены новые патрули. Баланс сил может измениться.'}
-];
 setInterval(async()=>{
   const event={...ZONE_EVENTS[Math.floor(Math.random()*ZONE_EVENTS.length)],id:crypto.randomUUID(),at:Date.now()};
   world.zoneEvents ||= [];world.zoneEvents.push(event);world.zoneEvents=world.zoneEvents.slice(-30);world.revision=(world.revision||0)+1;
