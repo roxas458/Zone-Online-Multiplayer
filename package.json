@@ -1,8 +1,8 @@
 {
   "name": "zone-online",
-  "version": "4.33.3",
+  "version": "4.33.4",
   "private": true,
-  "description": "ZONE ONLINE NPC callsign migration and expanded stalker nickname pool",
+  "description": "ZONE ONLINE client and server legacy NPC callsign migration",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",

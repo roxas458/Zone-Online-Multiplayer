@@ -66,6 +66,25 @@ let g;try{g=JSON.parse(localStorage.getItem("zoneExpandedSave"))||clone(base)}ca
 if(g.characterCreated===undefined)g.characterCreated=hadLocalSave;
 let chosenLoc=null,activeNpc=null,questFilter="all";
 const $=id=>document.getElementById(id);
+// Convert legacy locally-saved random NPCs as well as server NPCs to Zone callsigns.
+const STORY_NPC_IDS=new Set(['sid','wolf','fanatic','scout','bandit','barman','seriy','scientist','merc','prof','freedom','guide','loner','lebedev','novikov','cold','renegade_leader','renegade_scout','lukash','voronin','sultan','beard','charon','wolfhound','archivist','kravtsov','monolith_scout']);
+const CALLSIGN_FIRST=['Толик','Кирюха','Васько','Колян','Данёк','Влад','Серёга','Ростик','Вася','Геныч','Мишаня','Лёха','Костян','Жека','Федя','Тимоха','Ярик','Гриша','Славик','Ромыч','Паштет','Егорка','Борька','Стасон','Санёк','Петруха','Вован','Гоша','Тарас','Сёма','Фома','Кэп','Док','Шило','Крот','Грач','Филин','Бублик','Шрам','Кабан'];
+const CALLSIGN_LAST=['Бензин','Предатель','Безумный','Факел','Бумага','Крыса','Гимназист','Хранитель','Шутник','Адвокат','Глобус','Умный','Спагетти','Пельмень','Шуруп','Кефир','Бублик','Картридж','Сухарь','Болт','Кирпич','Шпрот','Самовар','Квас','Чебурек','Комар','Фонарик','Пончик','Гвоздь','Радар','Антенна','Дизель','Провод','Термос','Карась','Ёрш','Трактор','Пылесос','Утюг','Карандаш','КомпАс','Барометр','Изолента','Таракан','Будильник','Домкрат','Холодец','Мухомор','Пугливый','Тихоня','Шальной','Хитрый','Копчёный','Молчун','Рыбак','Глухарь','Жмур','Боцман','Шаман','Крендель','Бродяга','Тормоз','Скрипач','Кочан','Тюбик','Батон','Кекс','Косарь','Шашлык','Патефон','Рупор','Штопор','Мотор','Поршень','Кувалда','Кирзач','Валенок','Камыш','Пень','Борщ','Рассол','Салага','Космонавт','Пилот','Штурман','Картограф','Сапёр','Слесарь','Электрик','Связист','Радист','Одеколон','Мармелад','Бурундук','Хомяк','Барсук','Енот','Суслик','Порох','Рикошет','Гильза','Обойма','Ржавый','Сонный','Голодный','Шустрый','Зоркий','Угрюмый','Фартовый','Невезучий','Одноглазый','Кривой','Ловкач','Ворчун','Добряк','Злюка','Тихий','Громкий','Мокрый','Пыльный','Чумазый','Скиталец','Потеряшка','Фокусник','Зевака','Нытик','Балагур','Молчун','Врун','Правдоруб','Хвастун','Лентяй','Дозорный','Часовой','Патрульный','Салага','Старшой','Новобранец','Прапор','Дезертир','Беглец','Пришлый','Залётный','Призрак','Тень','Пепел','Искра','Фитиль','Фонарь','Светляк','Болотник','Лесник','Степняк','Шахтёр','Механик','Водила','Шофёр','Тракторист','Монтёр','Ремонтник','Жестянщик','Гайковёрт','Шуруповёрт','Молоток','Ломик','Монтировка','Шиномонтажник','Сухпай','Чайник','Кружка','Котелок','Рукав','Карман','Очкарик','Монокль','Бинокль','КПК','Пейджер','Магнитола','Шумодав','Маяк','Помеха','Скрежет','Треск','Шорох','Завхоз','Кладовщик','Самогон','Кисель','Компот','Вареник','Галушка','Пирожок','Беляш','Чебур','Шаурма','Кабачок','Огурчик','Помидор','Укроп','Вафля','Пряник','Сухарик','Козинак','Ириска','Шоколад','Сахар','Соль','Корица','Доцент','Лектор','Дипломат','Прокурор','Судья','Нотариус','Фотограф','Художник','Баянист','Гитарист','Комик','Знахарь','Лекарь','Доктор','Фельдшер','Санитар','Костоправ','Псих','Чудак','Философ','Мечтатель','Паникёр','Зануда','Весельчак','Сплетник','Сказочник','Растяпа','Раззява','Неряха','Педант','Трудяга','Грубиян','Задира','Забияка','Миротворец','Посредник','Смотрящий','Сторож','Разведчик','Штурмовик','Снайпер','Стрелок','Минёр','Подрывник','Диверсант','Партизан','Ветеран','Рядовой','Курсант','Уставник','Странник','Пилигрим','Кочевник','Бездомный','Невезунчик','Счастливчик','Роковой','Последний','Лишний','Запасной','Дублёр','Эхо','Шёпот','Мрак','Туман','Дым','Уголь','Огонёк','Костёр','Спичка','Зажигалка','Прожектор','Лампочка','Речник','Озерник','Путеец','Металлист','Сварщик','Токарь','Фрезеровщик','Моторист','Дальнобой','Энергетик','Электронщик','Жесть','Ржавчина','Коррозия','Окисел','Накипь','Гарь','Сажа','Копоть','Пыль','Песок','Глина','Щебень','Бетонщик','Каменщик','Плотник','Столяр','Сантехник','Трубочист','Отвёртка','Напильник','Рубанок','Ножовка','Колун','Топорик','МокрыйНос','РадиоГолова','МастерКостра','ПыльныйШлем','РжавыйКлюч','ДикийГусь','ГолодныйЁж','УставшийВолк','КосмическийГриб','БатарейкаСела','СвязиНет','ВнеЗоны','НеВолнуйся','ВсёПутём','НеСегодня','ТутНедалеко','НеТудаСвернул','ЧерезБолото','БезДетектора','НаПоследнемПатроне','ГдеМойРюкзак','НеТрогайАртефакт','НашёлИПотерял','ТретийЛишний','ПятыйЭлемент','ДваПроцента','НольПатронов','ПоследняяБанка','КрайнийПаёк','ЗапаснойМагазин','СоседПоКостру','ДежурныйПоЧаю','МастерЧая','ЧайныйГриб'];
+function migrateLocalNpcCallsigns(){
+ const used=new Set((g.npcs||[]).filter(n=>STORY_NPC_IDS.has(n.id)).map(n=>String(n.name||'').trim()));
+ for(const npc of (g.npcs||[])){
+  if(!npc||STORY_NPC_IDS.has(npc.id))continue;
+  const id=String(npc.id||'unknown-npc');let h=2166136261;
+  for(let i=0;i<id.length;i++){h^=id.charCodeAt(i);h=Math.imul(h,16777619);}
+  h>>>=0;let name='';
+  for(let step=0;step<CALLSIGN_FIRST.length*CALLSIGN_LAST.length;step++){
+   const ix=(h+step)%(CALLSIGN_FIRST.length*CALLSIGN_LAST.length);
+   const candidate=CALLSIGN_FIRST[Math.floor(ix/CALLSIGN_LAST.length)]+' '+CALLSIGN_LAST[ix%CALLSIGN_LAST.length];
+   if(!used.has(candidate)){name=candidate;break;}
+  }
+  if(name){npc.name=name;used.add(name);npc.generated=true;}
+ }
+}
 // Save migration: extend existing saves without resetting player progress.
 function migrateWorld(){
  g.locations ||= clone(base.locations); g.npcs ||= clone(base.npcs); g.factions ||= clone(base.factions); g.items ||= []; g.quests ||= clone(base.quests);
@@ -100,6 +119,8 @@ function migrateWorld(){
  for(const [faction,leader] of Object.entries(content.factionLeaders||{})){const f=g.factions.find(x=>x.name===faction);if(f)f.leader=clone(leader);}
  for(const n of (content.npcs||[])){if(!g.npcs.some(x=>x.id===n.id))g.npcs.push(clone(n));const l=g.locations.find(x=>x.id===n.loc);if(l&&!l.people.includes(n.id))l.people.push(n.id);}
  for(const q of (content.storyQuests||[])){if(!g.quests.some(x=>x.id===q.id))g.quests.push({...clone(q),accepted:false,done:false});}
+ // Run AFTER all legacy and content NPCs are loaded, otherwise old browser saves keep their real-name NPCs.
+ migrateLocalNpcCallsigns();
  if(!g.foodKitGranted){addItem("canned","Консервы","Еда","Сытный полевой паёк.",.45,65,1);addItem("water","Бутылка воды","Еда","Чистая питьевая вода.",.5,25,2);g.foodKitGranted=true;}
 }
 migrateWorld();
@@ -703,6 +724,7 @@ function renderOnlinePlayers(){
 function locationName(id){return g.locations.find(x=>x.id===id)?.name||id||'Неизвестно'}
 function escapeHtml(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function syncNpcRosterToClient(){
+ migrateLocalNpcCallsigns();
  const roster=serverWorld?.npcState||{};g.npcs||=[];
  for(const npc of Object.values(roster)){
   if(!npc||!npc.alive)continue;
@@ -1023,7 +1045,7 @@ async function connectZone(){
  zoneSocket.on('squad:encounter',data=>{if(!data)return;news('Встреча отрядов',data.text||'В секторе замечена другая группа.');log(data.text||'В секторе замечена другая группа.');});
  zoneSocket.on('squad:result',data=>{if(data?.message)alert(data.message);});
  zoneSocket.on('dm:history',data=>{playerDMHistory[data.targetId]=data.history||[];if(activePlayerDM===data.targetId)renderPlayerDM();});
- zoneSocket.on('player:spawned',data=>{if(data?.state){applyingServerState=true;g=data.state;localStorage.setItem('zoneExpandedSave',JSON.stringify(g));applyingServerState=false;render();log(`Ты прибыл на базу группировки: ${spawnNames[data.location]||data.location}.`);}});
+ zoneSocket.on('player:spawned',data=>{if(data?.state){applyingServerState=true;g=data.state;migrateWorld();localStorage.setItem('zoneExpandedSave',JSON.stringify(g));applyingServerState=false;render();log(`Ты прибыл на базу группировки: ${spawnNames[data.location]||data.location}.`);}});
  zoneSocket.on('dm:message',m=>{const other=m.fromId===zonePlayerId?m.toId:m.fromId;playerDMHistory[other] ||= [];if(!playerDMHistory[other].some(x=>x.id===m.id))playerDMHistory[other].push(m);if(activePlayerDM===other)renderPlayerDM();else log('Новое личное сообщение от '+(m.fromName||'сталкера')+'.');});
  zoneSocket.on('dm:error',data=>alert(data?.message||'Личный канал недоступен.'));
  zoneSocket.on('npc:trade:result',data=>{if(data?.economy&&activeNpc){serverWorld=serverWorld||{};serverWorld.npcEconomy=serverWorld.npcEconomy||{};serverWorld.npcEconomy[activeNpc]={...(serverWorld.npcEconomy[activeNpc]||{}),...data.economy};}if(data?.state){g=data.state;localStorage.setItem('zoneExpandedSave',JSON.stringify(g));render();renderTrade();if(activeNpc)openNpcTrade(activeNpc);}alert(data?.message||'Обмен завершён.');});

@@ -49,5 +49,8 @@ Automated tests do not prove the live Render deployment is healthy; the deployed
 - New survival status panel and event log in Living Zone.
 
 
-### Version 4.33.3 — Stalker Callsigns Fix
+### Version 4.33.4 — Full Legacy NPC Callsign Migration
 All non-story NPC records are migrated to humorous two-part stalker callsigns on world bootstrap. Canonical named story characters remain unchanged.
+
+
+Version 4.33.4 additionally migrates NPC names stored in old browser saves, including locally-created `wander_*` NPCs. Only canonical story NPC IDs retain their authored names.

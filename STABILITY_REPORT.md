@@ -20,3 +20,9 @@
 
 ## 4.33.3 Callsign migration
 All NPCs outside the explicit story-character whitelist are converted to unique two-part callsigns, including old persisted NPC records whose generated flag was missing or false. Regression tests cover legacy full-name formats.
+
+
+## 4.33.4 Legacy NPC names
+- Added a browser-save migration after all legacy and content NPCs are loaded.
+- The migration is rerun on roster synchronization and after restored server player state.
+- Canonical story NPC IDs are explicitly exempt; all other local NPCs receive stable Zone callsigns.

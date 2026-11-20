@@ -1,4 +1,11 @@
-## 4.33.3 — STALKER CALLSIGNS FIX
+# Changelog
+
+## 4.33.4 — Full legacy NPC callsign migration
+- Fixes the actual source of the remaining real-name NPCs: legacy browser saves created ordinary NPCs inside `migrateWorld()` and kept those names locally.
+- Migrates every non-story NPC in the browser save after both legacy and content NPC records are loaded, including locally generated `wander_*` NPCs.
+- Reapplies the migration after server-provided player state is restored and before roster synchronization.
+- Keeps the explicit canonical story-character ID whitelist unchanged.
+
 
 - Migrates every non-story NPC, including legacy records without the generated flag, from real first/last names to two-part Zone callsigns.
 - Preserves only the explicit canonical story-character roster.

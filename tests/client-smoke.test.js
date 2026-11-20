@@ -415,8 +415,8 @@ test('4.25 field PDA keeps long-page filters and map controls reachable', () => 
 test('4.33 build labels are consistent', () => {
   const html = fs.readFileSync(path.join(root, 'public/index.html'), 'utf8');
   const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
-  assert.equal(pkg.version, '4.33.2');
-  assert.match(html, /BUILD 4\.33\.2/);
+  assert.equal(pkg.version, '4.33.4');
+  assert.match(html, /BUILD 4\.33\.4/);
   assert.match(html, /ZONE ONLINE 4\.33/);
 });
 
@@ -550,12 +550,21 @@ test('4.31 removes account registration and login and uses guest multiplayer', (
 
 
 
+test('4.33.4 migrates legacy browser-saved NPCs after loading content and keeps story NPCs',()=>{
+  const client=fs.readFileSync(path.join(root,'public/js/game.js'),'utf8');
+  assert.match(client,/const STORY_NPC_IDS=new Set\(\['sid','wolf','fanatic'/);
+  assert.match(client,/function migrateLocalNpcCallsigns\(\)/);
+  assert.match(client,/migrateLocalNpcCallsigns\(\);\s*if\(!g\.foodKitGranted\)/);
+  assert.match(client,/function syncNpcRosterToClient\(\)\{\s*migrateLocalNpcCallsigns\(\);/);
+  assert.match(client,/g=data\.state;migrateWorld\(\);/);
+});
+
 test('4.33 survival and expedition features are wired into the game and server',()=>{
   const html=fs.readFileSync(path.join(root,'public/index.html'),'utf8');
   const client=fs.readFileSync(path.join(root,'public/js/game.js'),'utf8');
   const server=fs.readFileSync(path.join(root,'server.js'),'utf8');
   const data=fs.readFileSync(path.join(root,'src/shared/game-data.js'),'utf8');
-  assert.match(html,/survival\.js\?v=4\.33\.2/);
+  assert.match(html,/survival\.js\?v=4\.33\.4/);
   assert.match(html,/Подготовить рюкзак/);
   assert.match(html,/Охота на мутантов/);
   assert.match(client,/function tickSurvival\(/);
