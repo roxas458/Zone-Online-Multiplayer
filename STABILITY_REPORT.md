@@ -16,3 +16,7 @@
 - 4.33.0 client negotiated Engine.IO polling first and then upgraded to WebSocket. Logs showed repeated polling session closures and `Session ID unknown`.
 - Client and server now use WebSocket-only transport, removing polling session IDs from the connection lifecycle.
 - Static checks and automated tests cover the selected transport. Live Render validation is still required.
+
+
+## 4.33.3 Callsign migration
+All NPCs outside the explicit story-character whitelist are converted to unique two-part callsigns, including old persisted NPC records whose generated flag was missing or false. Regression tests cover legacy full-name formats.

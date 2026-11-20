@@ -47,3 +47,7 @@ Automated tests do not prove the live Render deployment is healthy; the deployed
 - Sector travel now costs stamina and supplies and adds radiation exposure by route risk.
 - Mutant hunting resolves on the server in multiplayer and persists the pack population and trophy reward.
 - New survival status panel and event log in Living Zone.
+
+
+### Version 4.33.3 — Stalker Callsigns Fix
+All non-story NPC records are migrated to humorous two-part stalker callsigns on world bootstrap. Canonical named story characters remain unchanged.

@@ -1,3 +1,10 @@
+## 4.33.3 — STALKER CALLSIGNS FIX
+
+- Migrates every non-story NPC, including legacy records without the generated flag, from real first/last names to two-part Zone callsigns.
+- Preserves only the explicit canonical story-character roster.
+- Expands the callsign vocabulary and guarantees unique generated names.
+- Adds regression coverage for legacy names such as «Вениамин Филатов», «Захар Зайцев» and «Данила Игнатов — Северный».
+
 ## 4.33.2 — STALKER CALLSIGNS
 - Replaced procedural civilian-style names for generated NPC stalkers with unique Zone-flavoured nicknames.
 - Existing generated NPCs are migrated in place; named story characters and player names remain unchanged.
