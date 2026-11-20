@@ -1,3 +1,20 @@
+# ZONE ONLINE 4.28.1 — CONNECTION RECOVERY PATCH
+
+## 4.28.1 — Client connection recovery
+
+- Updated the browser cache-busting URL to 4.28.0 so the browser does not keep an older 4.27 client after deployment.
+- A malformed `?server=` query parameter no longer aborts client startup.
+- The multiplayer status now changes to offline when an established socket disconnects unexpectedly; automatic Socket.IO reconnection remains enabled.
+- The server address field remains optional when the frontend and Node service are deployed together.
+
+## Connection verification
+
+1. Deploy the complete archive as a Node Web Service, not as a static site.
+2. Use `npm install` as the build command and `npm start` as the start command.
+3. Open `/health` on the Node service. It must return JSON with `ok: true` and version `4.28.0`.
+4. If the browser game is hosted on a different domain, enter the Node service's full HTTPS origin in Multiplayer → Server address, then reconnect.
+5. PostgreSQL is required for accounts and persistent cross-device saves, but not for anonymous socket connectivity.
+
 # ZONE ONLINE 4.28 — IMMEDIATE LOGIN ACKNOWLEDGEMENT
 
 ## 4.28 — Login handshake reliability
