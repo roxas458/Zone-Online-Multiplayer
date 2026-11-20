@@ -1,6 +1,6 @@
 {
   "name": "zone-online",
-  "version": "4.30.0",
+  "version": "4.30.1",
   "private": true,
   "description": "Browser-based STALKER-inspired MMO with NPC-specific economy and multiplayer diagnostics",
   "main": "server.js",

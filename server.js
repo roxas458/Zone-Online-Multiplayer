@@ -65,7 +65,7 @@ function recordNpcTrade(account, entry) {
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server, { cors: { origin: true, methods: ['GET','POST'] }, pingInterval: 25000, pingTimeout: 30000, connectTimeout: 60000, maxHttpBufferSize: 1e6 });
+const io = new Server(server, { cors: { origin: true, methods: ['GET','POST'] }, pingInterval: 25000, pingTimeout: 60000, connectTimeout: 60000, maxHttpBufferSize: 1e6 });
 const PORT = process.env.PORT || 3000;
 const SECTOR_COORDS = Object.freeze({chaes:[503,104],zaton:[561,405],pripyat:[676,649],jupiter:[391,703],limansk:[128,838],red:[311,903],radar:[675,897],army:[502,1046],wild:[347,1212],bar:[441,1215],yantar:[174,1302],dump:[466,1470],agro:[243,1528],dark:[787,1418],cordon:[463,1753],swamps:[185,1788],darkhollow:[793,1742]});
 const SPAWN_BY_FACTION = Object.freeze({'Одиночки':'cordon','Долг':'bar','Свобода':'army','Бандиты':'dump','Военные':'agro','Учёные':'yantar','Наёмники':'limansk','Монолит':'radar','Чистое небо':'swamps'});
@@ -100,7 +100,7 @@ app.post('/api/auth/login', async (req,res)=>{
 app.get('/api/auth/me', async (req,res)=>{const a=await resolveSession(String(req.headers.authorization||'').replace(/^Bearer\s+/i,''));if(!a)return res.status(401).json({ok:false});res.json({ok:true,username:a.username,playerId:a.player_id});});
 app.post('/api/auth/logout', async (req,res)=>{const token=String(req.headers.authorization||'').replace(/^Bearer\s+/i,'');if(pool&&token)try{await pool.query('DELETE FROM zone_account_sessions WHERE token_hash=$1',[hashToken(token)]);}catch(e){await dbFallback(e,'logout');}res.json({ok:true});});
 app.get('/health', (_req,res) => { res.set('Access-Control-Allow-Origin','*'); res.set('Cache-Control','no-store'); res.status(200).json({ ok:true, service:'ZONE ONLINE', version:require('./package.json').version, database:dbReady?'postgres':'memory-fallback', databaseRequiredForAccounts:true, online:online.size, revision:world.revision||1, timestamp:Date.now() }); });
-app.get('/api/status', (_req,res) => res.json({ ...publicWorldStatus(world, online.size), persistent:dbReady, service:'ZONE ONLINE 4.27 CONNECTION & PDA' }));
+app.get('/api/status', (_req,res) => res.json({ ...publicWorldStatus(world, online.size), persistent:dbReady, service:'ZONE ONLINE 4.30.1 MULTIPLAYER DIAGNOSTICS' }));
 app.get('/api/world/snapshot', (_req,res) => res.json({ status:publicWorldStatus(world, online.size), world }));
 app.get('/api/world/events', (req,res) => { const since=Number(req.query.since||0); const sync=buildWorldSync(world, Number.isSafeInteger(since)?since:0); res.json(sync); });
 
@@ -169,15 +169,16 @@ io.on('connection', socket=>{
   socket.conn.on('upgrade', transport=>console.info(`[socket] upgraded id=${socket.id} transport=${transport.name}`));
   socket.on('error', error=>console.warn(`[socket] error id=${socket.id}:`,clean(error?.message||error,240)));
   socket.on('player:hello', async (payload, ack)=>{
+    const helloStartedAt=Date.now();
+    console.info(`[socket] player:hello received id=${socket.id} transport=${socket.conn.transport.name}`);
     // Confirm receipt synchronously, before database lookups or save migration.
     // Render cold starts and slow PostgreSQL queries must not consume the client's
     // Socket.IO acknowledgement deadline. The actual profile/world arrives in player:ready.
     let helloAcknowledged=false;
     if(typeof ack==='function'){
-      try { ack({ok:true,accepted:true,persistent:dbReady}); helloAcknowledged=true; }
+      try { ack({ok:true,accepted:true,persistent:dbReady}); helloAcknowledged=true; console.info(`[socket] player:hello ack sent id=${socket.id}`); }
       catch(error) { console.warn('player:hello acknowledgement failed:',error.message); }
     }
-    const helloStartedAt=Date.now();
     try {
       const auth=payload?.token?await resolveSession(payload.token):null;
       if(payload?.token&&!auth)throw new Error('Сессия аккаунта истекла. Войди в аккаунт заново.');
@@ -200,7 +201,7 @@ io.on('connection', socket=>{
       io.emit('world:npcs',world.npcPositions); io.emit('world:npc-state',{npcs:world.npcState,events:(world.npcEvents||[]).slice(-20),squads:world.npcSquads||[],memorial:world.npcMemorial||[],battlefronts:world.battlefronts||[],convoys:world.convoys||[],factionBases:world.factionBases||[],frontlineOrders:world.frontlineOrders||[]}); io.emit('world:ecosystem',world.ecosystem); io.emit('world:coop',world.coOpQuests); io.emit('war:state',{operations:world.warOperations||[],history:(world.warHistory||[]).slice(0,12)});
       systemMessage(`${p.name} вошёл в Зону.`); broadcastOnline(); persistWorld().catch(e=>console.error('join persistence:',e.message));
     } catch(e){
-      console.error(`player:hello failed after ${Date.now()-helloStartedAt}ms:`,e);
+      console.error(`[socket] player:hello failed id=${socket.id} after ${Date.now()-helloStartedAt}ms:`,e);
       const message=e?.message==='Сессия аккаунта истекла. Войди в аккаунт заново.'?e.message:'Сервер принял соединение, но не смог загрузить профиль. Проверь журнал Render.';
       socket.emit('player:hello:error',{message,detail:clean(e?.message||'unknown',180)});
       if(!helloAcknowledged&&typeof ack==='function')try{ack({ok:false,message});}catch{}

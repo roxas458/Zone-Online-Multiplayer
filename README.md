@@ -1,3 +1,17 @@
+# ZONE ONLINE 4.30.1 — MULTIPLAYER CONNECTION PATCH
+
+- Prefer WebSocket transport and fall back to HTTP long-polling when WebSocket is unavailable.
+- Increased Socket.IO heartbeat timeout to reduce false disconnects on mobile networks and proxy pauses.
+- Extended the login acknowledgement deadline to 30 seconds.
+- Added server-side logs for receipt and acknowledgement of `player:hello`, making it possible to distinguish a transport connection from an application-level login.
+- Consolidated duplicate client disconnect listeners so connection status and the world-ready watchdog are cleaned up consistently.
+- Updated the client cache-busting version to 4.30.1.
+- PostgreSQL remains optional for anonymous multiplayer connections; it is required for accounts and persistent cross-device saves.
+
+## Deploy
+
+Deploy the complete project to the existing Render Node Web Service. Build command: `npm install`. Start command: `npm start`. After deploy, open `/health` and confirm `version` is `4.30.1`. Check Render Logs for `[socket] player:hello received` and `[socket] player:hello ack sent`.
+
 # ZONE ONLINE 4.30.0 — NPC ECONOMY & MULTIPLAYER FIX
 
 ## 4.30.0
@@ -62,7 +76,7 @@ Run `npm run check` and `npm test`. No database reset is intended; NPC economy i
 
 ## Deployment
 
-Deploy the full project folder to the existing Render Web Service using `npm install` and `npm start`. Keep the current service and `DATABASE_URL` configuration. After deployment, verify `/health` reports `version: "4.29.1"`. If the status remains `memory-fallback`, configure a Render PostgreSQL database and set its Internal Database URL as `DATABASE_URL` in the Web Service environment.
+Deploy the full project folder to the existing Render Web Service using `npm install` and `npm start`. Keep the current service and `DATABASE_URL` configuration. After deployment, verify `/health` reports `version: "4.30.1"`. If the status remains `memory-fallback`, configure a Render PostgreSQL database and set its Internal Database URL as `DATABASE_URL` in the Web Service environment.
 
 ## Checks
 

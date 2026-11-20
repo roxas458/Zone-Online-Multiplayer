@@ -413,8 +413,8 @@ test('4.25 field PDA keeps long-page filters and map controls reachable', () => 
 test('4.30 build labels are consistent', () => {
   const html = fs.readFileSync(path.join(root, 'public/index.html'), 'utf8');
   const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
-  assert.equal(pkg.version, '4.30.0');
-  assert.match(html, /BUILD 4\.30\.0/);
+  assert.equal(pkg.version, '4.30.1');
+  assert.match(html, /BUILD 4\.30\.1/);
   assert.match(html, /ZONE ONLINE 4\.30/);
 });
 
@@ -441,7 +441,7 @@ test('4.27 trader panel uses local portrait assets for the active trader', () =>
 
 test('4.27 login acknowledgement timeout accounts for Render cold starts', () => {
   const game = fs.readFileSync(path.join(root, 'public/js/game.js'), 'utf8');
-  assert.match(game, /zoneSocket\.timeout\(20000\)\.emit\('player:hello'/);
+  assert.match(game, /zoneSocket\.timeout\(30000\)\.emit\('player:hello'/);
   assert.match(game, /timeout:60000,reconnection:true/);
   assert.match(game, /Сервер подтвердил вход, но не прислал профиль мира/);
 });
