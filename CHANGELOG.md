@@ -35,3 +35,10 @@
 - Kept automatic reconnection and guest player handshake.
 - Updated diagnostics to report the active WebSocket-only transport mode.
 - Requires a Render Web Service deployment with WebSocket support (supported by Render).
+
+
+## 4.33.5 — Multiplayer connection reliability
+- Fixed cold-start preflight behavior that could discard the configured Render URL.
+- Increased connection and login acknowledgement timeouts; preserved automatic reconnect.
+- Added polling fallback alongside WebSocket and improved bounded diagnostics.
+- Verified 98 automated tests.

@@ -978,39 +978,30 @@ async function connectZone(){
   try{const parsed=new URL(serverUrl);if(!['http:','https:'].includes(parsed.protocol))throw new Error('Неподдерживаемый протокол');serverUrl=parsed.origin;}
   catch(error){console.warn('Discarding invalid saved multiplayer server URL:',error.message);serverUrl='';localStorage.removeItem('zoneServerUrl');}
  }
- // Accept a separately hosted ZONE ONLINE service even if its compatible server
- // release is older than the page build; the health endpoint must still identify it.
+ // Do not gate Socket.IO on an HTTP health preflight. Render free instances may
+ // be asleep; a slow /health response must never erase the user's configured URL
+ // or redirect the client to the static game's origin. Socket.IO will retry below.
  if(serverUrl && serverUrl!==sameOrigin){
-  try{
-   const response=await fetch(serverUrl+'/health',{cache:'no-store'});
-   const health=await response.json();
-   if(connectAttempt!==zoneConnectAttempt)return;
-   if(!response.ok||health?.ok!==true)throw new Error('Сохранённый адрес не отвечает как сервер ZONE ONLINE.');
-  }catch(error){
-   if(connectAttempt!==zoneConnectAttempt)return;
-   console.warn('Using the server that hosts this game instead of the saved URL:',error.message);
-   serverUrl='';
-   localStorage.removeItem('zoneServerUrl');
-  }
+  console.info('Using configured multiplayer server:',serverUrl);
  }
  if($('mpServerUrl') && $('mpServerUrl').value!==serverUrl)$('mpServerUrl').value=serverUrl;
  try{
   // Render supports WebSockets. Use a single transport to avoid stale Engine.IO
   // polling session IDs when a proxy closes or re-routes long-poll requests.
   zoneSocket=io(serverUrl||undefined,{
-   transports:['websocket'],
-   upgrade:false,
-   timeout:15000,
+   transports:['websocket','polling'],
+   upgrade:true,
+   timeout:60000,
    reconnection:true,
    reconnectionAttempts:Infinity,
    reconnectionDelay:1000,
-   reconnectionDelayMax:8000,
+   reconnectionDelayMax:15000,
    path:'/socket.io/',
    autoConnect:false,
    withCredentials:false
   });
- zoneSocket.on('connect',()=>{setOnlineConnectionState('connecting','Связь установлена. Сервер принял соединение, загружаем профиль…');const lastRevision=Number(localStorage.getItem('zoneWorldRevision')||0);zoneSocket.timeout(30000).emit('player:hello',{id:zonePlayerId,state:g,lastRevision,guest:true},(err,result)=>{if(err){setOnlineConnectionState('offline','Сервер установил соединение, но не подтвердил запрос входа. Проверь журналы Render и попробуй переподключиться.');console.error('player:hello acknowledgement timeout after 30s; server did not acknowledge the event');return;}if(!result?.ok){setOnlineConnectionState('offline',result?.message||'Сервер отклонил вход.');return;}setOnlineConnectionState('connecting','Сервер подтвердил запрос. Получаем профиль и состояние Зоны…');if(zoneHelloReadyTimer)clearTimeout(zoneHelloReadyTimer);zoneHelloReadyTimer=setTimeout(()=>{if(zoneSocket?.connected)setOnlineConnectionState('offline','Сервер подтвердил вход, но не прислал профиль мира. Проверь ошибки player:hello в Render Logs.');},35000);});});
- zoneSocket.on('connect_error',err=>{const target=(localStorage.getItem('zoneServerUrl')||window.location.origin).trim();const reason=err?.message||'ошибка сети';setOnlineConnectionState('offline',`Нет связи с ${target}. Причина: ${reason}. Открой ${target.replace(/\/$/,'')}/health. Если страница не открывается — сервер не запущен или указан неверный адрес; если открывается — проверь CORS/прокси и повтори подключение.`);console.error('ZONE ONLINE Socket.IO connect_error:',err);});
+ zoneSocket.on('connect',()=>{setOnlineConnectionState('connecting','Связь установлена. Сервер принял соединение, загружаем профиль…');const lastRevision=Number(localStorage.getItem('zoneWorldRevision')||0);zoneSocket.timeout(60000).emit('player:hello',{id:zonePlayerId,state:g,lastRevision,guest:true},(err,result)=>{if(err){setOnlineConnectionState('offline','Сервер установил соединение, но не подтвердил запрос входа. Проверь журналы Render и попробуй переподключиться.');console.error('player:hello acknowledgement timeout after 30s; server did not acknowledge the event');return;}if(!result?.ok){setOnlineConnectionState('offline',result?.message||'Сервер отклонил вход.');return;}setOnlineConnectionState('connecting','Сервер подтвердил запрос. Получаем профиль и состояние Зоны…');if(zoneHelloReadyTimer)clearTimeout(zoneHelloReadyTimer);zoneHelloReadyTimer=setTimeout(()=>{if(zoneSocket?.connected)setOnlineConnectionState('offline','Сервер подтвердил вход, но не прислал профиль мира. Проверь ошибки player:hello в Render Logs.');},65000);});});
+ zoneSocket.on('connect_error',err=>{const target=(localStorage.getItem('zoneServerUrl')||window.location.origin).trim();const reason=err?.message||'ошибка сети';const extra=/timeout|websocket|transport/i.test(reason)?' Render может запускаться после простоя до минуты. Адрес сохранён; клиент продолжит автоматические попытки. Проверь /health и журналы Render.':' Проверь /health, адрес сервера и журналы Render.';setOnlineConnectionState('offline',`Нет связи с ${target}. Причина: ${reason}.${extra}`);console.error('ZONE ONLINE Socket.IO connect_error:',err);});
  zoneSocket.on('disconnect',reason=>{zonePlayerReady=false;if(zoneHelloReadyTimer){clearTimeout(zoneHelloReadyTimer);zoneHelloReadyTimer=null;}if(reason!=='io client disconnect')setOnlineConnectionState('offline',`Соединение с сервером потеряно (${reason||'неизвестная причина'}). Клиент автоматически попробует подключиться снова.`);renderOnlinePlayers();renderOnlineWorldStatus();});
  zoneSocket.io.on('reconnect_attempt',()=>setOnlineConnectionState('connecting','Повторное подключение к серверу…'));
  zoneSocket.on('player:hello:error',data=>setOnlineConnectionState('offline',data?.message||'Не удалось завершить вход.'));
@@ -1097,7 +1088,7 @@ function mpConnect(){
   if(!['http:','https:'].includes(parsed.protocol))return alert('Адрес сервера должен начинаться с http:// или https://');
   localStorage.setItem('zoneServerUrl',parsed.origin);
  }else localStorage.removeItem('zoneServerUrl');
- setOnlineConnectionState('connecting','Проверяем адрес сервера и устанавливаем новое соединение…');
+ setOnlineConnectionState('connecting','Подключаемся к серверу. Если Render неактивен после простоя, первое соединение может занять до минуты…');
  connectZone();
 }
 // All normal game saves are mirrored to the server. The server keeps one profile per player.

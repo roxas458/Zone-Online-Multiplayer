@@ -415,8 +415,8 @@ test('4.25 field PDA keeps long-page filters and map controls reachable', () => 
 test('4.33 build labels are consistent', () => {
   const html = fs.readFileSync(path.join(root, 'public/index.html'), 'utf8');
   const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
-  assert.equal(pkg.version, '4.33.4');
-  assert.match(html, /BUILD 4\.33\.4/);
+  assert.equal(pkg.version, '4.33.5');
+  assert.match(html, /BUILD 4\.33\.5/);
   assert.match(html, /ZONE ONLINE 4\.33/);
 });
 
@@ -439,11 +439,23 @@ test('4.27 connection diagnostics support a separate server URL and health endpo
   assert.match(html, /\?server=https:\/\/адрес-сервера/);
   assert.match(client, /queryMatch=.*server=/);
   assert.match(client, /\/health/);
-  assert.match(client, /transports:\['websocket'\]/);
+  assert.match(client, /transports:\['websocket','polling'\]/);
   assert.match(client, /connect_error/);
   assert.match(server, /app\.get\('\/health'/);
   assert.match(server, /version:require\('\.\/package\.json'\)\.version/);
   assert.match(server, /Access-Control-Allow-Origin/);
+});
+
+
+test('4.33.5 keeps the configured Render URL when health preflight is slow and retries Socket.IO', () => {
+  const client = fs.readFileSync(path.join(root, 'public/js/game.js'), 'utf8');
+  const server = fs.readFileSync(path.join(root, 'server.js'), 'utf8');
+  assert.match(client, /Do not gate Socket\.IO on an HTTP health preflight/);
+  assert.doesNotMatch(client, /localStorage\.removeItem\('zoneServerUrl'\);[\s\S]{0,180}Using the server that hosts this game/);
+  assert.match(client, /reconnectionAttempts:Infinity/);
+  assert.match(client, /reconnectionDelayMax:15000/);
+  assert.match(client, /timeout:60000/);
+  assert.match(server, /transports: \['websocket','polling'\]/);
 });
 
 test('4.27 trader panel uses local portrait assets for the active trader', () => {
@@ -455,8 +467,8 @@ test('4.27 trader panel uses local portrait assets for the active trader', () =>
 
 test('4.27 login acknowledgement timeout accounts for Render cold starts', () => {
   const game = fs.readFileSync(path.join(root, 'public/js/game.js'), 'utf8');
-  assert.match(game, /zoneSocket\.timeout\(30000\)\.emit\('player:hello'/);
-  assert.match(game, /timeout:15000,[\s\S]*reconnection:true/);
+  assert.match(game, /zoneSocket\.timeout\(60000\)\.emit\('player:hello'/);
+  assert.match(game, /timeout:60000,[\s\S]*reconnection:true/);
   assert.match(game, /Сервер подтвердил вход, но не прислал профиль мира/);
 });
 
@@ -564,7 +576,7 @@ test('4.33 survival and expedition features are wired into the game and server',
   const client=fs.readFileSync(path.join(root,'public/js/game.js'),'utf8');
   const server=fs.readFileSync(path.join(root,'server.js'),'utf8');
   const data=fs.readFileSync(path.join(root,'src/shared/game-data.js'),'utf8');
-  assert.match(html,/survival\.js\?v=4\.33\.4/);
+  assert.match(html,/survival\.js\?v=4\.33\.5/);
   assert.match(html,/Подготовить рюкзак/);
   assert.match(html,/Охота на мутантов/);
   assert.match(client,/function tickSurvival\(/);
@@ -576,11 +588,11 @@ test('4.33 survival and expedition features are wired into the game and server',
 });
 
 
-test('4.33.1 uses a single WebSocket transport on client and server to avoid polling session affinity errors', () => {
+test('4.33.1 prefers WebSocket with polling fallback for proxy compatibility', () => {
   const client = fs.readFileSync(path.join(root, 'public/js/game.js'), 'utf8');
   const server = fs.readFileSync(path.join(root, 'server.js'), 'utf8');
-  assert.match(client, /transports:\['websocket'\]/);
-  assert.match(client, /upgrade:false/);
-  assert.match(server, /transports: \['websocket'\]/);
-  assert.match(server, /transportMode:'websocket-only'/);
+  assert.match(client, /transports:\['websocket','polling'\]/);
+  assert.match(client, /upgrade:true/);
+  assert.match(server, /transports: \['websocket','polling'\]/);
+  assert.match(server, /transportMode:'websocket-with-polling-fallback'/);
 });
