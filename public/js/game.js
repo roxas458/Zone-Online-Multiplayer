@@ -891,12 +891,30 @@ async function connectZone(){
   return;
  }
  if(zoneSocket){try{zoneSocket.removeAllListeners();zoneSocket.disconnect();}catch{}}
- const serverUrl=(localStorage.getItem('zoneServerUrl')||'').trim();
+ let serverUrl=(localStorage.getItem('zoneServerUrl')||'').trim();
+ const sameOrigin=window.location.origin;
+ // A stale custom URL in localStorage silently sends the socket to an old server.
+ // Verify a saved override first; if it is dead, recover to the server hosting this page.
+ if(serverUrl){
+  try{const parsed=new URL(serverUrl);if(!['http:','https:'].includes(parsed.protocol))throw new Error('Неподдерживаемый протокол');serverUrl=parsed.origin;}
+  catch(error){console.warn('Discarding invalid saved multiplayer server URL:',error.message);serverUrl='';localStorage.removeItem('zoneServerUrl');}
+ }
+ if(serverUrl && serverUrl!==sameOrigin){
+  try{
+   const response=await fetch(serverUrl+'/health',{cache:'no-store',signal:AbortSignal.timeout(7000)});
+   const health=await response.json().catch(()=>null);
+   if(!response.ok||!health?.ok)throw new Error('Сохранённый адрес не является доступным сервером ZONE ONLINE.');
+   console.info('ZONE ONLINE custom server health check:',health);
+  }catch(error){
+   console.warn('Saved multiplayer server is unavailable; falling back to this site:',error.message);
+   serverUrl='';localStorage.removeItem('zoneServerUrl');
+  }
+ }
  if($('mpServerUrl') && $('mpServerUrl').value!==serverUrl)$('mpServerUrl').value=serverUrl;
  try{
-  const healthTarget=serverUrl||window.location.origin;
+  const healthTarget=serverUrl||sameOrigin;
   fetch(healthTarget.replace(/\/$/,'')+'/health',{cache:'no-store',signal:AbortSignal.timeout(12000)}).then(async response=>{const data=await response.json().catch(()=>null);if(!response.ok||!data?.ok)throw new Error('Адрес отвечает, но это не игровой сервер ZONE ONLINE.');console.info('ZONE ONLINE health check:',data);}).catch(error=>console.warn('ZONE ONLINE health check failed:',error.message));
-  zoneSocket=io(serverUrl||undefined,{transports:['websocket','polling'],tryAllTransports:true,upgrade:true,timeout:60000,reconnection:true,reconnectionAttempts:Infinity,reconnectionDelay:1500,reconnectionDelayMax:10000,forceNew:true});
+  zoneSocket=io(serverUrl||undefined,{path:'/socket.io',transports:['polling','websocket'],tryAllTransports:true,upgrade:true,timeout:20000,reconnection:true,reconnectionAttempts:Infinity,reconnectionDelay:1500,reconnectionDelayMax:10000,forceNew:true});
  zoneSocket.on('connect',()=>{setOnlineConnectionState('connecting','Связь установлена. Сервер принял соединение, загружаем профиль…');const lastRevision=Number(localStorage.getItem('zoneWorldRevision')||0);zoneSocket.timeout(30000).emit('player:hello',{id:zonePlayerId,state:g,lastRevision,token:accountToken||undefined},(err,result)=>{if(err){setOnlineConnectionState('offline','Сервер установил соединение, но не подтвердил запрос входа. Проверь журналы Render и попробуй переподключиться.');console.error('player:hello acknowledgement timeout after 30s; server did not acknowledge the event');return;}if(!result?.ok){setOnlineConnectionState('offline',result?.message||'Сервер отклонил вход.');return;}setOnlineConnectionState('connecting','Сервер подтвердил запрос. Получаем профиль и состояние Зоны…');if(zoneHelloReadyTimer)clearTimeout(zoneHelloReadyTimer);zoneHelloReadyTimer=setTimeout(()=>{if(zoneSocket?.connected)setOnlineConnectionState('offline','Сервер подтвердил вход, но не прислал профиль мира. Проверь ошибки player:hello в Render Logs.');},35000);});});
  zoneSocket.on('connect_error',err=>{const target=(localStorage.getItem('zoneServerUrl')||window.location.origin).trim();const reason=err?.message||'ошибка сети';setOnlineConnectionState('offline',`Нет связи с ${target}. Причина: ${reason}. Открой ${target.replace(/\/$/,'')}/health. Если страница не открывается — сервер не запущен или указан неверный адрес; если открывается — проверь CORS/прокси и повтори подключение.`);console.error('ZONE ONLINE Socket.IO connect_error:',err);});
  zoneSocket.on('disconnect',reason=>{if(zoneHelloReadyTimer){clearTimeout(zoneHelloReadyTimer);zoneHelloReadyTimer=null;}if(reason!=='io client disconnect')setOnlineConnectionState('offline',`Соединение с сервером потеряно (${reason||'неизвестная причина'}). Клиент автоматически попробует подключиться снова.`);renderOnlinePlayers();renderOnlineWorldStatus();});
@@ -969,7 +987,6 @@ async function connectZone(){
  zoneSocket.on('world:chat',m=>{if(m.location&&m.location!==g.loc)return;serverChat.push(m);if(serverChat.length>100)serverChat=serverChat.slice(-100);renderServerChat();});
  zoneSocket.on('world:update',data=>{serverWorld=data.world||serverWorld;if(Number.isFinite(Number(serverWorld?.revision)))localStorage.setItem('zoneWorldRevision',String(serverWorld.revision));renderOnlineWorldStatus();renderWar();renderCoopQuests(serverWorld?.coOpQuests||[]);if(serverWorld?.diplomacy){g.diplomacy=serverWorld.diplomacy;localStorage.setItem('zoneExpandedSave',JSON.stringify(g));renderDiplomacy();}if(data.notice){g.news.unshift({day:realClock().day,hour:realClock().time,title:'Мировая сводка',body:data.notice});g.news=g.news.slice(0,40);renderNews();}});
  zoneSocket.on('diplomacy:result',data=>{if(!data.ok){alert(data.message||'Операция не выполнена.');return;}if(data.state){g.money=data.state.money;g.rep=data.state.rep;localStorage.setItem('zoneExpandedSave',JSON.stringify(g));}if(data.world?.diplomacy)g.diplomacy=data.world.diplomacy;render();});
- zoneSocket.on('disconnect',reason=>{if(zoneHelloReadyTimer){clearTimeout(zoneHelloReadyTimer);zoneHelloReadyTimer=null;}setOnlineConnectionState('offline',`Связь потеряна (${reason||'disconnect'}). Автоматически переподключаемся…`);renderOnlinePlayers();renderOnlineWorldStatus();});
  }catch(error){console.error('Socket.IO initialization failed:',error);setOnlineConnectionState('offline','Не удалось запустить сетевой клиент: '+(error?.message||'неизвестная ошибка'));}
 }
 function mpConnect(){
