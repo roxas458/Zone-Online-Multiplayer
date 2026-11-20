@@ -1,5 +1,11 @@
 # Changelog
 
+## 4.33.4 — Stability and validation fixes
+- Persisted player-state canonical fields are now clamped in the actual saved state, not only in the validation summary; zero HP remains zero.
+- Existing PostgreSQL player records are normalized before being sent to clients or reused by server gameplay.
+- `/api/status` reports the running package version instead of a stale 4.33.0 label.
+
+
 ## 4.33.4 — Full legacy NPC callsign migration
 - Fixes the actual source of the remaining real-name NPCs: legacy browser saves created ordinary NPCs inside `migrateWorld()` and kept those names locally.
 - Migrates every non-story NPC in the browser save after both legacy and content NPC records are loaded, including locally generated `wander_*` NPCs.

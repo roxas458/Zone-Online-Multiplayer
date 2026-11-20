@@ -17,6 +17,36 @@ test('safeState clamps values and validates faction/location', () => {
   assert.equal(result.loc, 'cordon');
   assert.equal(result.hp, 100);
   assert.equal(result.money, 0);
+  assert.equal(result.state.money, 0);
+  assert.equal(result.state.hp, 100);
+});
+
+test('safeState sanitizes canonical values inside the persisted state and preserves zero HP', () => {
+  const safeState = createSafeState(FACTIONS, LOCATIONS);
+  const result = safeState({
+    name: '<Взломщик>', faction: 'Неизвестная', loc: 'nowhere',
+    money: 9e12, hp: 0, xp: Infinity, rep: -9e9, characterCreated: true,
+    inventory: [{ id: 'medkit', qty: 1 }]
+  });
+  assert.equal(result.name, 'Взломщик');
+  assert.equal(result.state.name, 'Взломщик');
+  assert.equal(result.state.faction, 'Одиночки');
+  assert.equal(result.state.loc, 'cordon');
+  assert.equal(result.state.money, 99999999);
+  assert.equal(result.state.hp, 0);
+  assert.equal(result.state.xp, 0);
+  assert.equal(result.state.rep, -1000);
+  assert.equal(result.state.characterCreated, true);
+  assert.deepEqual(result.state.inventory, [{ id: 'medkit', qty: 1 }]);
+});
+
+test('safeState handles null, arrays and malformed numeric values safely', () => {
+  const safeState = createSafeState(FACTIONS, LOCATIONS);
+  assert.equal(safeState(null).state.hp, 100);
+  assert.equal(safeState([]).state.name, 'Сталкер');
+  assert.equal(safeState({ money: 'NaN', hp: '-5', xp: '1e99' }).state.money, 0);
+  assert.equal(safeState({ money: 'NaN', hp: '-5', xp: '1e99' }).state.hp, 0);
+  assert.equal(safeState({ money: 'NaN', hp: '-5', xp: '1e99' }).state.xp, 1e7);
 });
 
 test('world bootstrap creates NPC positions, quests and diplomacy', () => {
@@ -308,4 +338,11 @@ test('4.21 new characters spawn at their faction home and faction chat is locati
   assert.match(server, /io\.to\(`location:\$\{p\.location\}`\)\.emit\('world:chat'/);
   assert.match(server, /socket\.join\(`location:\$\{p\.location\}`\)/);
   assert.match(client, /Локальный канал КПК/);
+});
+
+
+test('API status reports the actual package version instead of the original 4.33.0 label', () => {
+  const serverSource = require('node:fs').readFileSync(require('node:path').join(__dirname, '..', 'server.js'), 'utf8');
+  assert.match(serverSource, /service:`ZONE ONLINE \$\{require\('\.\/package\.json'\)\.version\} SURVIVAL & EXPEDITIONS`/);
+  assert.doesNotMatch(serverSource, /service:'ZONE ONLINE 4\.33\.0 SURVIVAL & EXPEDITIONS'/);
 });

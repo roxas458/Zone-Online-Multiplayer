@@ -75,7 +75,7 @@ app.use(express.json({limit:'64kb'}));
 app.use(express.static(path.join(__dirname, 'public')));
 app.get('/health', (_req,res) => { res.set('Access-Control-Allow-Origin','*'); res.set('Cache-Control','no-store'); res.status(200).json({ ok:true, service:'ZONE ONLINE', version:require('./package.json').version, database:dbReady?'postgres':'memory-fallback', databaseRequiredForAccounts:false, online:online.size, revision:world.revision||1, timestamp:Date.now() }); });
 app.get('/api/diagnostics', (_req,res) => { res.set('Access-Control-Allow-Origin','*'); res.set('Cache-Control','no-store'); res.json({ ok:true, version:require('./package.json').version, multiplayer:true, guestMode:true, database:dbReady?'postgres':'memory-fallback', online:online.size, socketPath:'/socket.io', transports:['websocket'], transportMode:'websocket-only', timestamp:Date.now() }); });
-app.get('/api/status', (_req,res) => res.json({ ...publicWorldStatus(world, online.size), persistent:dbReady, service:'ZONE ONLINE 4.33.0 SURVIVAL & EXPEDITIONS' }));
+app.get('/api/status', (_req,res) => res.json({ ...publicWorldStatus(world, online.size), persistent:dbReady, service:`ZONE ONLINE ${require('./package.json').version} SURVIVAL & EXPEDITIONS` }));
 app.get('/api/world/snapshot', (_req,res) => res.json({ status:publicWorldStatus(world, online.size), world }));
 app.get('/api/world/events', (req,res) => { const since=Number(req.query.since||0); const sync=buildWorldSync(world, Number.isSafeInteger(since)?since:0); res.json(sync); });
 
@@ -156,8 +156,10 @@ io.on('connection', socket=>{
       let saved=await loadPlayer(id);
       const pendingNewCharacter=payload?.state?.characterCreated===true&&saved?.characterCreated!==true;
       if((!saved||pendingNewCharacter) && payload?.state) { saved=safeState(payload.state).state; await persistPlayer(id,saved); }
-      const s=saved?safeState(saved):safeState(payload?.state);
-      const spawnPoint=SECTOR_COORDS[s.loc]||SECTOR_COORDS.cordon;const savedPos=s.state?.worldPosition;const p={ id, name:s.name, faction:s.faction, location:s.loc, x:Number.isFinite(Number(savedPos?.x))?Math.max(0,Math.min(1000,Number(savedPos.x))):spawnPoint[0], y:Number.isFinite(Number(savedPos?.y))?Math.max(0,Math.min(2000,Number(savedPos.y))):spawnPoint[1], hp:s.hp, xp:s.xp, joinedAt:Date.now(), lastSeen:Date.now(), state:saved||s.state, moveOrder:null, travelEncounter:null };
+      const s=safeState(saved||payload?.state);
+      // Never reattach an unvalidated database record after normalizing it.
+      if(saved) await persistPlayer(id,s.state);
+      const spawnPoint=SECTOR_COORDS[s.loc]||SECTOR_COORDS.cordon;const savedPos=s.state?.worldPosition;const p={ id, name:s.name, faction:s.faction, location:s.loc, x:Number.isFinite(Number(savedPos?.x))?Math.max(0,Math.min(1000,Number(savedPos.x))):spawnPoint[0], y:Number.isFinite(Number(savedPos?.y))?Math.max(0,Math.min(2000,Number(savedPos.y))):spawnPoint[1], hp:s.hp, xp:s.xp, joinedAt:Date.now(), lastSeen:Date.now(), state:s.state, moveOrder:null, travelEncounter:null };
       const previous=online.get(id); if(previous?.socketId&&previous.socketId!==socket.id){const oldSocket=io.sockets.sockets.get(previous.socketId);if(oldSocket)oldSocket.disconnect(true);}
       socket.data.playerId=id; socket.data.name=p.name; p.socketId=socket.id; online.set(id,p); socket.join('zone-world'); socket.join(id); socket.join(`location:${p.location}`); socket.join(`faction:${p.faction}`);
       world.onlineMetrics ||= { totalJoins:0, totalMoves:0, lastTickAt:0 }; world.onlineMetrics.totalJoins += 1;
@@ -165,7 +167,7 @@ io.on('connection', socket=>{
       // Acknowledge after registration but BEFORE the world snapshot, so long-polling
       // clients receive the small acknowledgement without waiting for a large NPC payload.
       if(typeof ack==='function'){ack({ok:true,accepted:true,persistent:dbReady});console.info(`[socket] player:hello ack sent id=${socket.id}`);}
-      socket.emit('player:ready',{id, savedState:saved, guest:true, world:publicWorldSnapshot(), worldSync:buildWorldSync(world, Number(payload?.lastRevision)||0), status:publicWorldStatus(world,online.size), chat:recentChat.filter(m=>!m.location||m.location===p.location).slice(-60), players:onlineList(), position:{x:p.x,y:p.y}, persistent:dbReady});
+      socket.emit('player:ready',{id, savedState:s.state, guest:true, world:publicWorldSnapshot(), worldSync:buildWorldSync(world, Number(payload?.lastRevision)||0), status:publicWorldStatus(world,online.size), chat:recentChat.filter(m=>!m.location||m.location===p.location).slice(-60), players:onlineList(), position:{x:p.x,y:p.y}, persistent:dbReady});
       console.log(`player:hello completed for ${id} in ${Date.now()-helloStartedAt}ms (db=${dbReady?'postgres':'memory-fallback'})`);
       socket.to('zone-world').emit('world:event',joinEvent);
       io.emit('world:npcs',world.npcPositions); emitNpcState(); io.emit('world:ecosystem',world.ecosystem); io.emit('world:coop',world.coOpQuests); io.emit('war:state',{operations:world.warOperations||[],history:(world.warHistory||[]).slice(0,12)});
