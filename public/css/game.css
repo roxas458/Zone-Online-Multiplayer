@@ -399,3 +399,47 @@ button,input,select{touch-action:manipulation}
 @media(max-width:900px){.trade-workspace{grid-template-columns:minmax(0,1fr) 180px minmax(0,1fr);gap:5px;padding:6px}.trade-grid{grid-template-columns:1fr}.trade-grid-player,.trade-grid-stock{max-height:calc(100dvh - 230px)}.trade-topbar{grid-template-columns:minmax(150px,1fr) minmax(120px,.7fr) minmax(160px,1fr) 36px;padding:6px}.trade-mini-portrait,.trade-merchant-id img{width:52px;height:52px;flex-basis:52px}}
 @media(max-width:620px){#trade.view.active{padding:0!important}.trade-topbar{position:sticky;top:0;z-index:3;grid-template-columns:1fr 36px;gap:5px;min-height:65px;padding:5px 8px}.trade-player-id{grid-column:1;grid-row:1}.trade-player-id .trade-mini-portrait{width:44px;height:46px;flex-basis:44px;font-size:22px}.trade-title-center{display:none}.trade-merchant-id{display:none}.trade-close{grid-column:2;grid-row:1}.trade-workspace{display:flex;flex-direction:column;gap:7px;padding:7px}.trade-equipment-panel{order:0;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px;padding:5px}.trade-slot{min-height:55px;font-size:18px}.trade-slot b{display:none}.trade-quick-slots{grid-column:1/-1;grid-template-columns:repeat(4,minmax(0,1fr))}.trade-quick-slot{height:48px}.trade-condition,.trade-stats{grid-column:1/-1}.trade-inventory-panel{min-height:270px}.trade-grid-player,.trade-grid-stock{max-height:42dvh;min-height:150px;grid-template-columns:repeat(2,minmax(0,1fr))}.trade-item-card{grid-template-columns:40px minmax(0,1fr);min-height:80px;padding:5px;gap:3px 5px}.trade-item-art{width:38px;height:46px}.trade-item-art svg{width:34px;height:32px}.trade-item-copy b{font-size:10px}.trade-item-copy span{font-size:8px}.trade-item-action button{font-size:8px;padding:3px 5px}.trade-panel-heading{height:30px}.trade-filter-row{height:31px}.trade-filter-row input{max-width:58%;}.trade-filter-row>span{font-size:8px}.trade-footer{position:sticky;bottom:0;z-index:3;align-items:stretch;flex-direction:column;padding:7px 8px calc(7px + env(safe-area-inset-bottom));gap:6px}.trade-deal-summary{justify-content:space-between;gap:5px}.trade-deal-summary span{font-size:7px}.trade-deal-summary b{font-size:9px}.trade-footer-actions{display:grid;grid-template-columns:1fr 1fr}.trade-social{grid-template-columns:1fr}.trade-social>div>b{font-size:8px}}
 @media(max-width:380px){.trade-grid-player,.trade-grid-stock{grid-template-columns:1fr}.trade-item-card{min-height:70px}.trade-item-action{justify-content:flex-start}.trade-deal-summary{flex-wrap:wrap}}
+
+
+/* ZONE ONLINE 4.29.1 — Call of Pripyat inspired dialogue and deal basket */
+.npc-dialogue-overlay{position:fixed;inset:0;z-index:1000;display:none;align-items:center;justify-content:center;padding:clamp(8px,2vw,28px);background:rgba(0,0,0,.62);backdrop-filter:blur(2px)}
+.npc-dialogue-overlay.open{display:flex}
+.cop-dialogue-window{width:min(1280px,96vw);height:min(760px,94vh);min-height:520px;display:grid;grid-template-rows:112px minmax(180px,1fr) 205px;gap:0;color:#d7d0bd;background:linear-gradient(135deg,rgba(13,15,16,.96),rgba(25,27,28,.94)),url('/assets/zone-atmosphere.svg') center/cover;border:5px ridge #57534b;box-shadow:0 0 0 2px #171819,0 18px 70px #000;position:relative}
+.cop-dialogue-window:before,.cop-dialogue-window:after{content:"";position:absolute;left:0;right:0;height:7px;background:repeating-linear-gradient(90deg,#393a37 0 18px,#777064 19px 21px,#252728 22px 37px);opacity:.9}
+.cop-dialogue-window:before{top:0}.cop-dialogue-window:after{bottom:0}
+.cop-dialogue-top{display:flex;justify-content:space-between;gap:14px;padding:12px 16px;background:linear-gradient(180deg,#141719,#242526 70%,#101112);border-bottom:3px ridge #625d51}
+.cop-person-card{display:flex;align-items:center;gap:12px;width:min(40%,410px);min-width:0;padding:5px 10px;background:linear-gradient(110deg,rgba(8,9,10,.95),rgba(57,57,53,.62));border:3px ridge #625e55;box-shadow:inset 0 0 16px #000}
+.cop-person-card>div:last-child{display:flex;flex-direction:column;min-width:0}
+.cop-person-card b{font-family:Georgia,serif;color:#e2bd6c;font-size:17px;text-shadow:1px 2px #000}
+.cop-person-card small{color:#b9b2a3;font-size:11px}.cop-person-card span{font-size:11px;color:#8f8b82}
+.cop-portrait{width:104px;height:82px;flex:0 0 104px;overflow:hidden;background:#282a29;border:2px solid #716b5d;display:grid;place-items:center;color:#bda36a;font-size:36px}
+.cop-portrait .npc-portrait{width:100%;height:100%;border:0;border-radius:0}.cop-portrait .npc-portrait img{width:100%;height:100%;object-fit:cover}.cop-portrait .portrait-faction{display:none}
+.cop-player-portrait{background:linear-gradient(145deg,#343b3d,#111);font-size:42px}
+.cop-dialogue-main{min-height:0;padding:12px 16px;background:linear-gradient(rgba(9,11,12,.82),rgba(10,12,13,.88)),url('/assets/zone-atmosphere.svg') center/cover;border-bottom:4px ridge #5e594f}
+.cop-dialogue-scene{height:100%;overflow:auto;padding:14px 18px;background:rgba(12,14,16,.58);border:2px solid #474640;box-shadow:inset 0 0 30px #000;font:14px/1.65 Georgia,serif;color:#c9c2b1}
+.cop-message b{color:#e4b94e;font-size:14px}.cop-message p{margin:5px 0 12px;white-space:pre-wrap}
+.cop-dialogue-bottom{padding:12px 18px 15px;background:linear-gradient(180deg,#222423,#0d0f10);display:grid;grid-template-rows:18px 1fr 36px;gap:8px}
+.cop-choice-caption{font-size:10px;letter-spacing:2px;color:#b6a47d}
+.cop-dialogue-choices{display:flex;flex-direction:column;gap:2px;overflow:auto;padding:2px 0}
+.cop-dialogue-choices button{width:max-content;max-width:100%;text-align:left;padding:2px 8px;background:transparent;border:0;border-radius:0;color:#d9d2c3;font:13px/1.35 Georgia,serif}
+.cop-dialogue-choices button:before{content:"› ";color:#d2a65b}.cop-dialogue-choices button:hover{color:#f2c66f;background:rgba(174,135,68,.14)}
+.cop-dialogue-actions{display:flex;justify-content:center;gap:12px;border-top:2px ridge #5a554b;padding-top:6px}
+.cop-dialogue-actions button{min-width:160px;background:linear-gradient(#3c3530,#151515);border:2px ridge #9a7950;border-radius:2px;color:#e6d3b1;font:bold 12px Georgia,serif;text-transform:uppercase}
+.trade-deal-basket{margin:8px 12px 0;padding:10px 12px;background:linear-gradient(135deg,#111719,#242522);border:2px ridge #57544c;color:#d3cbb8}
+.trade-basket-head{display:flex;justify-content:space-between;gap:10px;align-items:center;font-size:11px;letter-spacing:1px}.trade-basket-head span{font-size:10px;color:#9d998e;letter-spacing:0}
+.trade-basket-columns{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:7px}.trade-basket-columns>div>small{font-size:9px;color:#c5a56b;letter-spacing:1px}
+.trade-basket-list{min-height:44px;max-height:105px;overflow:auto;padding:5px;background:rgba(0,0,0,.38);border:1px dashed #686253;font-size:11px;color:#888477}
+.trade-basket-list:empty:after{content:"Пусто"}
+.trade-basket-entry{display:flex;align-items:center;gap:8px;padding:3px 4px;border-bottom:1px solid #363733;color:#ddd5c4}
+.trade-basket-entry span{flex:1}.trade-basket-entry b{color:#d6b66f;white-space:nowrap}.trade-basket-entry button{padding:0 6px;border:1px solid #655b4a;background:#27231f}
+.trade-basket-controls{display:flex;justify-content:flex-end;align-items:center;gap:8px;margin-top:7px}.trade-basket-controls span{margin-right:auto;color:#b9aa8b;font-size:10px}
+.trade-item-card[draggable=true]{cursor:grab}.trade-item-card[draggable=true]:active{cursor:grabbing}
+.trade-item-action button{font-size:10px;padding:5px 7px}
+@media(max-width:760px){
+ .cop-dialogue-window{width:100%;height:96dvh;min-height:0;grid-template-rows:88px minmax(160px,1fr) 220px;border-width:3px}
+ .cop-dialogue-top{padding:7px;gap:6px}.cop-person-card{width:50%;gap:6px;padding:4px}.cop-portrait{width:60px;height:62px;flex-basis:60px}
+ .cop-person-card b{font-size:12px}.cop-person-card small,.cop-person-card span{font-size:9px}
+ .cop-dialogue-main{padding:7px}.cop-dialogue-scene{padding:10px;font-size:13px}
+ .cop-dialogue-bottom{padding:8px 10px 12px;grid-template-rows:15px 1fr 36px}.cop-dialogue-actions button{min-width:120px}
+ .trade-basket-columns{grid-template-columns:1fr}.trade-basket-list{max-height:70px}.trade-basket-head{align-items:flex-start;flex-direction:column}.trade-basket-controls{flex-wrap:wrap}.trade-basket-controls span{flex-basis:100%}
+}

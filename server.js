@@ -277,6 +277,42 @@ io.on('connection', socket=>{
     const payout=Math.floor(SELL_VALUES[itemId]*.65)*amount;st.state.money=Math.min(99999999,(Number(st.state.money)||0)+payout);
     p.state=st.state;await persistPlayer(p.id,p.state);socket.emit('market:result',{ok:true,message:`Продано: ${item.name} ×${amount} · +${payout} ₽.`,state:p.state});
   });
+  socket.on('market:deal', async input=>{
+    const p=online.get(socket.data.playerId);
+    if(!p){socket.emit('market:result',{ok:false,message:'Игрок не найден.'});return;}
+    const rawBuy=Array.isArray(input?.buy)?input.buy:[], rawSell=Array.isArray(input?.sell)?input.sell:[];
+    if(rawBuy.length>40||rawSell.length>40){socket.emit('market:result',{ok:false,message:'Слишком много позиций в сделке.'});return;}
+    const combineRows=rows=>{const map=new Map();for(const row of rows){const id=String(row?.item||''),qty=Math.floor(Number(row?.qty)||0);map.set(id,(map.get(id)||0)+qty);}return [...map].map(([item,qty])=>({item,qty}));};
+    const buy=combineRows(rawBuy),sell=combineRows(rawSell);
+    const st=safeState(p.state);st.state.items ||= [];
+    let cost=0,payout=0;
+    const buyPlan=[],sellPlan=[];
+    for(const row of buy){
+      const id=String(row?.item||''),qty=Math.floor(Number(row?.qty)||0),goods=SHOP[id];
+      if(!goods||qty<1||qty>20){socket.emit('market:result',{ok:false,message:'Некорректный товар в корзине.'});return;}
+      cost+=goods.price*qty;buyPlan.push({id,qty,goods});
+    }
+    for(const row of sell){
+      const id=String(row?.item||''),qty=Math.floor(Number(row?.qty)||0);
+      if(!SELL_VALUES[id]||qty<1||qty>99){socket.emit('market:result',{ok:false,message:'Некорректный предмет для продажи.'});return;}
+      const item=st.state.items.find(x=>x.id===id);
+      if(!item||item.qty<qty){socket.emit('market:result',{ok:false,message:'Недостаточно предметов для продажи: '+id});return;}
+      payout+=Math.floor(SELL_VALUES[id]*.65)*qty;sellPlan.push({id,qty});
+    }
+    if(st.money+ payout<cost){socket.emit('market:result',{ok:false,message:'Недостаточно рублей для сделки.'});return;}
+    for(const row of sellPlan){
+      const item=st.state.items.find(x=>x.id===row.id);item.qty-=row.qty;
+      if(item.qty<=0)st.state.items=st.state.items.filter(x=>x.id!==row.id);
+    }
+    for(const row of buyPlan){
+      const goods=row.goods,existing=st.state.items.find(x=>x.id===row.id);
+      if(existing)existing.qty+=goods.qty*row.qty;
+      else st.state.items.push({id:row.id,name:goods.name,type:goods.type,desc:goods.desc,weight:goods.weight,qty:goods.qty*row.qty,value:goods.value,...(goods.defense?{defense:goods.defense,condition:100}:{})});
+    }
+    st.state.money=Math.min(99999999,Math.max(0,st.money-cost+payout));
+    p.state=st.state;await persistPlayer(p.id,p.state);
+    socket.emit('market:result',{ok:true,message:`Сделка завершена. Покупка: ${cost} ₽, продажа: ${payout} ₽.`,state:p.state});
+  });
   socket.on('trade:offer', async input=>{
     const fromId=socket.data.playerId, from=online.get(fromId), toId=String(input?.to||'');
     const to=online.get(toId), itemId=String(input?.item||''), qty=Math.floor(Number(input?.qty)||0), rawPrice=Number(input?.price), price=Number.isFinite(rawPrice)?Math.floor(rawPrice):-1;

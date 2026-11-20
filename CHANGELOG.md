@@ -1,3 +1,11 @@
+## 4.29.1 — CALL OF PRIPYAT DIALOGUE & DEAL BASKET
+- Reworked NPC conversation into a two-character, metallic dialogue layout with portrait cards, large message panel, dialogue choices, and bottom trade/exit actions.
+- Added drag-and-drop and button-based trade basket for purchases and sales.
+- Added atomic server-side `market:deal` processing: all rows and quantities are validated before any inventory or balance changes are persisted.
+- Kept the existing item vector illustrations; no extracted original game artwork is bundled.
+- Added mobile layout rules for dialogue and deal basket.
+- Preserved existing instant market endpoints for backward compatibility.
+
 ## 4.18.0 — LIVING ZONE / INVENTORY REDESIGN
 - NPCs now occupy distinct positions around all assigned sectors instead of stacking around one anchor point.
 - Offline NPC map markers drift gradually; server coordinates override generated positions.

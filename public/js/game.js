@@ -262,17 +262,46 @@ function showNpcDialogue(){const overlay=$('npcDialogueOverlay');if(overlay){ove
 function dialogueTarget(){return $('dialogueBox')}
 function meet(id){let n=npcBy(id);if(!n||n.loc!==g.loc)return;activeNpc=id;g.meetings++;
 log("Встреча: "+n.name+".");view("people");renderPeople();startTalk(id);save()}
-function startTalk(id){let n=npcBy(id);if(!n)return;const live=serverWorld?.npcState?.[id];if(live?.dialogue){if(live.generated){n.greeting=live.dialogue.greeting;n.topics=live.dialogue.topics;}else{n.topics=(n.topics||[]).filter(t=>!['Свежие слухи','Личная история'].includes(t[0]));n.topics.push(['Свежие слухи',live.dialogue.topics?.[1]?.[1]||'Пока новых сведений нет.'],['Личная история',live.dialogue.topics?.[2]?.[1]||'Сталкер не хочет говорить о прошлом.']);}}activeNpc=id;
+
+function renderCopDialogue(n, message, choices){
+ const box=$('dialogueBox'), choiceBox=$('dialogueChoices');
+ if(!n||!box||!choiceBox)return;
+ const left=$('dialoguePortraitLeft');
+ if(left)left.innerHTML=portraitMarkup(n,true);
+ $('dialogueNpcName').textContent=n.name||'Сталкер';
+ $('dialogueNpcFaction').textContent=n.faction||'Неизвестная группировка';
+ $('dialogueNpcRole').textContent=n.role||'Полевой сталкер';
+ $('dialoguePlayerName').textContent=g.name||'Сталкер';
+ $('dialoguePlayerFaction').textContent=g.faction||'Одиночки';
+ box.innerHTML=`<div class="cop-message"><b>${escapeHtml(n.name||'Сталкер')}</b><p>${escapeHtml(message||n.greeting||'…')}</p></div>`;
+ choiceBox.innerHTML=(choices||[]).map((t,i)=>`<button type="button" onclick="topic('${escapeHtml(n.id)}',${i})">${escapeHtml(t[0])}</button>`).join('');
+}
+function startTalk(id){
+ let n=npcBy(id);if(!n)return;
+ const live=serverWorld?.npcState?.[id];
+ if(live?.dialogue){
+  if(live.generated){n.greeting=live.dialogue.greeting;n.topics=live.dialogue.topics;}
+  else{n.topics=(n.topics||[]).filter(t=>!['Свежие слухи','Личная история'].includes(t[0]));n.topics.push(['Свежие слухи',live.dialogue.topics?.[1]?.[1]||'Пока новых сведений нет.'],['Личная история',live.dialogue.topics?.[2]?.[1]||'Сталкер не хочет говорить о прошлом.']);}
+ }
+ activeNpc=id;
  const storyMeet={lebedev:["metLebedev","story_swamp_signal"],novikov:["metNovikov","story_swamp_relay"],prof:["metSakharov","story_yantar_echo"],beard:["metBeard","story_north_route"],archivist:["metArchivist","story_pripyat_archive"]};
  if(storyMeet[id]){g.storyFlags[storyMeet[id][0]]=true;addQuest(storyMeet[id][1]);}
- let box=dialogueTarget();showNpcDialogue();box.innerHTML=`<div class="dialogue-screen"><div class="dialogue-top"><div class="avatar portrait">${factionIconMarkup(n.faction)}</div><div><div class="eyebrow">ВХОДЯЩИЙ КАНАЛ / ${here().name.toUpperCase()}</div><b class="speaker">${n.name}</b><div class="desc">${n.role} · ${n.faction||"неизвестная принадлежность"}</div><div class="small muted">Отношение: ${n.mood||"нейтральное"}</div></div></div><div class="dialogue-scene">${escapeHtml(live?.dialogue?.stage||n.stage||"Сталкер поворачивается к тебе.")}</div><div class="dialogue"><span class="speaker">${n.name}:</span><p>${escapeHtml(n.greeting)}</p></div><div class="section">Выберите реплику</div><div class="choices">${n.topics.map((t,i)=>`<button onclick="topic('${id}',${i})">› ${t[0]}</button>`).join("")}<button onclick="view('trade')">⇄ Открыть торговлю</button><button onclick="closeTalk()">× Завершить разговор</button></div></div>`;renderQuick()}
-function topic(id,i){if(zoneSocket?.connected){zoneSocket.emit("npc:interact",{npcId:id,action:"topic",topicIndex:i});return;}let n=npcBy(id),t=n.topics[i];if(!t)return;let result=t[1];if(id==="wolf"&&i===1)addQuest("bread");if(id==="sid"&&i===2)addQuest("scrap");if(id==="barman"&&i===2)addQuest("rumors");if(id==="prof"&&i===1){addQuest("rumors");addQuest("research");}if(id==="scientist"&&i===1)addQuest("scrap");if(id==="wolf"){g.flags.metWolf=true;if(i===1)addQuest("bread");}
-if(id==="scout")g.flags.metScout=true;if(id==="prof")g.flags.metProf=true;if(id==="sid")g.flags.metSid=true;if(id==="barman")g.flags.heardBar=true;
-let extra="";
-if(id==="sid"&&i===2)extra=`<button onclick="turnIn('scrap')">Передать металлолом</button>`;
-if(id==="wolf"&&i===1)extra=`<button onclick="turnIn('bread')">Передать хлеб</button>`;
-if(id==="barman"&&i===2)extra=`<button onclick="view('quests')">Открыть журнал заданий</button>`;
-showNpcDialogue();dialogueTarget().innerHTML=`<div class="dialogue"><b class="speaker">${escapeHtml(n.name)}:</b><p>${escapeHtml(result)}</p></div><div class="choices">${extra}<button onclick="startTalk('${id}')">Задать другой вопрос</button><button onclick="closeTalk()">Попрощаться</button></div>`;log("Разговор: "+n.name+" — "+t[0]);save()}
+ showNpcDialogue();
+ renderCopDialogue(n,n.greeting||'Сталкер внимательно смотрит на тебя.',n.topics||[]);
+ renderQuick();
+}
+function topic(id,i){
+ if(zoneSocket?.connected){zoneSocket.emit("npc:interact",{npcId:id,action:"topic",topicIndex:i});return;}
+ let n=npcBy(id),t=n?.topics?.[i];if(!n||!t)return;
+ let result=t[1];
+ if(id==="wolf"&&i===1)addQuest("bread");if(id==="sid"&&i===2)addQuest("scrap");if(id==="barman"&&i===2)addQuest("rumors");if(id==="prof"&&i===1){addQuest("rumors");addQuest("research");}if(id==="scientist"&&i===1)addQuest("scrap");
+ if(id==="wolf"){g.flags.metWolf=true;if(i===1)addQuest("bread");}
+ if(id==="scout")g.flags.metScout=true;if(id==="prof")g.flags.metProf=true;if(id==="sid")g.flags.metSid=true;if(id==="barman")g.flags.heardBar=true;
+ const oldTopics=n.topics.slice();renderCopDialogue(n,result,[['Задать другой вопрос',0],['Завершить разговор',1]]);
+ const choiceBox=$('dialogueChoices');
+ if(choiceBox)choiceBox.innerHTML=`<button onclick="startTalk('${id}')">Задать другой вопрос</button>${id==="sid"&&i===2?`<button onclick="turnIn('scrap')">Передать металлолом</button>`:''}${id==="wolf"&&i===1?`<button onclick="turnIn('bread')">Передать хлеб</button>`:''}<button onclick="closeTalk()">Попрощаться</button>`;
+ log("Разговор: "+n.name+" — "+t[0]);save();
+}
 function closeTalk(){activeNpc=null;const overlay=$("npcDialogueOverlay");if(overlay){overlay.classList.remove("open");overlay.setAttribute("aria-hidden","true");}document.body.classList.remove("dialogue-open");const box=dialogueTarget();if(box)box.innerHTML="Разговор завершён. Можно осмотреться или встретить другого персонажа.";renderQuick()}
 
 let activePlayerDM=null, playerDMHistory={};
@@ -392,6 +421,48 @@ function inspectInventoryItem(id){const x=g.items.find(i=>i.id===id);if(!x)retur
 
 let tradeCategory='all';
 function setTradeCategory(category){tradeCategory=category;renderTrade()}
+
+let tradeBasket={buy:{},sell:{}};
+function tradeAllowDrop(ev){ev.preventDefault();ev.dataTransfer.dropEffect='copy';}
+function tradeDragStart(ev,side,key){ev.dataTransfer.setData('application/x-zone-trade',JSON.stringify({side,key:String(key)}));ev.dataTransfer.effectAllowed='copy';}
+function tradeDrop(ev,target){ev.preventDefault();let raw=ev.dataTransfer.getData('application/x-zone-trade');try{const d=JSON.parse(raw);if(d.side===target)addTradeBasket(target,d.key);}catch(_){}}
+function addTradeBasket(side,key){
+ const bucket=tradeBasket[side];
+ let next=(Number(bucket[key])||0)+1;
+ if(side==='sell'){const item=g.items.find(x=>x.id===key);next=Math.min(next,Number(item?.qty)||0);if(!next)return;}
+ else next=Math.min(next,20);
+ bucket[key]=next;renderTrade();
+}
+function removeTradeBasket(side,key){delete tradeBasket[side][key];renderTrade();}
+function clearTradeBasket(){tradeBasket={buy:{},sell:{}};renderTrade();}
+function tradeBasketTotals(){
+ const goods=tradeGoods();let buy=0,sell=0;
+ Object.entries(tradeBasket.buy).forEach(([i,q])=>{const x=goods[Number(i)];if(x)buy+=x[3]*q;});
+ Object.entries(tradeBasket.sell).forEach(([id,q])=>{const x=g.items.find(v=>v.id===id);if(x)sell+=Math.floor(x.value*.65)*q;});
+ return {buy,sell,net:buy-sell};
+}
+function renderTradeBasket(){
+ const goods=tradeGoods(),buyEl=$('tradeBuyBasket'),sellEl=$('tradeSellBasket');
+ if(buyEl)buyEl.innerHTML=Object.entries(tradeBasket.buy).map(([i,q])=>{const x=goods[Number(i)];return x?`<div class="trade-basket-entry"><span>${escapeHtml(x[0])} ×${q}</span><b>${(x[3]*q).toLocaleString('ru-RU')} RU</b><button onclick="removeTradeBasket('buy','${i}')">×</button></div>`:''}).join('')||'Перетащи сюда товары торговца';
+ if(sellEl)sellEl.innerHTML=Object.entries(tradeBasket.sell).map(([id,q])=>{const x=g.items.find(v=>v.id===id);return x?`<div class="trade-basket-entry"><span>${escapeHtml(x.name)} ×${q}</span><b>${(Math.floor(x.value*.65)*q).toLocaleString('ru-RU')} RU</b><button onclick="removeTradeBasket('sell','${escapeHtml(id)}')">×</button></div>`:''}).join('')||'Перетащи сюда свои предметы';
+ const totals=tradeBasketTotals(),status=$('tradeBasketStatus');
+ if(status)status.textContent=`Покупка ${totals.buy.toLocaleString('ru-RU')} RU · продажа ${totals.sell.toLocaleString('ru-RU')} RU · ${totals.net>0?'к оплате '+totals.net.toLocaleString('ru-RU')+' RU':totals.net<0?'получишь '+Math.abs(totals.net).toLocaleString('ru-RU')+' RU':'без доплаты'}`;
+}
+function commitTradeBasket(){
+ const buy=Object.entries(tradeBasket.buy).map(([i,qty])=>({item:tradeGoods()[Number(i)]?.[1],qty})).filter(x=>x.item);
+ const sell=Object.entries(tradeBasket.sell).map(([item,qty])=>({item,qty}));
+ if(!buy.length&&!sell.length)return alert('Добавь предметы в корзину сделки.');
+ const totals=tradeBasketTotals();
+ if(!zoneSocket?.connected){
+  if(g.money<totals.buy)return alert('Недостаточно рублей для этой сделки.');
+  for(const x of sell){const item=g.items.find(v=>v.id===x.item);if(!item||item.qty<x.qty)return alert('Количество предметов в рюкзаке изменилось. Обнови корзину.');}
+  g.money-=totals.buy;
+  for(const x of buy){const item=tradeGoods().find(v=>v[1]===x.item);if(!item)continue;const gear=item[2]==='Броня'?{condition:100,defense:({armor_leather:2,armor_stalker:3,armor_zarya:5,armor_seva:7,armor_bulat:9,armor_exo:11})[item[1]]||2}:{};addItem(item[1],item[0],item[2],item[5],item[4],x.qty);Object.assign(g.items.find(v=>v.id===item[1])||{},gear);}
+  for(const x of sell){const item=g.items.find(v=>v.id===x.item);const payout=Math.floor(item.value*.65)*x.qty;item.qty-=x.qty;g.money+=payout;if(item.qty<=0)g.items=g.items.filter(v=>v.id!==x.item);}
+  log(`Сделка завершена: покупка ${totals.buy} RU, продажа ${totals.sell} RU.`);clearTradeBasket();save();renderTrade();return;
+ }
+ zoneSocket.emit('market:deal',{buy,sell});
+}
 function renderTrade(){
  const trader=g.loc==="cordon"?"Сидорович":g.loc==="bar"?"Бармен":"Полевой обмен";
  const traderRole=g.loc==="cordon"?"Торговец · Одиночки":g.loc==="bar"?"Бармен · Нейтрал":"Снабжение сектора";
@@ -404,17 +475,18 @@ function renderTrade(){
  ['tradePlayerBalance','tradeBalance','tradeFooterBalance'].forEach(id=>{const el=$(id);if(el)el.textContent=balanceText;});
  const query=($('tradeSearch')?.value||'').trim().toLocaleLowerCase('ru-RU');
  const goods=tradeGoods().map((x,i)=>({...x,index:i})).filter(x=>(tradeCategory==='all'||(tradeCategory==='gear'?['Броня','Артефакт'].includes(x[2]):tradeCategory===x[2]))&&(!query||x[0].toLocaleLowerCase('ru-RU').includes(query)||x[2].toLocaleLowerCase('ru-RU').includes(query)));
- const shop=$('shop');if(shop)shop.innerHTML=goods.map(x=>`<article class="trade-item-card"><div class="trade-item-art ${x[2]==='Броня'?'armor-art':x[2]==='Артефакт'?'artifact-art':''}">${itemGlyph({type:x[2]})}</div><div class="trade-item-copy"><b>${escapeHtml(x[0])}</b><small>${escapeHtml(x[2])} · ${x[4]} кг</small><span>${escapeHtml(x[5])}</span></div><div class="trade-item-action"><b>${x[3].toLocaleString('ru-RU')} RU</b><button onclick="buy(${x.index})" ${g.money<x[3]?'disabled':''}>Купить</button></div></article>`).join('')||'<div class="mutedbox">В этой категории нет товаров.</div>';
+ const shop=$('shop');if(shop)shop.innerHTML=goods.map(x=>`<article class="trade-item-card" draggable="true" ondragstart="tradeDragStart(event,'buy','${x.index}')"><div class="trade-item-art ${x[2]==='Броня'?'armor-art':x[2]==='Артефакт'?'artifact-art':''}">${itemGlyph({type:x[2]})}</div><div class="trade-item-copy"><b>${escapeHtml(x[0])}</b><small>${escapeHtml(x[2])} · ${x[4]} кг</small><span>${escapeHtml(x[5])}</span></div><div class="trade-item-action"><b>${x[3].toLocaleString('ru-RU')} RU</b><button onclick="addTradeBasket('buy','${x.index}')">В сделку</button></div></article>`).join('')||'<div class="mutedbox">В этой категории нет товаров.</div>';
  const owned=(g.items||[]).filter(x=>x.qty>0&&(!query||x.name.toLocaleLowerCase('ru-RU').includes(query)||x.type.toLocaleLowerCase('ru-RU').includes(query)));
- const sell=$('sellList');if(sell)sell.innerHTML=owned.map(x=>`<article class="trade-item-card"><div class="trade-item-art">${itemGlyph(x)}</div><div class="trade-item-copy"><b>${escapeHtml(x.name)}</b><small>${escapeHtml(x.type)} · ×${x.qty} · ${x.weight} кг</small><span>Цена скупки: ${Math.floor(x.value*.65).toLocaleString('ru-RU')} RU / шт.</span></div><div class="trade-item-action"><b>${(Math.floor(x.value*.65)*x.qty).toLocaleString('ru-RU')} RU</b><button class="sell-trade-button" onclick="sell('${x.id}',1)">Продать 1</button>${x.qty>1?`<button class="quiet-action" onclick="sell('${x.id}',${x.qty})">Продать всё</button>`:''}</div></article>`).join('')||'<div class="mutedbox">В рюкзаке пока нечего продавать.</div>';
+ const sell=$('sellList');if(sell)sell.innerHTML=owned.map(x=>`<article class="trade-item-card" draggable="true" ondragstart="tradeDragStart(event,'sell','${escapeHtml(x.id)}')"><div class="trade-item-art">${itemGlyph(x)}</div><div class="trade-item-copy"><b>${escapeHtml(x.name)}</b><small>${escapeHtml(x.type)} · ×${x.qty} · ${x.weight} кг</small><span>Цена скупки: ${Math.floor(x.value*.65).toLocaleString('ru-RU')} RU / шт.</span></div><div class="trade-item-action"><b>${(Math.floor(x.value*.65)*x.qty).toLocaleString('ru-RU')} RU</b><button class="sell-trade-button" onclick="addTradeBasket('sell','${escapeHtml(x.id)}')">В сделку · Продать 1</button></div></article>`).join('')||'<div class="mutedbox">В рюкзаке пока нечего продавать.</div>';
  const weight=owned.reduce((sum,x)=>sum+(Number(x.weight)||0)*(Number(x.qty)||0),0);const weightEl=$('tradePlayerWeight');if(weightEl)weightEl.textContent=weight.toFixed(1)+' / 50.0 кг';
  const stockCount=$('tradeStockCount');if(stockCount)stockCount.textContent=goods.length+' позиций';
  const weapon=$('tradeWeapon');if(weapon)weapon.textContent=g.equipment?.weapon||'Не экипировано';const armor=$('tradeArmor');if(armor)armor.textContent=g.equipment?.suit||'Не экипировано';
  const quick=$('tradeQuickSlots');if(quick)quick.innerHTML=['Медицина','Еда','Артефакт','Детектор'].map((type,i)=>{const item=(g.items||[]).find(x=>x.type===type&&x.qty>0);return `<div class="trade-quick-slot">${item?itemGlyph(item):['✚','◒','✧','◉'][i]}<small>${item?escapeHtml(item.name):['Аптечка','Провизия','Артефакт','Детектор'][i]}</small></div>`}).join('');
  const stats=$('tradeStats');if(stats)stats.innerHTML=`<span>ЗДОРОВЬЕ <b>${Math.round(g.hp||0)}%</b></span><span>РАДИАЦИЯ <b>${Math.round(radiationLevel())}%</b></span><span>РЕПУТАЦИЯ <b>${g.rep||0}</b></span><span>ВЕС <b>${weight.toFixed(1)} кг</b></span>`;
- const sellTotal=owned.reduce((sum,x)=>sum+Math.floor(x.value*.65)*(x.qty||0),0);const buyTotal=goods.reduce((sum,x)=>sum+x[3],0);
- [['tradeSellValue',sellTotal],['tradeSellTotal',sellTotal],['tradeBuyValue',buyTotal],['tradeBuyTotal',buyTotal]].forEach(([id,value])=>{const el=$(id);if(el)el.textContent=value.toLocaleString('ru-RU')+' RU';});
+ const totals=tradeBasketTotals();
+ [['tradeSellValue',totals.sell],['tradeSellTotal',totals.sell],['tradeBuyValue',totals.buy],['tradeBuyTotal',totals.buy]].forEach(([id,value])=>{const el=$(id);if(el)el.textContent=value.toLocaleString('ru-RU')+' RU';});
  document.querySelectorAll('[data-trade-cat]').forEach(btn=>btn.classList.toggle('active',btn.dataset.tradeCat===tradeCategory));
+ renderTradeBasket();
 }
 
 function influence(id){let l=g.locations.find(x=>x.id===id);if(!l||l.owner===g.faction)return;if(g.money<120)return alert("Недостаточно рублей.");g.money-=120;l.control=Math.min(100,l.control+15);if(l.control>=95){let old=l.owner;l.owner=g.faction;l.control=50;let f=g.factions.find(x=>x.name===old),m=g.factions.find(x=>x.name===g.faction);if(f)f.territories=Math.max(0,f.territories-1);if(m)m.territories++;log("Группировка "+g.faction+" установила влияние в районе "+l.name+".");news("Изменение контроля","Группировка "+g.faction+" усилила позиции в районе "+l.name+".")}else log("Влияние в районе "+l.name+" выросло до "+l.control+"%.");save();selectLocation(id)}
@@ -874,7 +946,14 @@ async function connectZone(){
  zoneSocket.on('world:ecosystem',data=>{serverWorld=serverWorld||{};serverWorld.ecosystem=data;renderLivingZone();});
  zoneSocket.on('ecosystem:result',data=>{if(data?.state){g=data.state;localStorage.setItem('zoneExpandedSave',JSON.stringify(g));render();}alert(data?.message||'');renderLivingZone();});
 
- zoneSocket.on('npc:interaction-result',data=>{if(data?.reply){const n=npcBy(data.npcId);if(n&&data.dialogue){n.greeting=data.dialogue.greeting;n.topics=data.dialogue.topics;}const box=dialogueTarget();if(box){showNpcDialogue();const paragraphs=String(data.reply).split(/(?<=[.!?])\s+/).filter(Boolean);const choices=(data.dialogue?.topics||[]).map((t,i)=>`<button onclick=\"topic('${data.npcId}',${i})\">› ${escapeHtml(t[0])}</button>`).join('');box.innerHTML=`<div class=\"dialogue-screen\"><div class=\"dialogue-top\"><div class=\"avatar portrait\">${escapeHtml(n?.icon||'◉')}</div><div><b class=\"speaker\">${escapeHtml(n?.name||'Сталкер')}</b><div class=\"desc\">${escapeHtml(n?.role||'сталкер')} · ${escapeHtml(n?.faction||'')}</div><div class=\"small muted\">Доверие: ${Number(data.relationship)||0} · разговор обновлён</div></div></div><div class=\"dialogue\">${paragraphs.map(x=>`<p>${escapeHtml(x)}</p>`).join('')}</div><div class=\"choices\">${choices}<button onclick=\"closeTalk()\">Попрощаться</button></div></div>`;}else alert(data.reply);}else if(data?.reason)alert(data.reason);});
+ zoneSocket.on('npc:interaction-result',data=>{
+ if(data?.reply){
+  const n=npcBy(data.npcId);
+  if(n&&data.dialogue){n.greeting=data.dialogue.greeting;n.topics=data.dialogue.topics;}
+  if(n){showNpcDialogue();renderCopDialogue(n,data.reply,data.dialogue?.topics||n.topics||[]);}
+  else alert(data.reply);
+ }else if(data?.reason)alert(data.reason);
+});
  zoneSocket.on('world:poi',points=>applySharedDiscoveredPoints(points));
  zoneSocket.on('world:zoneEvent',ev=>{g.news.unshift({day:realClock().day,hour:realClock().time,title:ev.title,body:ev.body});g.news=g.news.slice(0,60);renderNews();log('Сводка КПК: '+ev.title+'.');});
  zoneSocket.on('world:coop',list=>renderCoopQuests(list));
@@ -882,7 +961,7 @@ async function connectZone(){
  zoneSocket.on('war:result',data=>{if(data.state){g=data.state;localStorage.setItem('zoneExpandedSave',JSON.stringify(g));render();}if(data.world)serverWorld=data.world;alert(data.message||'');renderWar();});
  zoneSocket.on('war:reward',data=>{if(data.state){g=data.state;localStorage.setItem('zoneExpandedSave',JSON.stringify(g));render();}alert(data.won?'Победа! +180 ₽, +35 опыта и +5 репутации.':'Операция завершена. +35 опыта, репутация скорректирована.');});
  zoneSocket.on('trade:incoming',offer=>{incomingTrades.push(offer);renderIncomingTrades();});
- zoneSocket.on('market:result',data=>{if(data.state){g=data.state;localStorage.setItem('zoneExpandedSave',JSON.stringify(g));render();renderTrade();}alert(data.message||'Операция выполнена.');});
+ zoneSocket.on('market:result',data=>{if(data.state){g=data.state;localStorage.setItem('zoneExpandedSave',JSON.stringify(g));if(data.ok)tradeBasket={buy:{},sell:{}};render();renderTrade();}alert(data.message||'Операция выполнена.');});
  zoneSocket.on('trade:result',data=>{alert(data.message|| (data.ok?'Обмен выполнен.':'Обмен не выполнен.'));if(data.state){g=data.state;localStorage.setItem('zoneExpandedSave',JSON.stringify(g));render();}});
  zoneSocket.on('coop:result',data=>{alert(data.message||'');});
  zoneSocket.on('coop:reward',data=>{if(data.state){g=data.state;localStorage.setItem('zoneExpandedSave',JSON.stringify(g));render();}alert(`Совместное задание выполнено: +${data.reward} ₽ и ${data.xp} опыта.`);});

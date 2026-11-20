@@ -413,7 +413,7 @@ test('4.25 field PDA keeps long-page filters and map controls reachable', () => 
 test('4.29 build labels are consistent', () => {
   const html = fs.readFileSync(path.join(root, 'public/index.html'), 'utf8');
   const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
-  assert.equal(pkg.version, '4.29.0');
+  assert.equal(pkg.version, '4.29.1');
   assert.match(html, /BUILD 4\.29/);
   assert.match(html, /ZONE ONLINE 4\.29/);
 });
@@ -471,4 +471,31 @@ test('4.29 trade view is full-screen, split into player and trader inventories, 
   assert.match(client, /if\(id==="trade"\)renderTrade\(\)/);
   assert.match(client, /market:result',[\s\S]*?renderTrade\(\)/);
   assert.match(client, /npc:trade:result',[\s\S]*?renderTrade\(\)/);
+});
+
+
+test('4.29.1 NPC dialogue matches the two-sided Call of Pripyat-inspired layout', () => {
+  const html = fs.readFileSync(path.join(root, 'public/index.html'), 'utf8');
+  const css = fs.readFileSync(path.join(root, 'public/css/game.css'), 'utf8');
+  const client = fs.readFileSync(path.join(root, 'public/js/game.js'), 'utf8');
+  assert.match(html, /class="cop-dialogue-window"/);
+  assert.match(html, /id="dialoguePortraitLeft"/);
+  assert.match(html, /id="dialogueChoices"/);
+  assert.match(css, /\.cop-dialogue-top/);
+  assert.match(css, /grid-template-rows:112px minmax\(180px,1fr\) 205px/);
+  assert.match(client, /function renderCopDialogue/);
+});
+
+test('4.29.1 trade basket supports drag/drop and an atomic online market deal', () => {
+  const html = fs.readFileSync(path.join(root, 'public/index.html'), 'utf8');
+  const client = fs.readFileSync(path.join(root, 'public/js/game.js'), 'utf8');
+  const server = fs.readFileSync(path.join(root, 'server.js'), 'utf8');
+  assert.match(html, /id="tradeBuyBasket"/);
+  assert.match(html, /ondrop="tradeDrop\(event,'buy'\)"/);
+  assert.match(client, /function tradeDragStart/);
+  assert.match(client, /function commitTradeBasket/);
+  assert.match(client, /market:deal/);
+  assert.match(server, /socket\.on\('market:deal'/);
+  assert.match(server, /Недостаточно рублей для сделки/);
+  assert.match(server, /Недостаточно предметов для продажи/);
 });
