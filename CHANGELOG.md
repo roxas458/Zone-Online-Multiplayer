@@ -14,6 +14,14 @@
 
 # Changelog
 
+## 4.29.0 — Full-screen trading interface
+- Rebuilt trading as a full-screen, three-column interface inspired by the supplied Call of Pripyat trader screen.
+- Added player inventory sale panel, merchant stock purchase panel, central equipment/quick-slot column, item search, category filters, weight and balance summaries.
+- Added responsive mobile layout with sticky header and transaction footer.
+- Trade UI now refreshes after offline saves and confirmed online/NPC trade responses.
+- Updated package and health endpoint version to 4.29.0.
+
+
 ## 4.16.1 — Reference-aligned tactical map
 - Kept the original unlabeled 1024×2048 satellite image as the only map background.
 - Used the user's second, labeled image only to trace approximate territory outlines and preserve its region names; it is not bundled or displayed as the game map.

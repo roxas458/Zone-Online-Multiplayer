@@ -1,6 +1,6 @@
 {
   "name": "zone-online",
-  "version": "4.28.0",
+  "version": "4.29.0",
   "private": true,
   "description": "Browser-based STALKER-inspired MMO with immediate login acknowledgement and staged world hydration",
   "main": "server.js",

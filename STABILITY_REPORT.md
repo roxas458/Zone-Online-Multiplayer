@@ -1,16 +1,16 @@
-# Stability report — 4.27.0
+# Stability report — 4.29.0
 
 ## Automated checks
-- `npm test`: 74 tests passed.
+- `npm test`: 75 tests passed.
 - `npm run check`: all JavaScript syntax checks passed.
 - ZIP archive integrity check passed.
 
-## Login handshake fixes
-- Socket.IO client and server connection timeouts allow up to 60 seconds for Render free-tier cold starts.
-- Server acknowledges `player:hello` before sending the potentially large world snapshot, preventing snapshot serialization/delivery from consuming the login acknowledgement timeout.
-- PostgreSQL connection and query timeouts are bounded at 8 seconds so a stalled database operation cannot hold the login handshake indefinitely.
+## Trading changes
+- Full-screen trading interface implemented with separate player and merchant inventories.
+- Existing server-authoritative `market:buy`, `market:sell`, `npc:trade:buy`, and `npc:trade:sell` events retained.
+- Client updates the trade view after local saves and server-confirmed transactions.
+- Mobile layout uses stacked inventory panels and a sticky transaction footer.
 
-## Live deployment limitation
-- The deployed homepage at https://zone-online-multiplayer.onrender.com/ responds and serves the 4.26 client build.
-- The `/health` endpoint could not be independently verified from this environment, and outbound DNS/network access from the build container is unavailable.
-- The updated source must be deployed to Render before these fixes affect the live site. Render logs and production Socket.IO behavior cannot be confirmed from this workspace.
+## Verification limits
+- Automated tests and syntax checks ran locally.
+- The live Render deployment, real browser rendering on physical devices, and production Socket.IO transactions were not tested from this workspace.

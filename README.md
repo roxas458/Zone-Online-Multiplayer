@@ -1,8 +1,23 @@
-# ZONE ONLINE 4.28.1 — CONNECTION RECOVERY PATCH
+# ZONE ONLINE 4.29.0 — FULL-SCREEN TRADING
+
+## 4.29.0 — COP-inspired full-screen trader
+
+- Rebuilt the trading view as a full-screen interface inspired by the supplied S.T.A.L.K.E.R.: Call of Pripyat trading screenshot.
+- Added separate player and trader inventories, trader/player identity headers, equipment mannequin slots, quick slots, stats, category filters, item search, sale and purchase totals, and mobile layout.
+- Kept all existing market and NPC trade Socket.IO events; the UI refreshes after server confirmations.
+- Fixed local trade refresh so buying and selling updates the open trading window immediately.
+- Updated the app and health endpoint version to 4.29.0.
+
+## Verification
+
+- `npm test`: 75 tests passed.
+- `npm run check`: all JavaScript syntax checks passed.
+- Live Render connectivity was not tested from this workspace.
+
 
 ## 4.28.1 — Client connection recovery
 
-- Updated the browser cache-busting URL to 4.28.0 so the browser does not keep an older 4.27 client after deployment.
+- Updated the browser cache-busting URL to 4.29.0 so the browser does not keep an older 4.27 client after deployment.
 - A malformed `?server=` query parameter no longer aborts client startup.
 - The multiplayer status now changes to offline when an established socket disconnects unexpectedly; automatic Socket.IO reconnection remains enabled.
 - The server address field remains optional when the frontend and Node service are deployed together.
@@ -11,11 +26,11 @@
 
 1. Deploy the complete archive as a Node Web Service, not as a static site.
 2. Use `npm install` as the build command and `npm start` as the start command.
-3. Open `/health` on the Node service. It must return JSON with `ok: true` and version `4.28.0`.
+3. Open `/health` on the Node service. It must return JSON with `ok: true` and version `4.29.0`.
 4. If the browser game is hosted on a different domain, enter the Node service's full HTTPS origin in Multiplayer → Server address, then reconnect.
 5. PostgreSQL is required for accounts and persistent cross-device saves, but not for anonymous socket connectivity.
 
-# ZONE ONLINE 4.28 — IMMEDIATE LOGIN ACKNOWLEDGEMENT
+# ZONE ONLINE 4.28 — IMMEDIATE LOGIN ACKNOWLEDGEMENT (previous release)
 
 ## 4.28 — Login handshake reliability
 
@@ -28,7 +43,7 @@
 
 ## Deployment
 
-Deploy the full project folder to the existing Render Web Service using `npm install` and `npm start`. Keep the current service and `DATABASE_URL` configuration. After deployment, verify `/health` reports `version: "4.28.0"`. If the status remains `memory-fallback`, configure a Render PostgreSQL database and set its Internal Database URL as `DATABASE_URL` in the Web Service environment.
+Deploy the full project folder to the existing Render Web Service using `npm install` and `npm start`. Keep the current service and `DATABASE_URL` configuration. After deployment, verify `/health` reports `version: "4.29.0"`. If the status remains `memory-fallback`, configure a Render PostgreSQL database and set its Internal Database URL as `DATABASE_URL` in the Web Service environment.
 
 ## Checks
 

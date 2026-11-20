@@ -410,12 +410,12 @@ test('4.25 field PDA keeps long-page filters and map controls reachable', () => 
   assert.match(css, /@media\(max-width:760px\)[\s\S]*?main>\.right\{display:none\}/);
 });
 
-test('4.28 build labels are consistent', () => {
+test('4.29 build labels are consistent', () => {
   const html = fs.readFileSync(path.join(root, 'public/index.html'), 'utf8');
   const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
-  assert.equal(pkg.version, '4.28.0');
-  assert.match(html, /BUILD 4\.28/);
-  assert.match(html, /ZONE ONLINE 4\.28/);
+  assert.equal(pkg.version, '4.29.0');
+  assert.match(html, /BUILD 4\.29/);
+  assert.match(html, /ZONE ONLINE 4\.29/);
 });
 
 test('4.27 connection diagnostics support a separate server URL and health endpoint', () => {
@@ -436,7 +436,7 @@ test('4.27 trader panel uses local portrait assets for the active trader', () =>
   const html = fs.readFileSync(path.join(root, 'public/index.html'), 'utf8');
   const client = fs.readFileSync(path.join(root, 'public/js/game.js'), 'utf8');
   assert.match(html, /id="traderPortrait"/);
-  assert.match(client, /traderPortrait\.src=g\.loc/);
+  assert.match(client, /portrait\.src=g\.loc/);
 });
 
 test('4.27 login acknowledgement timeout accounts for Render cold starts', () => {
@@ -456,4 +456,19 @@ test('4.27 server acknowledges login before sending the large world snapshot', (
   assert.ok(ready > firstAwait, 'profile snapshot must be sent after profile loading');
   assert.match(server, /player:hello completed for/);
   assert.match(server, /query_timeout:8000, statement_timeout:8000/);
+});
+
+
+test('4.29 trade view is full-screen, split into player and trader inventories, and refreshes after server trades', () => {
+  const html = fs.readFileSync(path.join(root, 'public/index.html'), 'utf8');
+  const css = fs.readFileSync(path.join(root, 'public/css/game.css'), 'utf8');
+  const client = fs.readFileSync(path.join(root, 'public/js/game.js'), 'utf8');
+  assert.match(html, /class="trade-fullscreen"/);
+  assert.match(html, /id="tradePlayerWeight"/);
+  assert.match(html, /id="tradeWeapon"/);
+  assert.match(html, /id="tradeArmor"/);
+  assert.match(css, /#trade\.view\.active\{position:fixed;inset:0/);
+  assert.match(client, /if\(id==="trade"\)renderTrade\(\)/);
+  assert.match(client, /market:result',[\s\S]*?renderTrade\(\)/);
+  assert.match(client, /npc:trade:result',[\s\S]*?renderTrade\(\)/);
 });
