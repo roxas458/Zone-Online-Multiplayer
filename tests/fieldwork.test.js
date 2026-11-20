@@ -17,3 +17,15 @@ test('Renegades are a valid faction with swamp-based NPCs',()=>{
  assert.equal(NPC_HOME.renegade_leader,'swamps');
  assert.equal(NPC_HOME.renegade_scout,'swamps');
 });
+
+
+test('anomaly fields can drift and their danger/stability evolves over time',()=>{
+ const {tickEcosystem}=require('../src/systems/ecosystem');
+ const world={territoryOwners:{}};const eco=initEcosystem(world);const anomaly=eco.anomalies[0];const before=anomaly.location;
+ const events=tickEcosystem(world,()=>0,123456789);
+ assert.ok(anomaly.location);
+ assert.notEqual(anomaly.location,undefined);
+ assert.ok(anomaly.stability>=10&&anomaly.stability<=100);
+ assert.ok(anomaly.danger>=10&&anomaly.danger<=100);
+ assert.ok(events.some(e=>e.type==='anomaly_migration')||anomaly.location===before);
+});

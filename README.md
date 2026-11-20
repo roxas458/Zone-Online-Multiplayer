@@ -1,4 +1,4 @@
-# ZONE ONLINE 4.31.0 — Guest Multiplayer Recovery
+# ZONE ONLINE 4.33.0 — Survival & Expeditions
 
 This build removes account registration and login completely. Players enter as guests with a browser-stored UUID. Existing local game saves are retained; old account tokens are cleared from local storage and are no longer sent to the server.
 
@@ -23,7 +23,7 @@ This build removes account registration and login completely. Players enter as g
 - PostgreSQL is optional for multiplayer. Without `DATABASE_URL`, player/world state is held in memory and resets when the Render service restarts. Local browser saves remain on the player's device.
 
 ## Verify
-- `/health` should return `ok: true` and version `4.31.0`.
+- `/health` should return `ok: true` and version `4.33.0`.
 - `/api/diagnostics` should report `multiplayer: true` and `guestMode: true`.
 - Render logs should show `[socket] connected`, `player:hello received`, `player:hello ack sent`, and `player:hello completed`.
 - For two-player verification, open the game in two separate browsers/devices and confirm both appear in the online player list.
@@ -38,3 +38,12 @@ Automated tests do not prove the live Render deployment is healthy; the deployed
 - Persistent personal field notebook stored with the local player save.
 - Renegades added as a valid faction with swamp NPCs and Dark Hollow territory; zombified stalkers added to mutant ecology.
 - NPC relationship activity now costs supplies and has a six-hour cooldown; no free reputation gain.
+
+
+## 4.33.0 — Survival & Expeditions
+
+- Real-time hunger/thirst pressure, field rest and temporary shelter.
+- Pack preparation consumes a ration and water before a sector journey.
+- Sector travel now costs stamina and supplies and adds radiation exposure by route risk.
+- Mutant hunting resolves on the server in multiplayer and persists the pack population and trophy reward.
+- New survival status panel and event log in Living Zone.

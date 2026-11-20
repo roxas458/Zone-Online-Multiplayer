@@ -18,6 +18,13 @@ function tickEcosystem(world,random=Math.random,now=Date.now()){
   if(random()<.12){pack.count=Math.max(1,Math.min(12,pack.count+(random()<.55?1:-1)));pack.aggression=Math.max(10,Math.min(100,pack.aggression+(random()<.5?5:-4)));}
   pack.updatedAt=now;
  }
+ // Anomaly fields are not fixed map decorations: unstable fields can drift between nearby expeditions.
+ for(const anomaly of e.anomalies){
+  if(random()<.025){const from=anomaly.location;anomaly.location=ZONES[Math.floor(random()*ZONES.length)];if(from!==anomaly.location)events.push(addEcoEvent(world,'anomaly_migration',`Полевые датчики зафиксировали смещение аномалии «${anomaly.kind}»: ${from} → ${anomaly.location}.`,now));}
+  anomaly.stability=Math.max(10,Math.min(100,(Number(anomaly.stability)||50)+(random()<.5?-2:1)));
+  anomaly.danger=Math.max(10,Math.min(100,Math.round((Number(anomaly.danger)||50)+(anomaly.stability<30?2:random()<.35?-1:0))));
+  anomaly.updatedAt=now;
+ }
  for(const market of Object.values(e.markets)){market.scarcity=Math.max(0,Math.min(100,market.scarcity+(random()<.5?3:-2)));market.priceIndex=Math.max(.65,Math.min(2.4,Number((.8+market.scarcity/100+random()*.18).toFixed(2))));market.updatedAt=now;}
  for(const base of Object.values(e.bases)){base.supplies=Math.max(0,base.supplies-(random()<.35?1:0));if(base.supplies<20&&random()<.08)events.push(addEcoEvent(world,'base_supply',`На базе «${base.faction}» в секторе ${base.location} заканчиваются припасы.`,now));}
  return events;

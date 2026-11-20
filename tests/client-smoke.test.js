@@ -48,6 +48,8 @@ function bootClient() {
   vm.createContext(context);
   vm.runInContext(fs.readFileSync(path.join(root,'public/js/content.js'),'utf8'), context, {filename:'content.js'});
   vm.runInContext(fs.readFileSync(path.join(root,'public/js/stories.js'),'utf8'), context, {filename:'stories.js'});
+  vm.runInContext(fs.readFileSync(path.join(root,'public/js/survival.js'),'utf8'), context, {filename:'survival.js'});
+  window.ZoneSurvival = context.ZoneSurvival;
   vm.runInContext(fs.readFileSync(path.join(root,'public/js/game.js'),'utf8'), context, {filename:'game.js'});
   return { context, elements };
 }
@@ -410,12 +412,12 @@ test('4.25 field PDA keeps long-page filters and map controls reachable', () => 
   assert.match(css, /@media\(max-width:760px\)[\s\S]*?main>\.right\{display:none\}/);
 });
 
-test('4.30 build labels are consistent', () => {
+test('4.33 build labels are consistent', () => {
   const html = fs.readFileSync(path.join(root, 'public/index.html'), 'utf8');
   const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
-  assert.equal(pkg.version, '4.32.0');
-  assert.match(html, /BUILD 4\.32\.0/);
-  assert.match(html, /ZONE ONLINE 4\.32/);
+  assert.equal(pkg.version, '4.33.0');
+  assert.match(html, /BUILD 4\.33\.0/);
+  assert.match(html, /ZONE ONLINE 4\.33/);
 });
 
 test('4.32 fieldwork, detector search, journal and map ecology layers are wired into the client', () => {
@@ -546,3 +548,20 @@ test('4.31 removes account registration and login and uses guest multiplayer', (
 });
 
 
+
+
+test('4.33 survival and expedition features are wired into the game and server',()=>{
+  const html=fs.readFileSync(path.join(root,'public/index.html'),'utf8');
+  const client=fs.readFileSync(path.join(root,'public/js/game.js'),'utf8');
+  const server=fs.readFileSync(path.join(root,'server.js'),'utf8');
+  const data=fs.readFileSync(path.join(root,'src/shared/game-data.js'),'utf8');
+  assert.match(html,/survival\.js\?v=4\.33\.0/);
+  assert.match(html,/Подготовить рюкзак/);
+  assert.match(html,/Охота на мутантов/);
+  assert.match(client,/function tickSurvival\(/);
+  assert.match(client,/function prepareExpedition\(/);
+  assert.match(client,/function huntMutants\(/);
+  assert.match(server,/socket\.on\('survival:hunt'/);
+  assert.match(server,/addEcoEvent\(world,success\?'mutant_hunt':'mutant_attack'/);
+  assert.match(data,/mutant_trophy/);
+});

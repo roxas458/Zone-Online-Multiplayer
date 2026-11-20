@@ -15,7 +15,7 @@ const { initSharedWorld, initDiplomacy } = require('./src/server/world');
 const { WAR_CONFIG, createOperation, deploymentPower, addDeployment, resolveOperation } = require('./src/systems/war');
 const { tickNpcWorld, interactWithNpc, isHostileFaction } = require('./src/systems/npc-ai');
 const { ensureOnlineWorld, appendWorldEvent, buildWorldSync, publicWorldStatus } = require('./src/systems/online-world');
-const { initEcosystem, tickEcosystem, upgradeBase, createClan, joinClan } = require('./src/systems/ecosystem');
+const { initEcosystem, tickEcosystem, upgradeBase, createClan, joinClan, addEcoEvent } = require('./src/systems/ecosystem');
 const { initSouls, tickSouls } = require('./src/systems/souls');
 
 const online = new Map();
@@ -75,7 +75,7 @@ app.use(express.json({limit:'64kb'}));
 app.use(express.static(path.join(__dirname, 'public')));
 app.get('/health', (_req,res) => { res.set('Access-Control-Allow-Origin','*'); res.set('Cache-Control','no-store'); res.status(200).json({ ok:true, service:'ZONE ONLINE', version:require('./package.json').version, database:dbReady?'postgres':'memory-fallback', databaseRequiredForAccounts:false, online:online.size, revision:world.revision||1, timestamp:Date.now() }); });
 app.get('/api/diagnostics', (_req,res) => { res.set('Access-Control-Allow-Origin','*'); res.set('Cache-Control','no-store'); res.json({ ok:true, version:require('./package.json').version, multiplayer:true, guestMode:true, database:dbReady?'postgres':'memory-fallback', online:online.size, socketPath:'/socket.io', transports:['polling','websocket'], timestamp:Date.now() }); });
-app.get('/api/status', (_req,res) => res.json({ ...publicWorldStatus(world, online.size), persistent:dbReady, service:'ZONE ONLINE 4.31.0 GUEST MULTIPLAYER' }));
+app.get('/api/status', (_req,res) => res.json({ ...publicWorldStatus(world, online.size), persistent:dbReady, service:'ZONE ONLINE 4.33.0 SURVIVAL & EXPEDITIONS' }));
 app.get('/api/world/snapshot', (_req,res) => res.json({ status:publicWorldStatus(world, online.size), world }));
 app.get('/api/world/events', (req,res) => { const since=Number(req.query.since||0); const sync=buildWorldSync(world, Number.isSafeInteger(since)?since:0); res.json(sync); });
 
@@ -505,6 +505,19 @@ io.on('connection', socket=>{
     socket.emit('npc:interaction-result',result);
     if(result.ok){ const syncEvent=appendWorldEvent(world,'npc_interaction',{npcId,playerId:p.id,action,relationship:result.relationship}); await persistWorld(); io.emit('world:event',syncEvent); emitNpcState(); }
   });
+  socket.on('survival:hunt', async input=>{
+    const p=online.get(socket.data.playerId);if(!p)return;const eco=initEcosystem(world),pack=eco.mutantPacks.find(x=>x.id===String(input?.packId||'')&&x.location===p.location&&x.count>0);
+    if(!pack){socket.emit('survival:hunt:result',{ok:false,message:'В этом секторе больше нет доступной группы мутантов.'});return;}
+    const st=safeState(p.state);st.state.items ||= [];st.state.survival ||= {lastHuntAt:0,events:[]};const now=Date.now();
+    if(now-Number(st.state.survival.lastHuntAt||0)<60000){socket.emit('survival:hunt:result',{ok:false,message:'После предыдущей охоты нужно восстановиться.'});return;}
+    if(Number(st.state.stamina||0)<18){socket.emit('survival:hunt:result',{ok:false,message:'Для охоты нужно минимум 18 выносливости.'});return;}
+    const weapon=String(st.state.equipment?.weapon||'');if(!weapon){socket.emit('survival:hunt:result',{ok:false,message:'Нет экипированного оружия.'});return;}
+    const quality=/АК|винтов|руж|СВД|Гроза/i.test(weapon)?75:45;const chance=Math.max(.18,Math.min(.82,.72-(Number(pack.aggression)||50)*.003+quality*.001-Math.max(0,100-Number(st.state.stamina||0))*.002));
+    st.state.stamina=Math.max(0,Number(st.state.stamina||0)-18);st.state.survival.lastHuntAt=now;const success=Math.random()<chance;let message;
+    if(success){pack.count=Math.max(0,pack.count-1);const trophy=st.state.items.find(x=>x.id==='mutant_trophy');if(trophy)trophy.qty=(Number(trophy.qty)||0)+1;else st.state.items.push({id:'mutant_trophy',name:'Трофей мутанта',type:'Материал',desc:'Добыча после охоты на мутанта.',weight:.8,qty:1,value:110});st.state.xp=Math.min(1e7,(Number(st.state.xp)||0)+18);st.state.money=Math.min(99999999,(Number(st.state.money)||0)+35);message=`Охота успешна: ${pack.species}. Получен трофей, +18 опыта и 35 ₽.`;}
+    else{const damage=Math.max(2,Math.round((Number(pack.aggression)||40)/12));st.state.hp=Math.max(1,(Number(st.state.hp)||100)-damage);message=`Мутанты контратаковали. Потеряно ${damage} здоровья. Следует отступить и перевязаться.`;}
+    p.state=st.state;p.hp=st.state.hp;p.xp=st.state.xp;await persistPlayer(p.id,p.state);eco.revision=(eco.revision||0)+1;addEcoEvent(world,success?'mutant_hunt':'mutant_attack',`${p.name}: ${message}`,now);await persistWorld();io.emit('world:ecosystem',eco);socket.emit('survival:hunt:result',{ok:success,message,state:p.state,ecosystem:eco});
+  });
   socket.on('base:upgrade', async input=>{
     const p=online.get(socket.data.playerId);if(!p)return;const cost=500,st=safeState(p.state);
     if(st.money<cost){socket.emit('ecosystem:result',{ok:false,message:`Нужно ${cost} ₽ на материалы.`});return;}
@@ -544,7 +557,7 @@ setInterval(async()=>{
     for(const p of online.values()){
       if(p.expedition?.status==='travelling'){
         const step=advanceExpedition(p,Date.now());
-        if(step.advanced){p.lastSeen=Date.now();const old=p.expedition.path[p.expedition.index-1];const sock=[...io.sockets.sockets.values()].find(x=>x.data.playerId===p.id);if(sock){sock.leave(`location:${old}`);sock.join(`location:${p.location}`);sock.emit('world:chat:history',recentChat.filter(m=>!m.location||m.location===p.location).slice(-60));}socketSafeEmit(p.id,'player:expedition-step',{location:step.location,arrived:step.arrived,route:p.expedition.path,index:p.expedition.index});
+        if(step.advanced){p.lastSeen=Date.now();p.state ||= {};const hopRisk=require('./src/systems/expedition').RISK[step.location]||30;const hopCost=require('./public/js/survival').expeditionCost(hopRisk,'overcast',!!p.state.emission?.active);const kit=p.state.survival?.kit;if(kit?.rations>0&&kit?.water>0){p.state.hunger=Math.max(0,(Number(p.state.hunger)||0)-8);p.state.thirst=Math.max(0,(Number(p.state.thirst)||0)-18);p.state.survival.kit=null;}else{hopCost.stamina+=8;hopCost.hunger+=5;hopCost.thirst+=7;}p.state.stamina=Math.max(0,(Number(p.state.stamina)||0)-hopCost.stamina);p.state.hunger=Math.min(100,(Number(p.state.hunger)||0)+hopCost.hunger);p.state.thirst=Math.min(100,(Number(p.state.thirst)||0)+hopCost.thirst);p.state.radiation=Math.min(100,(Number(p.state.radiation)||0)+hopCost.radiation);if(p.state.stamina<=0)p.state.hp=Math.max(1,(Number(p.state.hp)||100)-4);p.state.loc=step.location;await persistPlayer(p.id,p.state);const old=p.expedition.path[p.expedition.index-1];const sock=[...io.sockets.sockets.values()].find(x=>x.data.playerId===p.id);if(sock){sock.leave(`location:${old}`);sock.join(`location:${p.location}`);sock.emit('world:chat:history',recentChat.filter(m=>!m.location||m.location===p.location).slice(-60));}socketSafeEmit(p.id,'player:expedition-step',{location:step.location,arrived:step.arrived,route:p.expedition.path,index:p.expedition.index,state:p.state});
           if(!step.arrived&&Math.random()<Math.min(.42,(require('./src/systems/expedition').RISK[step.location]||30)/260)){p.expedition.status='paused';p.travelEncounter={type:'route_contact',at:Date.now()};io.to(p.id).emit('player:travel-event',{type:'mutants',message:`На подходе к сектору ${step.location} обнаружена опасность: мутанты или неизвестный отряд. Экспедиция остановлена. Продолжить скрытно или отступить?`});}
           const squad=squadOf(p.id);if(squad&&squad.leader===p.id){squad.location=p.location;for(const member of squad.members||[]){const follower=online.get(member.id);if(follower&&follower.id!==p.id){const fsock=[...io.sockets.sockets.values()].find(x=>x.data.playerId===follower.id);if(fsock){fsock.leave(`location:${old}`);fsock.join(`location:${p.location}`);}follower.location=p.location;follower.expedition={...p.expedition};io.to(follower.id).emit('player:expedition-step',{location:p.location,arrived:step.arrived,route:p.expedition.path,index:p.expedition.index});}}}
           io.to(p.id).emit('player:expedition-result',{ok:true,message:step.arrived?'Экспедиция завершена. Ты прибыл в пункт назначения.':`Переход выполнен: ${p.location}.`,expedition:p.expedition});broadcastOnline();persistWorld().catch(()=>{});
@@ -580,7 +593,7 @@ setInterval(async()=>{
     world.onlineMetrics ||= {totalJoins:0,totalMoves:0,lastTickAt:0}; world.onlineMetrics.lastTickAt=now;
     const tickEvent=appendWorldEvent(world,'world_tick',{npcEvents:events.length,activeNpcs:Object.values(world.npcState||{}).filter(n=>n.alive).length},now);
     io.emit('world:event',tickEvent);
-    for(const event of [...events,...ecoEvents,...soulEvents]){const ev=appendWorldEvent(world,event.type,{...event},now);io.emit('world:event',ev);io.emit('world:npc-event',event);if(['npc_skirmish','mutant_migration','convoy_ambush','convoy_started'].includes(event.type))systemMessage(event.text);}
+    for(const event of [...events,...ecoEvents,...soulEvents]){const ev=appendWorldEvent(world,event.type,{...event},now);io.emit('world:event',ev);io.emit('world:npc-event',event);if(['npc_skirmish','mutant_migration','anomaly_migration','convoy_ambush','convoy_started'].includes(event.type))systemMessage(event.text);}
     await persistWorld(); io.emit('world:npcs',world.npcPositions);
     emitNpcState();io.emit('world:ecosystem',world.ecosystem);
     io.emit('world:status',publicWorldStatus(world,online.size));

@@ -443,3 +443,6 @@ button,input,select{touch-action:manipulation}
  .cop-dialogue-bottom{padding:8px 10px 12px;grid-template-rows:15px 1fr 36px}.cop-dialogue-actions button{min-width:120px}
  .trade-basket-columns{grid-template-columns:1fr}.trade-basket-list{max-height:70px}.trade-basket-head{align-items:flex-start;flex-direction:column}.trade-basket-controls{flex-wrap:wrap}.trade-basket-controls span{flex-basis:100%}
 }
+
+/* 4.33 survival HUD */
+#survivalPanel .rightbuttons{display:flex;flex-wrap:wrap;gap:7px;margin-top:10px}#survivalPanel .rightbuttons button{flex:1 1 145px}.survival-meter{height:6px;background:#263027;border-radius:8px;overflow:hidden;margin-top:5px}.survival-meter i{display:block;height:100%;background:#a9b77a}.survival-meter.warning i{background:#c98b52}.survival-event{padding:8px 10px;border-left:2px solid #78875d;background:#171f18;margin:5px 0;font-size:12px}.survival-event.danger{border-color:#bd6650}
