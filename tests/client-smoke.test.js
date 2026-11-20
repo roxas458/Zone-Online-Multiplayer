@@ -415,8 +415,8 @@ test('4.25 field PDA keeps long-page filters and map controls reachable', () => 
 test('4.33 build labels are consistent', () => {
   const html = fs.readFileSync(path.join(root, 'public/index.html'), 'utf8');
   const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
-  assert.equal(pkg.version, '4.33.6');
-  assert.match(html, /BUILD 4\.33\.6/);
+  assert.equal(pkg.version, '4.33.7');
+  assert.match(html, /BUILD 4\.33\.7/);
   assert.match(html, /ZONE ONLINE 4\.33/);
 });
 
@@ -576,7 +576,7 @@ test('4.33 survival and expedition features are wired into the game and server',
   const client=fs.readFileSync(path.join(root,'public/js/game.js'),'utf8');
   const server=fs.readFileSync(path.join(root,'server.js'),'utf8');
   const data=fs.readFileSync(path.join(root,'src/shared/game-data.js'),'utf8');
-  assert.match(html,/survival\.js\?v=4\.33\.6/);
+  assert.match(html,/survival\.js\?v=4\.33\.7/);
   assert.match(html,/Подготовить рюкзак/);
   assert.match(html,/Охота на мутантов/);
   assert.match(client,/function tickSurvival\(/);
@@ -588,17 +588,22 @@ test('4.33 survival and expedition features are wired into the game and server',
 });
 
 
-test('4.33.6 uses stable polling transport after Render WebSocket transport errors', () => {
+test('4.33.7 prevents duplicate client reconnects and preserves session ownership after Render WebSocket transport errors', () => {
   const client = fs.readFileSync(path.join(root, 'public/js/game.js'), 'utf8');
   const server = fs.readFileSync(path.join(root, 'server.js'), 'utf8');
   assert.match(client, /transports:\['polling'\]/);
   assert.match(client, /upgrade:false/);
   assert.match(server, /transports: \['polling'\]/);
   assert.match(server, /transportMode:'polling-stable'/);
+  assert.match(client, /keeping existing Socket\.IO connection/);
+  assert.match(client, /zoneSocketTarget===targetUrl/);
+  assert.match(client, /zoneSocketTarget===targetUrl[\s\S]{0,240}return;[\s\S]{0,80}zonePlayerReady=false/);
+  assert.match(server, /Publish the new owner before closing an older tab\/session/);
+  assert.match(server, /oldSocket\.disconnect\(true\)/);
 });
 
 
-test('4.33.6 pins Render to Node.js 22 LTS and disables unstable WebSocket upgrades', () => {
+test('4.33.7 pins Render to Node.js 22 LTS and disables unstable WebSocket upgrades', () => {
   const nodeVersion = fs.readFileSync(path.join(root, '.node-version'), 'utf8').trim();
   const render = fs.readFileSync(path.join(root, 'render.yaml'), 'utf8');
   const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));

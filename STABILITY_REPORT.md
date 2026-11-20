@@ -26,3 +26,10 @@ All NPCs outside the explicit story-character whitelist are converted to unique 
 - Added a browser-save migration after all legacy and content NPCs are loaded.
 - The migration is rerun on roster synchronization and after restored server player state.
 - Canonical story NPC IDs are explicitly exempt; all other local NPCs receive stable Zone callsigns.
+
+## 4.33.7 reconnect and session ownership audit
+- Repeated Connect-button requests now preserve an already connected or automatically reconnecting Socket.IO client when its target URL is unchanged.
+- Preserving that socket also preserves `zonePlayerReady`, so repeated taps cannot silently disable server-backed gameplay actions.
+- Player-session takeover now stores the new socket as the active owner before disconnecting the previous socket. The previous socket's disconnect handler is guarded by the socket ID and cannot delete the new session.
+- Added client Engine.IO close/acknowledgement diagnostics and server disconnect ownership details.
+- Local verification: `npm test` 99/99 passed; `npm run check` passed. Live Render validation is still required.

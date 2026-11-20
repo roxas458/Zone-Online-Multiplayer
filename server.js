@@ -174,8 +174,15 @@ io.on('connection', socket=>{
       // Never reattach an unvalidated database record after normalizing it.
       if(saved) await persistPlayer(id,s.state);
       const spawnPoint=SECTOR_COORDS[s.loc]||SECTOR_COORDS.cordon;const savedPos=s.state?.worldPosition;const p={ id, name:s.name, faction:s.faction, location:s.loc, x:Number.isFinite(Number(savedPos?.x))?Math.max(0,Math.min(1000,Number(savedPos.x))):spawnPoint[0], y:Number.isFinite(Number(savedPos?.y))?Math.max(0,Math.min(2000,Number(savedPos.y))):spawnPoint[1], hp:s.hp, xp:s.xp, joinedAt:Date.now(), lastSeen:Date.now(), state:s.state, moveOrder:null, travelEncounter:null };
-      const previous=online.get(id); if(previous?.socketId&&previous.socketId!==socket.id){const oldSocket=io.sockets.sockets.get(previous.socketId);if(oldSocket)oldSocket.disconnect(true);}
-      socket.data.playerId=id; socket.data.name=p.name; p.socketId=socket.id; online.set(id,p); socket.join('zone-world'); socket.join(id); socket.join(`location:${p.location}`); socket.join(`faction:${p.faction}`);
+      // Publish the new owner before closing an older tab/session. The old
+      // disconnect handler checks socketId and must never remove the new session.
+      const previous=online.get(id);
+      socket.data.playerId=id; socket.data.name=p.name; p.socketId=socket.id; online.set(id,p);
+      if(previous?.socketId&&previous.socketId!==socket.id){
+        const oldSocket=io.sockets.sockets.get(previous.socketId);
+        if(oldSocket){oldSocket.data.supersededBy=socket.id;oldSocket.disconnect(true);}
+      }
+      socket.join('zone-world'); socket.join(id); socket.join(`location:${p.location}`); socket.join(`faction:${p.faction}`);
       world.onlineMetrics ||= { totalJoins:0, totalMoves:0, lastTickAt:0 }; world.onlineMetrics.totalJoins += 1;
       const joinEvent = appendWorldEvent(world, 'player_joined', { player:publicPlayer(p) });
       // Acknowledge after registration but BEFORE the world snapshot, so long-polling
@@ -558,7 +565,7 @@ io.on('connection', socket=>{
     socket.emit('diplomacy:result',{ok:true,state:p.state,world});
   });
   socket.on('disconnect',(reason)=>{
-    console.info(`[socket] disconnected id=${socket.id} reason=${reason}`);
+    console.info(`[socket] disconnected id=${socket.id} player=${socket.data.playerId||'unidentified'} reason=${reason}${socket.data.supersededBy?` supersededBy=${socket.data.supersededBy}`:''}`);
     const id=socket.data.playerId,p=online.get(id);if(!p||p.socketId!==socket.id)return;
     online.delete(id);const ev=appendWorldEvent(world,'player_left',{playerId:id,name:p.name,faction:p.faction,location:p.location});io.to('zone-world').emit('world:event',ev);persistWorld().catch(e=>console.error('leave persistence:',e.message));systemMessage(`${p.name} покинул Зону.`);broadcastOnline();
   });
