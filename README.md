@@ -1,4 +1,4 @@
-# ZONE ONLINE 4.20 — LIVING FACTIONS
+# ZONE ONLINE 4.21 — ACCOUNT LINK
 
 ## 4.20 — Living Factions and territorial NPC AI
 
@@ -135,3 +135,19 @@ The multiplayer squad system now supports synchronized leader-led travel, member
 - Reduced tactical map marker size and increased global map NPC capacity.
 - Added radiation accumulation in hazardous sectors and Anti-rad consumable with temporary protection.
 - Added rank and faction identity to the backpack header.
+
+
+## 4.21 — аккаунты и стартовые базы
+
+- Регистрация и вход по логину/паролю через `/api/auth/register` и `/api/auth/login`. Пароли хранятся как scrypt-хеши с индивидуальной солью; сервер выдаёт случайный токен, в БД сохраняется только SHA-256 хеш токена.
+- Для постоянного входа с разных устройств обязательно настрой `DATABASE_URL` на PostgreSQL. Без PostgreSQL аккаунты намеренно не создаются, чтобы не обещать кросс-девайс сохранение в памяти процесса.
+- Таблицы `zone_accounts` и `zone_account_sessions` создаются автоматически при старте.
+- Новая игра появляется на базе выбранной группировки: Одиночки — Кордон, Долг — Бар, Свобода — Военные склады, Бандиты — Свалка, Военные — Агропром, Учёные — Янтарь, Наёмники — Лиманск, Монолит — Радар, Чистое Небо — Болота. Сервер повторно проверяет начальную точку при первом создании персонажа.
+- Общий чат КПК стал локальным каналом текущей локации; при переходе игрока история переключается на сектор назначения. Личные сообщения по-прежнему доступны только игрокам в одной локации.
+
+### Настройка для публикации
+
+1. Создай PostgreSQL базу данных у хостинга.
+2. Добавь переменную окружения `DATABASE_URL` в настройки Node-сервера.
+3. Перезапусти сервер и проверь `/health`: поле `database` должно быть `postgres`.
+4. На телефоне создай аккаунт; на ПК выбери «Аккаунт» → «Войти» с тем же логином и паролем.

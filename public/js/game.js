@@ -1,4 +1,4 @@
-// ZONE ONLINE 4.20 browser client. LIVING WORLD / DISTRIBUTED NPC MAP / FIELD INVENTORY.
+// ZONE ONLINE 4.21 browser client. LIVING WORLD / DISTRIBUTED NPC MAP / FIELD INVENTORY.
 const clone=o=>JSON.parse(JSON.stringify(o));
 const base={
  name:"Новичок",money:1450,hp:100,radiation:0,radiationProtectionUntil:0,stamina:85,hunger:18,thirst:20,rep:10,day:1,hour:9,loc:"cordon",faction:"Одиночки",xp:0,meetings:0,completed:0,flags:{metSid:false,metWolf:false,heardBar:false,foundArtifact:false,helpedWolf:false},
@@ -558,7 +558,17 @@ function manualSave(){save();alert("Игра сохранена в этом бр
 function resetGame(){if(confirm("Начать заново? Текущее локальное сохранение будет заменено.")){g=clone(base);activeNpc=null;chosenLoc=null;save();view("home")}}
 // GLOBAL ONLINE WORLD state must exist before the first render: renderPeople()
  // reads serverWorld while building the initial NPC roster.
-let zoneSocket=null, zonePlayerId=localStorage.getItem('zoneOnlinePlayerId')||'';
+let zoneSocket=null, zonePlayerId=localStorage.getItem('zoneOnlinePlayerId')||'', accountToken=localStorage.getItem('zoneAccountToken')||'', accountUsername=localStorage.getItem('zoneAccountUsername')||'';
+const factionSpawn={ 'Одиночки':'cordon','Долг':'bar','Свобода':'army','Бандиты':'dump','Военные':'agro','Учёные':'yantar','Наёмники':'limansk','Монолит':'radar','Чистое небо':'swamps' };
+const spawnNames={cordon:'Кордон',bar:'Бар',army:'Военные склады',dump:'Свалка',agro:'Агропром',yantar:'Янтарь',limansk:'Лиманск',radar:'Радар',swamps:'Болота'};
+function updateAccountButton(){const b=$('accountTrigger');if(b)b.textContent=accountToken?`♙ ${accountUsername||'Аккаунт'} · Выйти`:'♙ Аккаунт';}
+function openAccountOverlay(){if(accountToken){if(confirm('Выйти из аккаунта на этом устройстве? Локальная копия сохранения останется.'))accountLogout();return;} $('accountOverlay')?.classList.add('show');}
+function closeAccountOverlay(){$('accountOverlay')?.classList.remove('show');}
+async function accountRequest(path){const username=$('accountUsername')?.value?.trim()||'',password=$('accountPassword')?.value||'';const message=$('accountMessage');if(message)message.textContent='Подключение к серверу…';try{const r=await fetch(path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username,password,playerId:zonePlayerId||undefined,state:g})});const data=await r.json();if(!r.ok||!data.ok)throw new Error(data.message||'Операция не выполнена.');accountToken=data.token;accountUsername=data.username||username;zonePlayerId=data.playerId;localStorage.setItem('zoneAccountToken',accountToken);localStorage.setItem('zoneAccountUsername',accountUsername);localStorage.setItem('zoneOnlinePlayerId',zonePlayerId);if(path.endsWith('/login')&&data.state){applyingServerState=true;g=data.state;migrateWorld();localStorage.setItem('zoneExpandedSave',JSON.stringify(g));applyingServerState=false;render();if(g.characterCreated)$('characterSetup')?.classList.remove('show');else openCharacterSetup();}if(message)message.textContent=path.endsWith('/register')?'Аккаунт создан. Теперь можно продолжить на другом устройстве.':'Вход выполнен. Загружаем сохранение…';updateAccountButton();closeAccountOverlay();if(zoneSocket){zoneSocket.disconnect();}connectZone();return data;}catch(e){if(message)message.textContent=e.message;return null;}}
+function accountRegister(){return accountRequest('/api/auth/register')}
+function accountLogin(){return accountRequest('/api/auth/login')}
+async function accountLogout(){try{if(accountToken)await fetch('/api/auth/logout',{method:'POST',headers:{Authorization:`Bearer ${accountToken}`}});}catch{}accountToken='';accountUsername='';localStorage.removeItem('zoneAccountToken');localStorage.removeItem('zoneAccountUsername');updateAccountButton();if(zoneSocket)zoneSocket.disconnect();connectZone();}
+
 let onlinePlayers=[], serverWorld=null, serverChat=[], incomingTrades=[], activePlayerSquad=null;
 let applyingServerState=false;
 
@@ -607,7 +617,7 @@ function respondTrade(offerId,accept){zoneSocket?.emit('trade:respond',{offerId,
 function renderCoopQuests(list){const el=$('coopQuestList');if(!el)return;el.innerHTML=(list||[]).map(q=>{const joined=q.participants?.includes(zonePlayerId),arrived=q.arrivals?.includes(zonePlayerId);return `<div class="item block"><div style="display:flex;justify-content:space-between;gap:8px"><b>${escapeHtml(q.title)}</b><span class="tag">${q.done?'Выполнено':`${q.arrivals?.length||0}/${q.required} прибыли`}</span></div><div class="desc">${escapeHtml(q.description)} · сектор: ${escapeHtml(locationName(q.location))}</div><div class="small">Группа: ${q.participants?.length||0} · награда: ${q.reward} ₽ и ${q.xp} опыта</div><div class="rightbuttons" style="margin-top:7px">${!joined&&!q.done?`<button onclick="joinCoop('${q.id}')">Вступить</button>`:''}${joined&&!arrived&&!q.done?`<button onclick="contributeCoop('${q.id}')">Отметить прибытие</button>`:''}</div></div>`}).join('')||'<div class="mutedbox small">Пока нет совместных заданий.</div>';}
 function joinCoop(id){zoneSocket?.emit('coop:join',{questId:id});}
 function contributeCoop(id){zoneSocket?.emit('coop:contribute',{questId:id});}
-function renderServerChat(){const el=$('mpChat');if(!el)return;el.innerHTML='';for(const m of serverChat.slice(-80)){const row=document.createElement('div');row.style.padding='5px 8px';const time=new Date(m.time||Date.now()).toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'});row.textContent=`[${time}] ${m.name}: ${m.text}`;el.appendChild(row);}el.scrollTop=el.scrollHeight;}
+function renderServerChat(){const el=$('mpChat');if(!el)return;if($('localChatHeading'))$('localChatHeading').textContent=`Локальный канал КПК · ${locationName(g.loc)}`;el.innerHTML='';for(const m of serverChat.slice(-80)){const row=document.createElement('div');row.style.padding='5px 8px';const time=new Date(m.time||Date.now()).toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'});row.textContent=`[${time}] ${m.name}: ${m.text}`;el.appendChild(row);}el.scrollTop=el.scrollHeight;}
 function mpSend(){const input=$('mpMessage');const text=input?.value?.trim();if(!text)return;if(!zoneSocket?.connected)return alert('Нет соединения с сервером.');zoneSocket.emit('world:chat:send',{text});input.value='';}
 function mpRename(){const n=$('mpName')?.value?.trim();if(!n)return alert('Введи позывной.');g.name=n.slice(0,24);save();if(zoneSocket?.connected)zoneSocket.emit('player:update',{name:g.name,location:g.loc,faction:g.faction});}
 function mpSyncLocation(){if(zoneSocket?.connected)zoneSocket.emit('player:update',{location:g.loc,faction:g.faction,name:g.name});}
@@ -629,7 +639,7 @@ function openCharacterSetup(){
  const root=$('characterSetup');if(!root)return;
  $('setupCallsign').value=g.name==='Новичок'?'':g.name;
  $('setupFactions').innerHTML=g.factions.map(f=>`<button type="button" class="faction-choice ${setupFaction===f.name?'selected':''}" onclick="selectSetupFaction('${f.name.replace(/'/g,"\\'")}')"><b>${f.icon||'◉'} ${f.name}</b><div class="desc">${f.style||''}</div></button>`).join('');
- $('factionDescription').textContent=factionLore[setupFaction]||'Выбранная сторона Зоны.';
+ $('factionDescription').textContent=factionLore[setupFaction]||'Выбранная сторона Зоны.';const spawn=factionSpawn[setupFaction]||'cordon';if($('setupSpawnInfo'))$('setupSpawnInfo').textContent=`Точка появления: ${spawnNames[spawn]||spawn}. Ты начнёшь игру у базы своей группировки.`;
  root.classList.add('show');
 }
 function selectSetupFaction(name){const current=$('setupCallsign').value;setupFaction=name;openCharacterSetup();$('setupCallsign').value=current;}
@@ -637,9 +647,9 @@ function confirmCharacter(){
  const name=$('setupCallsign').value.trim().replace(/[<>]/g,'').slice(0,24);
  if(name.length<2)return alert('Позывной должен содержать минимум 2 символа.');
  if(!g.factions.some(f=>f.name===setupFaction))return alert('Выбери группировку из списка.');
- g.name=name;g.faction=setupFaction;g.characterCreated=true;
+ g.name=name;g.faction=setupFaction;g.characterCreated=true;const spawn=factionSpawn[setupFaction]||'cordon';g.loc=spawn;g.visitedLocations=[...new Set([...(g.visitedLocations||[]),spawn])];g.worldPosition=null;
  g.news.unshift({day:realClock().day,hour:realClock().time,title:'Регистрация завершена',body:`Сталкер ${name} зарегистрирован в КПК. Группировка: ${setupFaction}.`});
- g.log.unshift(`Позывной: ${name}. Группировка: ${setupFaction}.`);
+ g.log.unshift(`Позывной: ${name}. Группировка: ${setupFaction}. Начальная база: ${spawnNames[spawn]||spawn}.`);
  $('characterSetup').classList.remove('show');save();mpSyncLocation();
 }
 
@@ -788,18 +798,18 @@ async function connectZone(){
  const serverUrl=(localStorage.getItem('zoneServerUrl')||'').trim();
  if($('mpServerUrl') && $('mpServerUrl').value!==serverUrl)$('mpServerUrl').value=serverUrl;
  try{zoneSocket=io(serverUrl||undefined,{transports:['polling','websocket'],upgrade:true,timeout:10000,reconnection:true,reconnectionAttempts:Infinity,reconnectionDelay:1000,reconnectionDelayMax:8000});
- zoneSocket.on('connect',()=>{setOnlineConnectionState('connecting','Связь установлена. Завершаем вход в Зону…');const lastRevision=Number(localStorage.getItem('zoneWorldRevision')||0);zoneSocket.timeout(12000).emit('player:hello',{id:zonePlayerId,state:g,lastRevision},(err,result)=>{if(err){setOnlineConnectionState('offline','Сервер не ответил на запрос входа за 12 секунд. Проверь адрес сервера и его журнал ошибок.');console.error('player:hello acknowledgement timeout');return;}if(!result?.ok){setOnlineConnectionState('offline',result?.message||'Сервер отклонил вход.');}});});
+ zoneSocket.on('connect',()=>{setOnlineConnectionState('connecting','Связь установлена. Завершаем вход в Зону…');const lastRevision=Number(localStorage.getItem('zoneWorldRevision')||0);zoneSocket.timeout(12000).emit('player:hello',{id:zonePlayerId,state:g,lastRevision,token:accountToken||undefined},(err,result)=>{if(err){setOnlineConnectionState('offline','Сервер не ответил на запрос входа за 12 секунд. Проверь адрес сервера и его журнал ошибок.');console.error('player:hello acknowledgement timeout');return;}if(!result?.ok){setOnlineConnectionState('offline',result?.message||'Сервер отклонил вход.');}});});
  zoneSocket.on('connect_error',err=>{const target=(localStorage.getItem('zoneServerUrl')||window.location.origin).trim();setOnlineConnectionState('offline',`Не удалось подключиться к ${target}: ${err?.message||'ошибка сети'}. Проверь адрес сервера, его запуск и доступность /health.`);});
  zoneSocket.io.on('reconnect_attempt',()=>setOnlineConnectionState('connecting','Повторное подключение к серверу…'));
  zoneSocket.on('player:hello:error',data=>setOnlineConnectionState('offline',data?.message||'Не удалось завершить вход.'));
  zoneSocket.on('server:error',e=>{console.warn(e.message);setOnlineConnectionState('offline',e?.message||'Ошибка сервера.');});
  zoneSocket.on('player:ready',data=>{
   setOnlineConnectionState('online',data.persistent?'Сервер подключён. Профиль и общий мир сохраняются в PostgreSQL.':'Сервер подключён в режиме памяти. Для постоянных сохранений настрой PostgreSQL.');
-  zonePlayerId=data.id;localStorage.setItem('zoneOnlinePlayerId',zonePlayerId);if(data?.world?.playerSquads){const squad=Object.values(data.world.playerSquads).find(q=>q.members?.some(m=>m.id===zonePlayerId));renderPlayerSquad({squad:squad||null});}renderPlayerFriends(data?.world?.playerFriends?.[zonePlayerId]||[]);
+  zonePlayerId=data.id;localStorage.setItem('zoneOnlinePlayerId',zonePlayerId);if(data.account?.username){accountUsername=data.account.username;localStorage.setItem('zoneAccountUsername',accountUsername);updateAccountButton();}if(data?.world?.playerSquads){const squad=Object.values(data.world.playerSquads).find(q=>q.members?.some(m=>m.id===zonePlayerId));renderPlayerSquad({squad:squad||null});}renderPlayerFriends(data?.world?.playerFriends?.[zonePlayerId]||[]);
   if(data.savedState&&typeof data.savedState==='object'){applyingServerState=true;g=data.savedState;if(g.characterCreated===undefined)g.characterCreated=true;migrateWorld();localStorage.setItem('zoneExpandedSave',JSON.stringify(g));applyingServerState=false;render();if(g.characterCreated)$('characterSetup')?.classList.remove('show');else if(!$('characterSetup')?.classList.contains('show'))openCharacterSetup();}
   serverWorld=data.world||null;syncNpcRosterToClient();applyWorldSync(data.worldSync);if(serverWorld?.discoveredPoints)applySharedDiscoveredPoints(serverWorld.discoveredPoints);renderWar();renderOnlineWorldStatus(data.status);if(serverWorld?.diplomacy){g.diplomacy=serverWorld.diplomacy;renderDiplomacy();}if(serverWorld?.npcPositions)applySharedNpcPositions(serverWorld.npcPositions);renderCoopQuests(serverWorld?.coOpQuests||[]);
-  onlinePlayers=data.players||[];serverChat=data.chat||[];renderOnlinePlayers();renderServerChat();
-  if($('mpName'))$('mpName').value=g.name;
+  onlinePlayers=data.players||[];serverChat=(data.chat||[]).filter(m=>!m.location||m.location===g.loc);renderOnlinePlayers();renderServerChat();
+  if($('mpName'))$('mpName').value=g.name;if($('localChatHeading'))$('localChatHeading').textContent=`Локальный канал КПК · ${locationName(g.loc)}`;
   $('mpStatusText').textContent=data.persistent?'Сервер подключён · профиль и общий мир сохраняются в PostgreSQL.':'Сервер подключён · внимание: без PostgreSQL прогресс на сервере сбросится после перезапуска.';
   if(!data.savedState)zoneSocket.emit('player:save',g);
   renderPlayerTrade();renderIncomingTrades();mpSyncLocation();
@@ -815,6 +825,7 @@ async function connectZone(){
  zoneSocket.on('squad:encounter',data=>{if(!data)return;news('Встреча отрядов',data.text||'В секторе замечена другая группа.');log(data.text||'В секторе замечена другая группа.');});
  zoneSocket.on('squad:result',data=>{if(data?.message)alert(data.message);});
  zoneSocket.on('dm:history',data=>{playerDMHistory[data.targetId]=data.history||[];if(activePlayerDM===data.targetId)renderPlayerDM();});
+ zoneSocket.on('player:spawned',data=>{if(data?.state){applyingServerState=true;g=data.state;localStorage.setItem('zoneExpandedSave',JSON.stringify(g));applyingServerState=false;render();log(`Ты прибыл на базу группировки: ${spawnNames[data.location]||data.location}.`);}});
  zoneSocket.on('dm:message',m=>{const other=m.fromId===zonePlayerId?m.toId:m.fromId;playerDMHistory[other] ||= [];if(!playerDMHistory[other].some(x=>x.id===m.id))playerDMHistory[other].push(m);if(activePlayerDM===other)renderPlayerDM();else log('Новое личное сообщение от '+(m.fromName||'сталкера')+'.');});
  zoneSocket.on('dm:error',data=>alert(data?.message||'Личный канал недоступен.'));
  zoneSocket.on('npc:trade:result',data=>{if(data?.state){g=data.state;localStorage.setItem('zoneExpandedSave',JSON.stringify(g));render();}alert(data?.message||'Обмен завершён.');});
@@ -840,7 +851,8 @@ async function connectZone(){
  zoneSocket.on('trade:result',data=>{alert(data.message|| (data.ok?'Обмен выполнен.':'Обмен не выполнен.'));if(data.state){g=data.state;localStorage.setItem('zoneExpandedSave',JSON.stringify(g));render();}});
  zoneSocket.on('coop:result',data=>{alert(data.message||'');});
  zoneSocket.on('coop:reward',data=>{if(data.state){g=data.state;localStorage.setItem('zoneExpandedSave',JSON.stringify(g));render();}alert(`Совместное задание выполнено: +${data.reward} ₽ и ${data.xp} опыта.`);});
- zoneSocket.on('world:chat',m=>{serverChat.push(m);if(serverChat.length>100)serverChat=serverChat.slice(-100);renderServerChat();});
+ zoneSocket.on('world:chat:history',list=>{serverChat=(list||[]).filter(m=>!m.location||m.location===g.loc);renderServerChat();});
+ zoneSocket.on('world:chat',m=>{if(m.location&&m.location!==g.loc)return;serverChat.push(m);if(serverChat.length>100)serverChat=serverChat.slice(-100);renderServerChat();});
  zoneSocket.on('world:update',data=>{serverWorld=data.world||serverWorld;if(Number.isFinite(Number(serverWorld?.revision)))localStorage.setItem('zoneWorldRevision',String(serverWorld.revision));renderOnlineWorldStatus();renderWar();renderCoopQuests(serverWorld?.coOpQuests||[]);if(serverWorld?.diplomacy){g.diplomacy=serverWorld.diplomacy;localStorage.setItem('zoneExpandedSave',JSON.stringify(g));renderDiplomacy();}if(data.notice){g.news.unshift({day:realClock().day,hour:realClock().time,title:'Мировая сводка',body:data.notice});g.news=g.news.slice(0,40);renderNews();}});
  zoneSocket.on('diplomacy:result',data=>{if(!data.ok){alert(data.message||'Операция не выполнена.');return;}if(data.state){g.money=data.state.money;g.rep=data.state.rep;localStorage.setItem('zoneExpandedSave',JSON.stringify(g));}if(data.world?.diplomacy)g.diplomacy=data.world.diplomacy;render();});
  zoneSocket.on('disconnect',reason=>{setOnlineConnectionState('offline',`Связь потеряна (${reason||'disconnect'}). Автоматически переподключаемся…`);renderOnlinePlayers();renderOnlineWorldStatus();});
@@ -865,4 +877,4 @@ sell=function(id,amount=1){const x=g.items.find(i=>i.id===id);if(!x)return;amoun
 adjustDiplomacy=function(name,action){if(!zoneSocket?.connected)return alert('Подключись к общей Зоне, чтобы вести переговоры.');zoneSocket.emit('diplomacy:action',{target:name,action});};
 if($('mpMessage'))$('mpMessage').addEventListener('keydown',e=>{if(e.key==='Enter')mpSend();});
 connectZone();
-if(!g.characterCreated)openCharacterSetup();
+updateAccountButton();if(!g.characterCreated)openCharacterSetup();

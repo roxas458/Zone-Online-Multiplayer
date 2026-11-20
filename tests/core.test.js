@@ -277,3 +277,26 @@ test('dialogue topic selection returns the chosen current server-side topic', ()
   const result = interactDialogue(npc, {id:'player'}, 'topic', {topicIndex:1,locationName:'Кордон'}, 900000);
   assert.equal(result.reply.includes(d.topics[1][1]), true);
 });
+
+test('4.21 account auth is PostgreSQL-backed and uses hashed password/token credentials', () => {
+  const source = require('node:fs').readFileSync(require('node:path').join(__dirname, '..', 'server.js'), 'utf8');
+  assert.match(source, /app\.post\('\/api\/auth\/register'/);
+  assert.match(source, /app\.post\('\/api\/auth\/login'/);
+  assert.match(source, /crypto\.scrypt\(/);
+  assert.match(source, /hashToken\(token\)/);
+  assert.match(source, /CREATE TABLE IF NOT EXISTS zone_accounts/);
+  assert.match(source, /CREATE TABLE IF NOT EXISTS zone_account_sessions/);
+  assert.match(source, /payload\?\.token/);
+  assert.match(source, /pendingNewCharacter/);
+});
+test('4.21 new characters spawn at their faction home and faction chat is location-scoped', () => {
+  const server = require('node:fs').readFileSync(require('node:path').join(__dirname, '..', 'server.js'), 'utf8');
+  const client = require('node:fs').readFileSync(require('node:path').join(__dirname, '..', 'public', 'js', 'game.js'), 'utf8');
+  for (const [faction,location] of Object.entries({'Чистое небо':'swamps','Одиночки':'cordon','Долг':'bar','Свобода':'army','Бандиты':'dump','Военные':'agro','Учёные':'yantar','Наёмники':'limansk','Монолит':'radar'})) {
+    assert.ok(server.includes(`'${faction}':'${location}'`));
+    assert.ok(client.includes(`'${faction}':'${location}'`));
+  }
+  assert.match(server, /io\.to\(`location:\$\{p\.location\}`\)\.emit\('world:chat'/);
+  assert.match(server, /socket\.join\(`location:\$\{p\.location\}`\)/);
+  assert.match(client, /Локальный канал КПК/);
+});

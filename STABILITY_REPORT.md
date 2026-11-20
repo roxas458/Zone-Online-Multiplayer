@@ -20,3 +20,12 @@ A full HTTP server launch was not completed because dependencies (`express`, `so
 - Base camp behavior is represented as authoritative NPC state and map/PDA labels; individual animated campfire scenes are not yet part of the 2D global map.
 - Assaults and territory capture are strategic simulations, not a tactical RTS battle interface.
 - Client-side PDA rendering still uses the existing SVG map renderer; this update adds no new heavy animation loop.
+
+
+## 4.21.0 account and faction-start verification
+- Account endpoints and DB schema syntax checked.
+- Password derivation uses asynchronous scrypt with per-account salt; bearer tokens are stored as SHA-256 digests.
+- Cross-device account functionality requires PostgreSQL; memory mode returns HTTP 503 for account creation/login.
+- Faction spawn and sector-local chat behavior covered by tests.
+- Automated suite: 57 tests passed; JavaScript syntax check passed.
+- Live PostgreSQL integration and browser-to-browser session test remain deployment checks because no production database/browser session was available in this build environment.

@@ -135,3 +135,11 @@
 - Added faction base status aggregation and exposed guard/campfire/patrol counts in the PDA war feed.
 - Added NPC activity labels to global map markers.
 - Added regression coverage for faction territory assignment, stationary guards and border assault dispatch.
+
+
+## 4.21.0 — ACCOUNT LINK & FACTION SPAWN
+- Added PostgreSQL-backed account registration, login, token sessions and logout.
+- Added scrypt password hashing with per-account salts and hashed bearer-token storage.
+- Linked an account to a persistent player record for cross-device progress.
+- Added faction-specific new-character spawn locations, validated server-side.
+- Changed PDA world chat to a location-scoped channel and load sector-specific chat history on movement.

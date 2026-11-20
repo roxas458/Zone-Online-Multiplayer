@@ -28,10 +28,39 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: true, methods: ['GET','POST'] }, pingInterval: 25000, pingTimeout: 20000, maxHttpBufferSize: 1e6 });
 const PORT = process.env.PORT || 3000;
+const SPAWN_BY_FACTION = Object.freeze({'Одиночки':'cordon','Долг':'bar','Свобода':'army','Бандиты':'dump','Военные':'agro','Учёные':'yantar','Наёмники':'limansk','Монолит':'radar','Чистое небо':'swamps'});
+const hashToken = value => crypto.createHash('sha256').update(String(value)).digest('hex');
+const derivePassword = (password, salt) => new Promise((resolve,reject)=>crypto.scrypt(password,salt,64,(err,key)=>err?reject(err):resolve(key.toString('hex'))));
+function accountName(value){ return clean(value,24).toLowerCase(); }
+function validPassword(value){ return typeof value==='string' && value.length>=8 && value.length<=128; }
+async function resolveSession(token){ if(!pool||typeof token!=='string'||token.length<32)return null; try{const r=await pool.query('SELECT s.account_id,a.username,a.player_id FROM zone_account_sessions s JOIN zone_accounts a ON a.id=s.account_id WHERE s.token_hash=$1 AND s.expires_at>NOW()',[hashToken(token)]);return r.rows[0]||null;}catch(e){await dbFallback(e,'session lookup');return null;} }
+async function issueSession(accountId){const token=crypto.randomBytes(32).toString('hex');await pool.query("INSERT INTO zone_account_sessions(account_id,token_hash,expires_at) VALUES($1,$2,NOW()+INTERVAL '30 days')",[accountId,hashToken(token)]);return token;}
 
+app.use(express.json({limit:'64kb'}));
 app.use(express.static(path.join(__dirname, 'public')));
-app.get('/health', (_req,res) => res.json({ ok:true, service:'ZONE ONLINE 4.20 LIVING FACTIONS', database:dbReady?'postgres':'memory-fallback', online:online.size, revision:world.revision||1 }));
-app.get('/api/status', (_req,res) => res.json({ ...publicWorldStatus(world, online.size), persistent:dbReady, service:'ZONE ONLINE 4.20 LIVING FACTIONS' }));
+app.post('/api/auth/register', async (req,res)=>{
+  if(!pool||!dbReady)return res.status(503).json({ok:false,message:'Для аккаунтов нужна подключённая PostgreSQL. Сейчас сервер работает без постоянной базы данных.'});
+  const username=accountName(req.body?.username), password=req.body?.password, playerId=validId(req.body?.playerId)?String(req.body.playerId):crypto.randomUUID();
+  if(!/^[a-zа-яё0-9_-]{3,24}$/i.test(username))return res.status(400).json({ok:false,message:'Логин: 3–24 символа, буквы, цифры, _ или -.'});
+  if(!validPassword(password))return res.status(400).json({ok:false,message:'Пароль должен содержать от 8 до 128 символов.'});
+  const salt=crypto.randomBytes(16).toString('hex');
+  try{
+    const passwordHash=await derivePassword(password,salt);
+    const state=safeState(req.body?.state).state;
+    const client=await pool.connect(); let accountId;
+    try{await client.query('BEGIN');const a=await client.query('INSERT INTO zone_accounts(id,username,password_hash,password_salt,player_id) VALUES($1,$2,$3,$4,$5) RETURNING id',[crypto.randomUUID(),username,passwordHash,salt,playerId]);accountId=a.rows[0].id;await client.query('INSERT INTO zone_players(id,state,account_id,updated_at) VALUES($1,$2,$3,NOW()) ON CONFLICT(id) DO UPDATE SET state=EXCLUDED.state,account_id=EXCLUDED.account_id,updated_at=NOW()',[playerId,state,accountId]);await client.query('COMMIT');}catch(e){await client.query('ROLLBACK');throw e;}finally{client.release();}
+    const token=await issueSession(accountId);res.status(201).json({ok:true,token,playerId,state,message:'Аккаунт создан. Теперь можно входить с другого устройства.'});
+  }catch(e){if(e.code==='23505')return res.status(409).json({ok:false,message:'Такой логин уже занят.'});console.error('account register:',e);res.status(500).json({ok:false,message:'Не удалось создать аккаунт.'});}
+});
+app.post('/api/auth/login', async (req,res)=>{
+  if(!pool||!dbReady)return res.status(503).json({ok:false,message:'Вход по аккаунту требует подключённой PostgreSQL.'});
+  const username=accountName(req.body?.username), password=req.body?.password;
+  try{const r=await pool.query('SELECT id,username,password_hash,password_salt,player_id FROM zone_accounts WHERE username=$1',[username]);const a=r.rows[0];if(!a||!validPassword(password)||!crypto.timingSafeEqual(Buffer.from(await derivePassword(password,a.password_salt),'hex'),Buffer.from(a.password_hash,'hex')))return res.status(401).json({ok:false,message:'Неверный логин или пароль.'});const pr=await pool.query('SELECT state FROM zone_players WHERE id=$1',[a.player_id]);const token=await issueSession(a.id);res.json({ok:true,token,playerId:a.player_id,state:pr.rows[0]?.state||null,username:a.username});}catch(e){console.error('account login:',e);res.status(500).json({ok:false,message:'Ошибка входа. Попробуй позже.'});}
+});
+app.get('/api/auth/me', async (req,res)=>{const a=await resolveSession(String(req.headers.authorization||'').replace(/^Bearer\s+/i,''));if(!a)return res.status(401).json({ok:false});res.json({ok:true,username:a.username,playerId:a.player_id});});
+app.post('/api/auth/logout', async (req,res)=>{const token=String(req.headers.authorization||'').replace(/^Bearer\s+/i,'');if(pool&&token)try{await pool.query('DELETE FROM zone_account_sessions WHERE token_hash=$1',[hashToken(token)]);}catch(e){await dbFallback(e,'logout');}res.json({ok:true});});
+app.get('/health', (_req,res) => res.json({ ok:true, service:'ZONE ONLINE 4.21 ACCOUNT LINK', database:dbReady?'postgres':'memory-fallback', online:online.size, revision:world.revision||1 }));
+app.get('/api/status', (_req,res) => res.json({ ...publicWorldStatus(world, online.size), persistent:dbReady, service:'ZONE ONLINE 4.21 ACCOUNT LINK' }));
 app.get('/api/world/snapshot', (_req,res) => res.json({ status:publicWorldStatus(world, online.size), world }));
 app.get('/api/world/events', (req,res) => { const since=Number(req.query.since||0); const sync=buildWorldSync(world, Number.isSafeInteger(since)?since:0); res.json(sync); });
 
@@ -45,7 +74,10 @@ async function initDb(){
   try {
     const { Pool } = require('pg');
     pool = new Pool({ connectionString:process.env.DATABASE_URL, ssl:process.env.DATABASE_URL.includes('localhost')?false:{rejectUnauthorized:false}, max:10, idleTimeoutMillis:30000, connectionTimeoutMillis:10000 });
-    await pool.query(`CREATE TABLE IF NOT EXISTS zone_players (id TEXT PRIMARY KEY, state JSONB NOT NULL, updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`);
+    await pool.query(`CREATE TABLE IF NOT EXISTS zone_players (id TEXT PRIMARY KEY, state JSONB NOT NULL, account_id UUID, updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`);
+    await pool.query(`ALTER TABLE zone_players ADD COLUMN IF NOT EXISTS account_id UUID`);
+    await pool.query(`CREATE TABLE IF NOT EXISTS zone_accounts (id UUID PRIMARY KEY, username TEXT UNIQUE NOT NULL, password_hash TEXT NOT NULL, password_salt TEXT NOT NULL, player_id TEXT UNIQUE NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`);
+    await pool.query(`CREATE TABLE IF NOT EXISTS zone_account_sessions (id BIGSERIAL PRIMARY KEY, account_id UUID NOT NULL REFERENCES zone_accounts(id) ON DELETE CASCADE, token_hash TEXT UNIQUE NOT NULL, expires_at TIMESTAMPTZ NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`);
     await pool.query(`CREATE TABLE IF NOT EXISTS zone_world (id INTEGER PRIMARY KEY CHECK (id=1), state JSONB NOT NULL, updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`);
     await pool.query(`CREATE TABLE IF NOT EXISTS zone_chat (id BIGSERIAL PRIMARY KEY, payload JSONB NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`);
     await pool.query(`CREATE TABLE IF NOT EXISTS zone_private_messages (id BIGSERIAL PRIMARY KEY, message_id TEXT UNIQUE NOT NULL, from_id TEXT NOT NULL, to_id TEXT NOT NULL, payload JSONB NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`);
@@ -79,7 +111,7 @@ function publishSquadMove(q,from,to,leader){
   q.location=to; squadJournal(q,'move',`${leader} повёл отряд из сектора ${from} в сектор ${to}.`);
   if(q.escortNpcId){const escort=world.npcState?.[q.escortNpcId];if(escort&&escort.alive!==false){escort.location=to;world.npcPositions ||= {};world.npcPositions[escort.id]=to;io.emit('world:npcs',world.npcPositions);io.emit('world:npc-state',{npcs:world.npcState,events:(world.npcEvents||[]).slice(-20),squads:world.npcSquads||[],memorial:world.npcMemorial||[],battlefronts:world.battlefronts||[],convoys:world.convoys||[],factionBases:world.factionBases||[],frontlineOrders:world.frontlineOrders||[]});squadJournal(q,'escort_move',`${escort.name} продолжает идти вместе с отрядом.`);}else q.escortNpcId=null;}
   for(const m of q.members||[]){ const member=online.get(m.id); if(!member)continue; const old=member.location; member.location=to;
-    const st=safeState(member.state); st.state.loc=to; member.state=st.state; persistPlayer(member.id,member.state).catch(()=>{});
+    const st=safeState(member.state); st.state.loc=to; member.state=st.state; const memberSocket=member.socketId&&io.sockets.sockets.get(member.socketId); if(memberSocket){memberSocket.leave(`location:${old}`);memberSocket.join(`location:${to}`);memberSocket.emit('world:chat:history',recentChat.filter(m=>!m.location||m.location===to).slice(-60));} persistPlayer(member.id,member.state).catch(()=>{});
     io.to(member.id).emit('squad:travelled',{location:to,from:old,leader:leader,squad:q});
   }
   publishSquad(q); broadcastOnline();
@@ -95,16 +127,20 @@ function publishSquadMove(q,from,to,leader){
 io.on('connection', socket=>{
   socket.on('player:hello', async (payload, ack)=>{
     try {
-      const id=validId(payload?.id)?String(payload.id):crypto.randomUUID();
+      const auth=payload?.token?await resolveSession(payload.token):null;
+      if(payload?.token&&!auth)throw new Error('Сессия аккаунта истекла. Войди в аккаунт заново.');
+      const id=auth?.player_id||(validId(payload?.id)?String(payload.id):crypto.randomUUID());
       let saved=await loadPlayer(id);
-      if(!saved && payload?.state) { saved=safeState(payload.state).state; await persistPlayer(id,saved); }
+      if(auth&&pool){const owned=await pool.query('SELECT state FROM zone_players WHERE id=$1 AND account_id=$2',[id,auth.account_id]);saved=owned.rows[0]?.state||saved;}
+      const pendingNewCharacter=payload?.state?.characterCreated===true&&saved?.characterCreated!==true;
+      if((!saved||pendingNewCharacter) && payload?.state) { saved=safeState(payload.state).state; await persistPlayer(id,saved); }
       const s=saved?safeState(saved):safeState(payload?.state);
       const p={ id, name:s.name, faction:s.faction, location:s.loc, hp:s.hp, xp:s.xp, joinedAt:Date.now(), lastSeen:Date.now(), state:saved||s.state };
       const previous=online.get(id); if(previous?.socketId&&previous.socketId!==socket.id){const oldSocket=io.sockets.sockets.get(previous.socketId);if(oldSocket)oldSocket.disconnect(true);}
-      socket.data.playerId=id; socket.data.name=p.name; p.socketId=socket.id; online.set(id,p); socket.join('zone-world'); socket.join(id);
+      socket.data.playerId=id; socket.data.name=p.name; socket.data.accountId=auth?.account_id||null; p.socketId=socket.id; online.set(id,p); socket.join('zone-world'); socket.join(id); socket.join(`location:${p.location}`); socket.join(`faction:${p.faction}`);
       world.onlineMetrics ||= { totalJoins:0, totalMoves:0, lastTickAt:0 }; world.onlineMetrics.totalJoins += 1;
       const joinEvent = appendWorldEvent(world, 'player_joined', { player:publicPlayer(p) });
-      socket.emit('player:ready',{id, savedState:saved, world, worldSync:buildWorldSync(world, Number(payload?.lastRevision)||0), status:publicWorldStatus(world,online.size), chat:recentChat.slice(-60), players:onlineList(), persistent:dbReady});
+      socket.emit('player:ready',{id, savedState:saved, account:auth?{username:auth.username}:null, world, worldSync:buildWorldSync(world, Number(payload?.lastRevision)||0), status:publicWorldStatus(world,online.size), chat:recentChat.filter(m=>!m.location||m.location===p.location).slice(-60), players:onlineList(), persistent:dbReady});
       if(typeof ack==='function')ack({ok:true,id,persistent:dbReady});
       socket.to('zone-world').emit('world:event',joinEvent);
       io.emit('world:npcs',world.npcPositions); io.emit('world:npc-state',{npcs:world.npcState,events:(world.npcEvents||[]).slice(-20),squads:world.npcSquads||[],memorial:world.npcMemorial||[],battlefronts:world.battlefronts||[],convoys:world.convoys||[],factionBases:world.factionBases||[],frontlineOrders:world.frontlineOrders||[]}); io.emit('world:ecosystem',world.ecosystem); io.emit('world:coop',world.coOpQuests); io.emit('war:state',{operations:world.warOperations||[],history:(world.warHistory||[]).slice(0,12)});
@@ -113,17 +149,19 @@ io.on('connection', socket=>{
   });
   socket.on('player:save', async input=>{
     const id=socket.data.playerId, p=online.get(id); if(!id||!p)return;
-    const s=safeState(input); const previousLocation=p.location; const squad=squadOf(id); if(squad&&squad.leader!==id&&s.loc!==squad.location)s.state.loc=squad.location; p.name=s.name;p.faction=s.faction;p.location=squad&&squad.leader!==id?squad.location:s.loc;p.x=Number.isFinite(Number(s.state?.worldPosition?.x))?Math.max(0,Math.min(1000,Math.round(Number(s.state.worldPosition.x)))):p.x;p.y=Number.isFinite(Number(s.state?.worldPosition?.y))?Math.max(0,Math.min(2000,Math.round(Number(s.state.worldPosition.y)))):p.y;p.hp=s.hp;p.xp=s.xp;p.lastSeen=Date.now();p.state=s.state;socket.data.name=s.name;
+    const s=safeState(input); const previousLocation=p.location, previousFaction=p.faction; const squad=squadOf(id); const firstCharacter=!p.state?.characterCreated&&s.state?.characterCreated===true; if(p.state?.characterCreated&&!firstCharacter){s.state.faction=p.faction;s.faction=p.faction;} if(firstCharacter){const spawn=SPAWN_BY_FACTION[s.faction]||'cordon';s.state.loc=spawn;s.state.visitedLocations=[...new Set([...(s.state.visitedLocations||[]),spawn])];s.loc=spawn;} if(squad&&squad.leader!==id&&s.loc!==squad.location)s.state.loc=squad.location; p.name=s.name;p.faction=s.faction;p.location=squad&&squad.leader!==id?squad.location:s.loc;p.x=Number.isFinite(Number(s.state?.worldPosition?.x))?Math.max(0,Math.min(1000,Math.round(Number(s.state.worldPosition.x)))):p.x;p.y=Number.isFinite(Number(s.state?.worldPosition?.y))?Math.max(0,Math.min(2000,Math.round(Number(s.state.worldPosition.y)))):p.y;p.hp=s.hp;p.xp=s.xp;p.lastSeen=Date.now();p.state=s.state;socket.data.name=s.name; if(previousLocation!==p.location){socket.leave(`location:${previousLocation}`);socket.join(`location:${p.location}`);socket.emit('world:chat:history',recentChat.filter(m=>!m.location||m.location===p.location).slice(-60));} if(previousFaction!==p.faction){socket.leave(`faction:${previousFaction}`);socket.join(`faction:${p.faction}`);}
     try{ await persistPlayer(id,s.state); }catch(e){socket.emit('server:error',{message:'Не удалось сохранить профиль на сервере.'});console.error(e);}
     if(previousLocation!==p.location){ world.onlineMetrics ||= {totalJoins:0,totalMoves:0,lastTickAt:0}; world.onlineMetrics.totalMoves+=1; const ev=appendWorldEvent(world,'player_moved',{playerId:id,name:p.name,faction:p.faction,from:previousLocation,to:p.location}); io.to('zone-world').emit('world:event',ev); if(squad&&squad.leader===id)publishSquadMove(squad,previousLocation,p.location,p.name); await persistWorld(); }
+    if(firstCharacter)socket.emit('player:spawned',{state:p.state,location:p.location});
     broadcastOnline();
   });
   socket.on('player:update', async input=>{
     const p=online.get(socket.data.playerId);if(!p)return;
     const oldLocation=p.location, oldFaction=p.faction; const squad=squadOf(p.id);
     if(LOCATIONS.has(input?.location)){ if(squad&&squad.leader!==p.id&&input.location!==squad.location){socket.emit('squad:result',{ok:false,message:'Отрядом управляет лидер. Покинь отряд, чтобы идти отдельно.'});p.location=squad.location;}else p.location=input.location; }
-    if(FACTIONS.has(input?.faction))p.faction=input.faction;
+    if(!p.state?.characterCreated&&FACTIONS.has(input?.faction))p.faction=input.faction;
     if(input?.name)p.name=clean(input.name,24)||p.name;
+    if(oldLocation!==p.location){socket.leave(`location:${oldLocation}`);socket.join(`location:${p.location}`);socket.emit('world:chat:history',recentChat.filter(m=>!m.location||m.location===p.location).slice(-60));} if(oldFaction!==p.faction){socket.leave(`faction:${oldFaction}`);socket.join(`faction:${p.faction}`);}
     p.lastSeen=Date.now();
     if(oldLocation!==p.location || oldFaction!==p.faction){
       world.onlineMetrics ||= {totalJoins:0,totalMoves:0,lastTickAt:0};
@@ -142,8 +180,8 @@ io.on('connection', socket=>{
     if(!socket.data.playerId)return;
     const text=clean(input?.text,240);if(!text)return;
     const p=online.get(socket.data.playerId);
-    const m={id:crypto.randomUUID(),name:p?.name||'Сталкер',faction:p?.faction||'Одиночки',text,time:Date.now()};
-    recentChat.push(m);if(recentChat.length>80)recentChat.shift();io.to('zone-world').emit('world:chat',m);
+    if(!p)return; const m={id:crypto.randomUUID(),name:p.name,faction:p.faction,location:p.location,text,time:Date.now()};
+    recentChat.push(m);if(recentChat.length>300)recentChat.shift();io.to(`location:${p.location}`).emit('world:chat',m);
     try{await persistChat(m);}catch(e){console.error('chat persistence:',e.message);}
   });
   socket.on('dm:history', async input=>{

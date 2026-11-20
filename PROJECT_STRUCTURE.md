@@ -62,3 +62,10 @@ ZONE_ONLINE/
 - `src/systems/territories.js` — canonical adjacency, faction home regions, legal territory entry and retreat routing.
 - `src/systems/npc-roster.js` — persistent faction-aligned NPC generation and migration of old roaming NPC records.
 - `src/systems/npc-ai.js` — server-authoritative camp, guard, rest, patrol, assault, combat and retreat decisions.
+
+
+## 4.21 account link
+- `server.js`: `/api/auth/register`, `/api/auth/login`, `/api/auth/me`, `/api/auth/logout`; PostgreSQL account and session tables; Socket.IO session validation; faction start spawn and location chat rooms.
+- `public/index.html`: account dialog and faction spawn preview.
+- `public/js/game.js`: account token handling, cross-device login, faction-specific new-game spawn, local-sector chat.
+- `public/css/game.css`: account dialog/header controls.
