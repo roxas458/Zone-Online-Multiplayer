@@ -10,6 +10,7 @@ const {
 const { clean, validId, createSafeState } = require('./src/server/validation');
 const safeState = createSafeState(FACTIONS, LOCATIONS);
 const { createMoveOrder, advanceMoveOrder } = require('./src/systems/player-orders');
+const { createExpedition, advanceExpedition, findRoute } = require('./src/systems/expedition');
 const { initSharedWorld, initDiplomacy } = require('./src/server/world');
 const { WAR_CONFIG, createOperation, deploymentPower, addDeployment, resolveOperation } = require('./src/systems/war');
 const { tickNpcWorld, interactWithNpc, isHostileFaction } = require('./src/systems/npc-ai');
@@ -174,6 +175,16 @@ io.on('connection', socket=>{
     broadcastOnline();
   });
   socket.on('player:position', ()=>{ /* Position is server-authoritative in 4.22; legacy client writes are ignored. */ });
+  socket.on('player:expedition-order', input=>{
+    const p=online.get(socket.data.playerId);if(!p)return;
+    if(!LOCATIONS.has(input?.destination)){socket.emit('player:expedition-result',{ok:false,message:'Неизвестная локация назначения.'});return;}
+    const squad=squadOf(p.id);if(squad&&squad.leader!==p.id){socket.emit('player:expedition-result',{ok:false,message:'Маршрутом отряда управляет командир.'});return;}
+    const result=createExpedition(p,input.destination,['safe','fast','balanced'].includes(input?.mode)?input.mode:'safe');
+    if(!result.ok){socket.emit('player:expedition-result',result);return;}
+    p.expedition=result.expedition;p.moveOrder=null;p.travelEncounter=null;
+    socket.emit('player:expedition-result',{ok:true,message:'Экспедиция началась. КПК будет сообщать о переходах между секторами.',expedition:p.expedition});
+  });
+  socket.on('player:expedition-cancel',()=>{const p=online.get(socket.data.playerId);if(!p)return;p.expedition=null;socket.emit('player:expedition-result',{ok:true,message:'Экспедиция отменена.'});});
   socket.on('player:move-order', input=>{
     const p=online.get(socket.data.playerId);if(!p)return;
     if(input?.location!==p.location){socket.emit('player:move-result',{ok:false,message:'Маршрут должен начинаться в текущем секторе.'});return;}
@@ -188,7 +199,7 @@ io.on('connection', socket=>{
     socket.emit('player:move-result',{ok:true,message:'Приказ принят. Персонаж начал движение по маршруту.',order:{x:tx,y:ty,etaSeconds:Math.ceil(result.order.distance/result.order.speed)}});
   });
   socket.on('player:move-cancel',()=>{const p=online.get(socket.data.playerId);if(!p)return;p.moveOrder=null;p.travelEncounter=null;socket.emit('player:movement',{x:p.x,y:p.y,moving:false});socket.emit('player:move-result',{ok:true,message:'Приказ на движение отменён.'});});
-  socket.on('player:travel-response',input=>{const p=online.get(socket.data.playerId);if(!p||!p.travelEncounter)return;const action=['continue','fight'].includes(input?.action)?input.action:'retreat';p.travelEncounter=null;if(action!=='continue')p.moveOrder=null;else if(p.moveOrder)p.moveOrder.encounterChecked=true;socket.emit('player:move-result',{ok:true,message:action==='continue'?'Продолжаешь путь после опасной встречи.':action==='fight'?'Ты принимаешь бой. Маршрут приостановлен.':'Маршрут прерван. Персонаж отходит в безопасную точку.'});});
+  socket.on('player:travel-response',input=>{const p=online.get(socket.data.playerId);if(!p||(!p.travelEncounter&&p.expedition?.status!=='paused'))return;const action=['continue','fight'].includes(input?.action)?input.action:'retreat';p.travelEncounter=null;if(p.expedition?.status==='paused'){if(action==='continue')p.expedition.status='travelling';else p.expedition=null;}if(action!=='continue')p.moveOrder=null;else if(p.moveOrder)p.moveOrder.encounterChecked=true;socket.emit('player:move-result',{ok:true,message:action==='continue'?'Продолжаешь путь после опасной встречи.':action==='fight'?'Ты принимаешь бой. Маршрут приостановлен.':'Маршрут прерван. Персонаж отходит в безопасную точку.'});});
   socket.on('world:sync', input=>{
     if(!socket.data.playerId)return;
     socket.emit('world:sync',buildWorldSync(world,Number(input?.sinceRevision)||0));
@@ -422,12 +433,23 @@ io.on('connection', socket=>{
   });
 });
 
+function socketSafeEmit(playerId,event,payload){io.to(playerId).emit(event,payload);}
 let playerMovementTickRunning=false;
 setInterval(async()=>{
   if(playerMovementTickRunning)return;playerMovementTickRunning=true;
   try{
     let movedAny=false;
     for(const p of online.values()){
+      if(p.expedition?.status==='travelling'){
+        const step=advanceExpedition(p,Date.now());
+        if(step.advanced){p.lastSeen=Date.now();const old=p.expedition.path[p.expedition.index-1];const sock=[...io.sockets.sockets.values()].find(x=>x.data.playerId===p.id);if(sock){sock.leave(`location:${old}`);sock.join(`location:${p.location}`);sock.emit('world:chat:history',recentChat.filter(m=>!m.location||m.location===p.location).slice(-60));}socketSafeEmit(p.id,'player:expedition-step',{location:step.location,arrived:step.arrived,route:p.expedition.path,index:p.expedition.index});
+          if(!step.arrived&&Math.random()<Math.min(.42,(require('./src/systems/expedition').RISK[step.location]||30)/260)){p.expedition.status='paused';p.travelEncounter={type:'route_contact',at:Date.now()};io.to(p.id).emit('player:travel-event',{type:'mutants',message:`На подходе к сектору ${step.location} обнаружена опасность: мутанты или неизвестный отряд. Экспедиция остановлена. Продолжить скрытно или отступить?`});}
+          const squad=squadOf(p.id);if(squad&&squad.leader===p.id){squad.location=p.location;for(const member of squad.members||[]){const follower=online.get(member.id);if(follower&&follower.id!==p.id){const fsock=[...io.sockets.sockets.values()].find(x=>x.data.playerId===follower.id);if(fsock){fsock.leave(`location:${old}`);fsock.join(`location:${p.location}`);}follower.location=p.location;follower.expedition={...p.expedition};io.to(follower.id).emit('player:expedition-step',{location:p.location,arrived:step.arrived,route:p.expedition.path,index:p.expedition.index});}}}
+          io.to(p.id).emit('player:expedition-result',{ok:true,message:step.arrived?'Экспедиция завершена. Ты прибыл в пункт назначения.':`Переход выполнен: ${p.location}.`,expedition:p.expedition});broadcastOnline();persistWorld().catch(()=>{});
+          if(step.arrived)p.expedition=null;
+        }
+        continue;
+      }
       if(!p.moveOrder||p.travelEncounter)continue;
       const order=p.moveOrder;const before=Math.hypot(order.x-p.x,order.y-p.y);
       const result=advanceMoveOrder(p,1);
