@@ -174,3 +174,12 @@
 - Socket.IO connection timeout increased to 60 seconds to tolerate Render free-instance cold starts.
 - PostgreSQL connection/query timeouts bounded to prevent a stalled database request from hanging the login handshake indefinitely.
 - Added regression tests for acknowledgement ordering and timeout configuration.
+
+
+## 4.30.4 — Account and multiplayer recovery
+- Expired or unverifiable account sessions fall back safely to a separate guest identity instead of blocking multiplayer.
+- Client removes stale credentials after the server signals session fallback.
+- Added `/api/diagnostics` and an in-game network/server test.
+- Prevented overlapping asynchronous connect attempts.
+- Compatible separately hosted server URLs are no longer rejected solely for not matching the 4.30 version prefix.
+- PostgreSQL remains required for account registration/login and cross-device persistence, but not for guest multiplayer.

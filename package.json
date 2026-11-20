@@ -1,8 +1,8 @@
 {
   "name": "zone-online",
-  "version": "4.30.3",
+  "version": "4.30.4",
   "private": true,
-  "description": "Browser-based STALKER-inspired MMO with NPC-specific economy and multiplayer connection recovery",
+  "description": "Browser-based STALKER-inspired MMO with NPC-specific economy and multiplayer auth recovery and diagnostics",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",

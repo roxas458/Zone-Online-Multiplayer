@@ -413,8 +413,8 @@ test('4.25 field PDA keeps long-page filters and map controls reachable', () => 
 test('4.30 build labels are consistent', () => {
   const html = fs.readFileSync(path.join(root, 'public/index.html'), 'utf8');
   const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
-  assert.equal(pkg.version, '4.30.3');
-  assert.match(html, /BUILD 4\.30\.3/);
+  assert.equal(pkg.version, '4.30.4');
+  assert.match(html, /BUILD 4\.30\.4/);
   assert.match(html, /ZONE ONLINE 4\.30/);
 });
 
@@ -511,4 +511,18 @@ test('4.30 enables dialogue NPC trade with independent NPC wallets and bounded s
   assert.match(server, /account\.balance-payout/);
   assert.match(server, /The NPC's independent balance is intentionally not debited/);
   assert.match(server, /account\.stock\[itemId\]=available-goods\.qty/);
+});
+
+
+test('4.30.4 invalid account sessions fall back to a separate guest and diagnostics are exposed', () => {
+  const html = fs.readFileSync(path.join(root, 'public/index.html'), 'utf8');
+  const client = fs.readFileSync(path.join(root, 'public/js/game.js'), 'utf8');
+  const server = fs.readFileSync(path.join(root, 'server.js'), 'utf8');
+  assert.match(server, /const authFallback=suppliedToken&&!auth/);
+  assert.match(server, /authFallback\?crypto\.randomUUID\(\)/);
+  assert.match(server, /player:auth-expired/);
+  assert.match(server, /app\.get\('\/api\/diagnostics'/);
+  assert.match(client, /zoneSocket\.on\('player:auth-expired'/);
+  assert.match(client, /function runNetworkCheck\(/);
+  assert.match(html, /Проверить сеть и сервер/);
 });

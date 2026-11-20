@@ -653,7 +653,7 @@ function manualSave(){save();alert("Игра сохранена в этом бр
 function resetGame(){if(confirm("Начать заново? Текущее локальное сохранение будет заменено.")){g=clone(base);activeNpc=null;chosenLoc=null;save();view("home")}}
 // GLOBAL ONLINE WORLD state must exist before the first render: renderPeople()
  // reads serverWorld while building the initial NPC roster.
-let zoneSocket=null, zoneHelloReadyTimer=null, zonePlayerId=localStorage.getItem('zoneOnlinePlayerId')||'', accountToken=localStorage.getItem('zoneAccountToken')||'', accountUsername=localStorage.getItem('zoneAccountUsername')||'';
+let zoneSocket=null, zoneHelloReadyTimer=null, zoneConnectAttempt=0, zonePlayerId=localStorage.getItem('zoneOnlinePlayerId')||'', accountToken=localStorage.getItem('zoneAccountToken')||'', accountUsername=localStorage.getItem('zoneAccountUsername')||'';
 const factionSpawn={ 'Одиночки':'cordon','Долг':'bar','Свобода':'army','Бандиты':'dump','Военные':'agro','Учёные':'yantar','Наёмники':'limansk','Монолит':'radar','Чистое небо':'swamps' };
 const spawnNames={cordon:'Кордон',bar:'Бар',army:'Военные склады',dump:'Свалка',agro:'Агропром',yantar:'Янтарь',limansk:'Лиманск',radar:'Радар',swamps:'Болота'};
 function updateAccountButton(){const b=$('accountTrigger');if(b)b.textContent=accountToken?`♙ ${accountUsername||'Аккаунт'} · Выйти`:'♙ Аккаунт';}
@@ -883,9 +883,32 @@ function setOnlineConnectionState(state,message){
  if(title)title.textContent=state==="online"?"🟢 Подключено к общей Зоне":state==="connecting"?"🟡 Подключение к серверу…":"🔴 Нет соединения";
  if(detail)detail.textContent=message|| (state==="online"?"Сервер подтвердил вход. Игроки и мир синхронизированы.":state==="connecting"?"Устанавливаем связь и загружаем профиль…":"Сервер недоступен. Проверяем соединение и повторяем попытку.");
 }
+async function runNetworkCheck(){
+ const output=$('mpDiagnosticsResult');if(output)output.textContent='Проверяем сервер, Socket.IO и базу аккаунтов…';
+ const saved=(localStorage.getItem('zoneServerUrl')||'').trim();
+ const target=saved||window.location.origin;
+ const checks=[];
+ try{
+  const healthResponse=await fetch(target.replace(/\/$/,'')+'/health',{cache:'no-store'});
+  const health=await healthResponse.json();
+  checks.push(`HTTP /health: ${healthResponse.ok&&health.ok?'OK':'ОШИБКА'} · версия ${health.version||'неизвестна'}`);
+  const diagResponse=await fetch(target.replace(/\/$/,'')+'/api/diagnostics',{cache:'no-store'});
+  const diag=await diagResponse.json();
+  checks.push(`Мультиплеер: ${diag.multiplayer?'включён':'не подтверждён'} · игроков онлайн: ${diag.online??'—'}`);
+  checks.push(`Аккаунты: ${diag.accountsAvailable?'PostgreSQL подключена':'PostgreSQL не подключена (гостевой режим доступен)'}`);
+  checks.push(`Socket.IO: ${diag.socketPath||'/socket.io'} · ${Array.isArray(diag.transports)?diag.transports.join(' → '):'неизвестно'}`);
+ }catch(error){checks.push(`HTTP /health: ОШИБКА · ${error.message||'сеть недоступна'}`);}
+ checks.push(`Браузерный Socket.IO: ${typeof io==='function'?'загружен':'не загружен'}`);
+ checks.push(`Текущее соединение: ${zoneSocket?.connected?'подключено':'не подключено'}`);
+ if(output)output.textContent=checks.join(' | ');
+ return checks;
+}
+
 async function connectZone(){
+ const connectAttempt=++zoneConnectAttempt;
  const queryMatch=String(window.location.search||'').match(/[?&]server=([^&]+)/);let queryServer=null;try{queryServer=queryMatch?decodeURIComponent(queryMatch[1].replace(/\+/g,' ')):null;}catch(error){console.warn('Invalid server URL query parameter:',error.message);}if(queryServer&&!localStorage.getItem('zoneServerUrl')){try{const u=new URL(queryServer);if(['http:','https:'].includes(u.protocol))localStorage.setItem('zoneServerUrl',u.origin);}catch{}}
  const clientReady = window.zoneSocketClientReady ? await window.zoneSocketClientReady : (typeof io==='function');
+ if(connectAttempt!==zoneConnectAttempt)return;
  if(!clientReady || typeof io!=='function'){
   setOnlineConnectionState('offline','Не удалось загрузить Socket.IO. Проверь интернет или открой игру с сервера. Если игра размещена отдельно, укажи адрес Node-сервера ниже.');
   return;
@@ -897,15 +920,16 @@ async function connectZone(){
   try{const parsed=new URL(serverUrl);if(!['http:','https:'].includes(parsed.protocol))throw new Error('Неподдерживаемый протокол');serverUrl=parsed.origin;}
   catch(error){console.warn('Discarding invalid saved multiplayer server URL:',error.message);serverUrl='';localStorage.removeItem('zoneServerUrl');}
  }
- // A custom URL is accepted only when it identifies this game's current server build.
- // Old/stale URLs can still answer /health while pointing to a different deployment.
+ // Accept a separately hosted ZONE ONLINE service even if its compatible server
+ // release is older than the page build; the health endpoint must still identify it.
  if(serverUrl && serverUrl!==sameOrigin){
   try{
    const response=await fetch(serverUrl+'/health',{cache:'no-store'});
    const health=await response.json();
-   const version=String(health?.version||'');
-   if(!response.ok||health?.ok!==true||!/^4\.30\./.test(version))throw new Error('Сохранённый адрес ведёт не на текущую версию сервера.');
+   if(connectAttempt!==zoneConnectAttempt)return;
+   if(!response.ok||health?.ok!==true)throw new Error('Сохранённый адрес не отвечает как сервер ZONE ONLINE.');
   }catch(error){
+   if(connectAttempt!==zoneConnectAttempt)return;
    console.warn('Using the server that hosts this game instead of the saved URL:',error.message);
    serverUrl='';
    localStorage.removeItem('zoneServerUrl');
@@ -928,18 +952,26 @@ async function connectZone(){
  zoneSocket.on('connect_error',err=>{const target=(localStorage.getItem('zoneServerUrl')||window.location.origin).trim();const reason=err?.message||'ошибка сети';setOnlineConnectionState('offline',`Нет связи с ${target}. Причина: ${reason}. Открой ${target.replace(/\/$/,'')}/health. Если страница не открывается — сервер не запущен или указан неверный адрес; если открывается — проверь CORS/прокси и повтори подключение.`);console.error('ZONE ONLINE Socket.IO connect_error:',err);});
  zoneSocket.on('disconnect',reason=>{if(zoneHelloReadyTimer){clearTimeout(zoneHelloReadyTimer);zoneHelloReadyTimer=null;}if(reason!=='io client disconnect')setOnlineConnectionState('offline',`Соединение с сервером потеряно (${reason||'неизвестная причина'}). Клиент автоматически попробует подключиться снова.`);renderOnlinePlayers();renderOnlineWorldStatus();});
  zoneSocket.io.on('reconnect_attempt',()=>setOnlineConnectionState('connecting','Повторное подключение к серверу…'));
+ zoneSocket.on('player:auth-expired',data=>{
+  accountToken='';accountUsername='';
+  localStorage.removeItem('zoneAccountToken');localStorage.removeItem('zoneAccountUsername');
+  updateAccountButton();
+  const message=data?.message||'Сессия аккаунта недействительна. Продолжаем как гость.';
+  const accountMessage=$('accountMessage');if(accountMessage)accountMessage.textContent=message;
+  console.warn('ZONE ONLINE account session fallback:',data?.reason||'unknown');
+ });
  zoneSocket.on('player:hello:error',data=>setOnlineConnectionState('offline',data?.message||'Не удалось завершить вход.'));
  zoneSocket.on('server:error',e=>{console.warn(e.message);setOnlineConnectionState('offline',e?.message||'Ошибка сервера.');});
  zoneSocket.on('player:ready',data=>{
   if(zoneHelloReadyTimer){clearTimeout(zoneHelloReadyTimer);zoneHelloReadyTimer=null;}
-  setOnlineConnectionState('online',data.persistent?'Сервер подключён. Профиль и общий мир сохраняются в PostgreSQL.':'Сервер подключён в режиме памяти. Для постоянных сохранений настрой PostgreSQL.');
+  setOnlineConnectionState('online',data.authFallback?'Мультиплеер подключён в гостевом режиме. Для входа в аккаунт и переноса сохранения подключи PostgreSQL.':(data.persistent?'Сервер подключён. Профиль и общий мир сохраняются в PostgreSQL.':'Сервер подключён в режиме памяти. Гостевой мультиплеер работает; аккаунты требуют PostgreSQL.'));
   zonePlayerId=data.id;localStorage.setItem('zoneOnlinePlayerId',zonePlayerId);if(data.account?.username){accountUsername=data.account.username;localStorage.setItem('zoneAccountUsername',accountUsername);updateAccountButton();}if(data?.world?.playerSquads){const squad=Object.values(data.world.playerSquads).find(q=>q.members?.some(m=>m.id===zonePlayerId));renderPlayerSquad({squad:squad||null});}renderPlayerFriends(data?.world?.playerFriends?.[zonePlayerId]||[]);
   if(data.savedState&&typeof data.savedState==='object'){applyingServerState=true;g=data.savedState;if(g.characterCreated===undefined)g.characterCreated=true;migrateWorld();localStorage.setItem('zoneExpandedSave',JSON.stringify(g));applyingServerState=false;render();if(g.characterCreated)$('characterSetup')?.classList.remove('show');else if(!$('characterSetup')?.classList.contains('show'))openCharacterSetup();}
   if(data.position&&Number.isFinite(Number(data.position.x))&&Number.isFinite(Number(data.position.y))){g.worldPosition={x:Number(data.position.x),y:Number(data.position.y)};g.mapCoordinateVersion=2;localStorage.setItem('zoneExpandedSave',JSON.stringify(g));}
   serverWorld=data.world||null;syncNpcRosterToClient();applyWorldSync(data.worldSync);if(serverWorld?.discoveredPoints)applySharedDiscoveredPoints(serverWorld.discoveredPoints);renderWar();renderOnlineWorldStatus(data.status);if(serverWorld?.diplomacy){g.diplomacy=serverWorld.diplomacy;renderDiplomacy();}if(serverWorld?.npcPositions)applySharedNpcPositions(serverWorld.npcPositions);renderCoopQuests(serverWorld?.coOpQuests||[]);
   onlinePlayers=data.players||[];serverChat=(data.chat||[]).filter(m=>!m.location||m.location===g.loc);renderOnlinePlayers();renderServerChat();
   if($('mpName'))$('mpName').value=g.name;if($('localChatHeading'))$('localChatHeading').textContent=`Локальный канал КПК · ${locationName(g.loc)}`;
-  $('mpStatusText').textContent=data.persistent?'Сервер подключён · профиль и общий мир сохраняются в PostgreSQL.':'Сервер подключён · внимание: без PostgreSQL прогресс на сервере сбросится после перезапуска.';
+  $('mpStatusText').textContent=data.authFallback?'Гостевой мультиплеер работает. Аккаунт отключён из-за недействительной сессии или недоступной базы.':(data.persistent?'Сервер подключён · профиль и общий мир сохраняются в PostgreSQL.':'Сервер подключён · гостевой режим активен; без PostgreSQL серверные сохранения сбрасываются после перезапуска.');
   if(!data.savedState)zoneSocket.emit('player:save',g);
   renderPlayerTrade();renderIncomingTrades();mpSyncLocation();
  });
