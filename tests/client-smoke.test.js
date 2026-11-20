@@ -415,8 +415,8 @@ test('4.25 field PDA keeps long-page filters and map controls reachable', () => 
 test('4.33 build labels are consistent', () => {
   const html = fs.readFileSync(path.join(root, 'public/index.html'), 'utf8');
   const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
-  assert.equal(pkg.version, '4.33.0');
-  assert.match(html, /BUILD 4\.33\.0/);
+  assert.equal(pkg.version, '4.33.1');
+  assert.match(html, /BUILD 4\.33\.1/);
   assert.match(html, /ZONE ONLINE 4\.33/);
 });
 
@@ -439,7 +439,7 @@ test('4.27 connection diagnostics support a separate server URL and health endpo
   assert.match(html, /\?server=https:\/\/адрес-сервера/);
   assert.match(client, /queryMatch=.*server=/);
   assert.match(client, /\/health/);
-  assert.match(client, /transports:\['polling','websocket'\]/);
+  assert.match(client, /transports:\['websocket'\]/);
   assert.match(client, /connect_error/);
   assert.match(server, /app\.get\('\/health'/);
   assert.match(server, /version:require\('\.\/package\.json'\)\.version/);
@@ -555,7 +555,7 @@ test('4.33 survival and expedition features are wired into the game and server',
   const client=fs.readFileSync(path.join(root,'public/js/game.js'),'utf8');
   const server=fs.readFileSync(path.join(root,'server.js'),'utf8');
   const data=fs.readFileSync(path.join(root,'src/shared/game-data.js'),'utf8');
-  assert.match(html,/survival\.js\?v=4\.33\.0/);
+  assert.match(html,/survival\.js\?v=4\.33\.1/);
   assert.match(html,/Подготовить рюкзак/);
   assert.match(html,/Охота на мутантов/);
   assert.match(client,/function tickSurvival\(/);
@@ -564,4 +564,14 @@ test('4.33 survival and expedition features are wired into the game and server',
   assert.match(server,/socket\.on\('survival:hunt'/);
   assert.match(server,/addEcoEvent\(world,success\?'mutant_hunt':'mutant_attack'/);
   assert.match(data,/mutant_trophy/);
+});
+
+
+test('4.33.1 uses a single WebSocket transport on client and server to avoid polling session affinity errors', () => {
+  const client = fs.readFileSync(path.join(root, 'public/js/game.js'), 'utf8');
+  const server = fs.readFileSync(path.join(root, 'server.js'), 'utf8');
+  assert.match(client, /transports:\['websocket'\]/);
+  assert.match(client, /upgrade:false/);
+  assert.match(server, /transports: \['websocket'\]/);
+  assert.match(server, /transportMode:'websocket-only'/);
 });

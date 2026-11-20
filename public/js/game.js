@@ -973,11 +973,11 @@ async function connectZone(){
  }
  if($('mpServerUrl') && $('mpServerUrl').value!==serverUrl)$('mpServerUrl').value=serverUrl;
  try{
-  // Restore the transport setup from the known-working 4.20.0 release.
-  // Render proxies Socket.IO through HTTP long-polling; upgrade only afterwards.
+  // Render supports WebSockets. Use a single transport to avoid stale Engine.IO
+  // polling session IDs when a proxy closes or re-routes long-poll requests.
   zoneSocket=io(serverUrl||undefined,{
-   transports:['polling','websocket'],
-   upgrade:true,
+   transports:['websocket'],
+   upgrade:false,
    timeout:15000,
    reconnection:true,
    reconnectionAttempts:Infinity,

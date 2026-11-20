@@ -65,7 +65,7 @@ function recordNpcTrade(account, entry) {
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server, { cors: { origin: true, methods: ['GET','POST'] }, pingInterval: 25000, pingTimeout: 60000, connectTimeout: 60000, maxHttpBufferSize: 1e6 });
+const io = new Server(server, { cors: { origin: true, methods: ['GET','POST'] }, transports: ['websocket'], pingInterval: 20000, pingTimeout: 45000, connectTimeout: 30000, maxHttpBufferSize: 1e6 });
 io.engine.on('connection', rawSocket=>console.info(`[engine] handshake id=${rawSocket.id} transport=${rawSocket.transport.name} origin=${clean(rawSocket.request.headers.origin||'unknown',180)}`));
 io.engine.on('connection_error', error=>console.error(`[engine] connection_error code=${error.code} message=${error.message} context=${JSON.stringify(error.context||{})}`));
 const PORT = process.env.PORT || 3000;
@@ -74,7 +74,7 @@ const SPAWN_BY_FACTION = Object.freeze({'Одиночки':'cordon','Долг':'
 app.use(express.json({limit:'64kb'}));
 app.use(express.static(path.join(__dirname, 'public')));
 app.get('/health', (_req,res) => { res.set('Access-Control-Allow-Origin','*'); res.set('Cache-Control','no-store'); res.status(200).json({ ok:true, service:'ZONE ONLINE', version:require('./package.json').version, database:dbReady?'postgres':'memory-fallback', databaseRequiredForAccounts:false, online:online.size, revision:world.revision||1, timestamp:Date.now() }); });
-app.get('/api/diagnostics', (_req,res) => { res.set('Access-Control-Allow-Origin','*'); res.set('Cache-Control','no-store'); res.json({ ok:true, version:require('./package.json').version, multiplayer:true, guestMode:true, database:dbReady?'postgres':'memory-fallback', online:online.size, socketPath:'/socket.io', transports:['polling','websocket'], timestamp:Date.now() }); });
+app.get('/api/diagnostics', (_req,res) => { res.set('Access-Control-Allow-Origin','*'); res.set('Cache-Control','no-store'); res.json({ ok:true, version:require('./package.json').version, multiplayer:true, guestMode:true, database:dbReady?'postgres':'memory-fallback', online:online.size, socketPath:'/socket.io', transports:['websocket'], transportMode:'websocket-only', timestamp:Date.now() }); });
 app.get('/api/status', (_req,res) => res.json({ ...publicWorldStatus(world, online.size), persistent:dbReady, service:'ZONE ONLINE 4.33.0 SURVIVAL & EXPEDITIONS' }));
 app.get('/api/world/snapshot', (_req,res) => res.json({ status:publicWorldStatus(world, online.size), world }));
 app.get('/api/world/events', (req,res) => { const since=Number(req.query.since||0); const sync=buildWorldSync(world, Number.isSafeInteger(since)?since:0); res.json(sync); });
