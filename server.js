@@ -65,8 +65,22 @@ function recordNpcTrade(account, entry) {
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server, { cors: { origin: true, methods: ['GET','POST'] }, transports: ['websocket','polling'], pingInterval: 20000, pingTimeout: 45000, connectTimeout: 60000, maxHttpBufferSize: 1e6 });
-io.engine.on('connection', rawSocket=>console.info(`[engine] handshake id=${rawSocket.id} transport=${rawSocket.transport.name} origin=${clean(rawSocket.request.headers.origin||'unknown',180)}`));
+const io = new Server(server, {
+  cors: { origin: true, methods: ['GET','POST'] },
+  // Render repeatedly closed successful WebSocket handshakes with `transport error`.
+  // HTTPS long-polling avoids the unstable upgraded transport path.
+  transports: ['polling'],
+  allowUpgrades: false,
+  pingInterval: 25000,
+  pingTimeout: 60000,
+  connectTimeout: 60000,
+  maxHttpBufferSize: 1e6
+});
+io.engine.on('connection', rawSocket=>{
+  console.info(`[engine] handshake id=${rawSocket.id} transport=${rawSocket.transport.name} origin=${clean(rawSocket.request.headers.origin||'unknown',180)}`);
+  rawSocket.on('error', error=>console.error(`[engine] socket_error id=${rawSocket.id} transport=${rawSocket.transport.name}: ${clean(error?.message||error,240)}`));
+  rawSocket.on('close', (reason, description)=>console.warn(`[engine] socket_closed id=${rawSocket.id} transport=${rawSocket.transport.name} reason=${clean(reason,120)} detail=${clean(description?.message||'',200)}`));
+});
 io.engine.on('connection_error', error=>console.error(`[engine] connection_error code=${error.code} message=${error.message} context=${JSON.stringify(error.context||{})}`));
 const PORT = process.env.PORT || 3000;
 const SECTOR_COORDS = Object.freeze({chaes:[503,104],zaton:[561,405],pripyat:[676,649],jupiter:[391,703],limansk:[128,838],red:[311,903],radar:[675,897],army:[502,1046],wild:[347,1212],bar:[441,1215],yantar:[174,1302],dump:[466,1470],agro:[243,1528],dark:[787,1418],cordon:[463,1753],swamps:[185,1788],darkhollow:[793,1742]});
@@ -74,7 +88,7 @@ const SPAWN_BY_FACTION = Object.freeze({'Одиночки':'cordon','Долг':'
 app.use(express.json({limit:'64kb'}));
 app.use(express.static(path.join(__dirname, 'public')));
 app.get('/health', (_req,res) => { res.set('Access-Control-Allow-Origin','*'); res.set('Cache-Control','no-store'); res.status(200).json({ ok:true, service:'ZONE ONLINE', version:require('./package.json').version, database:dbReady?'postgres':'memory-fallback', databaseRequiredForAccounts:false, online:online.size, revision:world.revision||1, timestamp:Date.now() }); });
-app.get('/api/diagnostics', (_req,res) => { res.set('Access-Control-Allow-Origin','*'); res.set('Cache-Control','no-store'); res.json({ ok:true, version:require('./package.json').version, multiplayer:true, guestMode:true, database:dbReady?'postgres':'memory-fallback', online:online.size, socketPath:'/socket.io', transports:['websocket','polling'], transportMode:'websocket-with-polling-fallback', timestamp:Date.now() }); });
+app.get('/api/diagnostics', (_req,res) => { res.set('Access-Control-Allow-Origin','*'); res.set('Cache-Control','no-store'); res.json({ ok:true, version:require('./package.json').version, multiplayer:true, guestMode:true, database:dbReady?'postgres':'memory-fallback', online:online.size, socketPath:'/socket.io', transports:['polling'], transportMode:'polling-stable', timestamp:Date.now() }); });
 app.get('/api/status', (_req,res) => res.json({ ...publicWorldStatus(world, online.size), persistent:dbReady, service:`ZONE ONLINE ${require('./package.json').version} SURVIVAL & EXPEDITIONS` }));
 app.get('/api/world/snapshot', (_req,res) => res.json({ status:publicWorldStatus(world, online.size), world }));
 app.get('/api/world/events', (req,res) => { const since=Number(req.query.since||0); const sync=buildWorldSync(world, Number.isSafeInteger(since)?since:0); res.json(sync); });

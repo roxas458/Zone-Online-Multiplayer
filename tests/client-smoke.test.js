@@ -415,8 +415,8 @@ test('4.25 field PDA keeps long-page filters and map controls reachable', () => 
 test('4.33 build labels are consistent', () => {
   const html = fs.readFileSync(path.join(root, 'public/index.html'), 'utf8');
   const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
-  assert.equal(pkg.version, '4.33.5');
-  assert.match(html, /BUILD 4\.33\.5/);
+  assert.equal(pkg.version, '4.33.6');
+  assert.match(html, /BUILD 4\.33\.6/);
   assert.match(html, /ZONE ONLINE 4\.33/);
 });
 
@@ -439,7 +439,7 @@ test('4.27 connection diagnostics support a separate server URL and health endpo
   assert.match(html, /\?server=https:\/\/адрес-сервера/);
   assert.match(client, /queryMatch=.*server=/);
   assert.match(client, /\/health/);
-  assert.match(client, /transports:\['websocket','polling'\]/);
+  assert.match(client, /transports:\['polling'\]/);
   assert.match(client, /connect_error/);
   assert.match(server, /app\.get\('\/health'/);
   assert.match(server, /version:require\('\.\/package\.json'\)\.version/);
@@ -455,7 +455,7 @@ test('4.33.5 keeps the configured Render URL when health preflight is slow and r
   assert.match(client, /reconnectionAttempts:Infinity/);
   assert.match(client, /reconnectionDelayMax:15000/);
   assert.match(client, /timeout:60000/);
-  assert.match(server, /transports: \['websocket','polling'\]/);
+  assert.match(server, /transports: \['polling'\]/);
 });
 
 test('4.27 trader panel uses local portrait assets for the active trader', () => {
@@ -576,7 +576,7 @@ test('4.33 survival and expedition features are wired into the game and server',
   const client=fs.readFileSync(path.join(root,'public/js/game.js'),'utf8');
   const server=fs.readFileSync(path.join(root,'server.js'),'utf8');
   const data=fs.readFileSync(path.join(root,'src/shared/game-data.js'),'utf8');
-  assert.match(html,/survival\.js\?v=4\.33\.5/);
+  assert.match(html,/survival\.js\?v=4\.33\.6/);
   assert.match(html,/Подготовить рюкзак/);
   assert.match(html,/Охота на мутантов/);
   assert.match(client,/function tickSurvival\(/);
@@ -588,11 +588,22 @@ test('4.33 survival and expedition features are wired into the game and server',
 });
 
 
-test('4.33.1 prefers WebSocket with polling fallback for proxy compatibility', () => {
+test('4.33.6 uses stable polling transport after Render WebSocket transport errors', () => {
   const client = fs.readFileSync(path.join(root, 'public/js/game.js'), 'utf8');
   const server = fs.readFileSync(path.join(root, 'server.js'), 'utf8');
-  assert.match(client, /transports:\['websocket','polling'\]/);
-  assert.match(client, /upgrade:true/);
-  assert.match(server, /transports: \['websocket','polling'\]/);
-  assert.match(server, /transportMode:'websocket-with-polling-fallback'/);
+  assert.match(client, /transports:\['polling'\]/);
+  assert.match(client, /upgrade:false/);
+  assert.match(server, /transports: \['polling'\]/);
+  assert.match(server, /transportMode:'polling-stable'/);
+});
+
+
+test('4.33.6 pins Render to Node.js 22 LTS and disables unstable WebSocket upgrades', () => {
+  const nodeVersion = fs.readFileSync(path.join(root, '.node-version'), 'utf8').trim();
+  const render = fs.readFileSync(path.join(root, 'render.yaml'), 'utf8');
+  const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
+  assert.equal(nodeVersion, '22.16.0');
+  assert.match(render, /key: NODE_VERSION\s+value: 22\.16\.0/);
+  assert.equal(pkg.engines.node, '>=22 <23');
+  assert.match(fs.readFileSync(path.join(root, 'server.js'), 'utf8'), /allowUpgrades: false/);
 });
