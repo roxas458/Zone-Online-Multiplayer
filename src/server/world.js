@@ -11,6 +11,7 @@ function initSharedWorld(world, NPC_HOME, LOCATIONS, COOP_TEMPLATES) {
   world.territoryOwners ||= Object.fromEntries(Object.entries(TERRITORY_START).map(([id,v]) => [id,v.owner]));
   world.territoryControl ||= Object.fromEntries(Object.entries(TERRITORY_START).map(([id,v]) => [id,v.control]));
   world.warOperations ||= [];
+  world.battlefronts ||= []; world.convoys ||= []; world.radiationZones ||= {chaes:90,radar:82,pripyat:65,red:48,yantar:38,swamps:32,darkhollow:28,limansk:30};
   world.warHistory ||= [];
   world.discoveredPoints ||= {};
   world.zoneEvents ||= [];
@@ -19,7 +20,7 @@ function initSharedWorld(world, NPC_HOME, LOCATIONS, COOP_TEMPLATES) {
   }
   const defaults = createNpcRoster(NPC_HOME);
   for (const [id, npc] of Object.entries(defaults)) world.npcState[id] ||= npc;
-  ensureRandomNpcs(world,60);
+  ensureRandomNpcs(world,340);
   for (const [id, npc] of Object.entries(world.npcState)) { if (!LOCATIONS.has(npc.location)) npc.location = world.npcPositions[id] || NPC_HOME[id] || 'cordon'; npc.alive = npc.alive !== false; npc.dialogueCycle ??= Math.floor(Date.now()/900000); npc.dialogueVersion ??= 0; npc.dialogue = buildDialogue(npc,{},Date.now()); }
   world.npcPositions = Object.fromEntries(Object.values(world.npcState).filter(n => n.alive).map(n => [n.id, n.location]));
   world.coOpQuests ||= COOP_TEMPLATES.map(q => ({ ...q, participants: [], done: false }));

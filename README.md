@@ -1,6 +1,6 @@
-# ZONE ONLINE 4.18 — LIVING ZONE / FIELD INVENTORY
+# ZONE ONLINE 4.19 — WAR OF THE ZONE
 
-## 4.18 — Distributed NPCs and STALKER-style inventory
+## 4.19 — Faction warfare, radiation and optimized PDA
 - NPCs without authoritative coordinates receive stable, unique map positions around their own sector anchors instead of stacking on one shared point.
 - Offline map positions drift gradually so the global map shows a living distribution of stalkers; authoritative server positions remain preferred whenever available.
 - Tactical NPC and player map symbols are reduced substantially for a cleaner overview.
@@ -115,3 +115,12 @@ The multiplayer squad system now supports synchronized leader-led travel, member
 - Added click-to-walk, WASD/arrow-key movement and touch movement controls.
 - Added validated multiplayer position updates; position is scoped to the player's current sector.
 - Local map uses schematic sector centers and a bounded movement area; detailed collision/navigation mesh and physical-device testing remain future work.
+
+
+## Version 4.19 — WAR OF THE ZONE
+- Expanded server NPC roster to 340 generated stalkers in addition to named characters.
+- Added server-authoritative faction skirmishes, battlefront history, supply convoys and convoy ambush events.
+- Reduced PDA map redraw work: no background SVG rebuild timer; map is rendered when visible or explicitly changed.
+- Reduced tactical map marker size and increased global map NPC capacity.
+- Added radiation accumulation in hazardous sectors and Anti-rad consumable with temporary protection.
+- Added rank and faction identity to the backpack header.

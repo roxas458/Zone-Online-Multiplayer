@@ -359,5 +359,8 @@ test('4.18 inventory reference layout exposes backpack, mannequin, quick slots a
   assert.match(html, /class="quick-gear"/);
   assert.match(client, /function inspectInventoryItem\(/);
   assert.match(client, /function npcMapPosition\(/);
-  assert.match(client, /setInterval\(driftNpcMapPositions,6500\)/);
+  assert.doesNotMatch(client, /setInterval\(driftNpcMapPositions,6500\)/);
+  assert.match(client, /zoneMapHasRendered/);
+  assert.match(html, /inventoryRank/);
+  assert.match(html, /inventoryFaction/);
 });

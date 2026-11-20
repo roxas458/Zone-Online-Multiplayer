@@ -5,7 +5,8 @@ const FACTIONS = ['Одиночки','Долг','Свобода','Бандиты
 const ROLES = ['сталкер','разведчик','механик','собиратель артефактов','проводник','торговец','охотник'];
 const ICONS = ['◉','⌁','⚙','☢','◆','✚','☼','▣','◈','♟'];
 const LOCATIONS = ['chaes','cordon','dump','bar','agro','dark','yantar','army','red','pripyat','zaton','jupiter','radar','wild','darkhollow','limansk','swamps'];
-function ensureRandomNpcs(world, count = 60) {
+const NPC_TARGET = 340;
+function ensureRandomNpcs(world, count = NPC_TARGET) {
   world.npcState ||= {}; world.npcPositions ||= {};
   const used = new Set(Object.values(world.npcState).map(n => n.name));
   for (let i=0; i<count; i++) {
@@ -14,11 +15,11 @@ function ensureRandomNpcs(world, count = 60) {
     let name = `${FIRST[(i*7+3)%FIRST.length]} ${LAST[(i*11+5)%LAST.length]}`;
     let suffix = 2; while (used.has(name)) name = `${FIRST[(i*7+3)%FIRST.length]} ${LAST[(i*11+5)%LAST.length]} ${suffix++}`;
     used.add(name);
-    const location = LOCATIONS[(i*5+2)%LOCATIONS.length];
-    const faction = FACTIONS[(i*3+1)%FACTIONS.length];
-    world.npcState[id] = { id, name, faction, role:ROLES[(i*3)%ROLES.length], location, destination:null, action:'rest', mood:['спокоен','насторожен','весёлый','уставший','подозрительный'][i%5], health:75+(i*13)%26, morale:45+(i*17)%51, supplies:25+(i*19)%70, alive:true, lastActionAt:Date.now(), relationships:{}, inventory:[], history:[], generated:true, icon:ICONS[i%ICONS.length], personality:['болтун','параноик','шутник','прагматик','мечтатель'][i%5], dialogueDay:-1, dialogueVersion:0, dialogueHistory:[] };
+    const location = LOCATIONS[(i*7+Math.floor(i/LOCATIONS.length)*3+2)%LOCATIONS.length];
+    const faction = FACTIONS[(i*5+Math.floor(i/9))%FACTIONS.length];
+    world.npcState[id] = { id, name, faction, role:ROLES[(i*3)%ROLES.length], location, destination:null, action:'rest', mood:['спокоен','насторожен','весёлый','уставший','подозрительный'][i%5], health:75+(i*13)%26, morale:45+(i*17)%51, supplies:25+(i*19)%70, alive:true, lastActionAt:Date.now(), relationships:{}, inventory:[], history:[], generated:true, icon:ICONS[i%ICONS.length], squadId:`squad_${faction.toLowerCase().replace(/[^a-zа-я0-9]+/gi,'_')}_${Math.floor(i/4)}`, direction:(i*47)%360, personality:['болтун','параноик','шутник','прагматик','мечтатель'][i%5], dialogueDay:-1, dialogueVersion:0, dialogueHistory:[] };
     world.npcPositions[id] = location;
   }
   return world.npcState;
 }
-module.exports = { ensureRandomNpcs };
+module.exports = { ensureRandomNpcs, NPC_TARGET };

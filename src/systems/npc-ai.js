@@ -10,6 +10,14 @@ const NPC_FACTIONS = Object.freeze({
 const ROLES = Object.freeze({ sid:'торговец', wolf:'сталкер', fanatic:'сталкер', scout:'разведчик', bandit:'бандит', barman:'торговец', seriy:'сталкер', scientist:'учёный', merc:'наёмник', prof:'учёный', freedom:'боец', guide:'проводник', loner:'сталкер', lebedev:'командир', novikov:'техник', cold:'боец', lukash:'командир', voronin:'командир', sultan:'главарь', beard:'торговец', charon:'командир', wolfhound:'боец', archivist:'учёный', kravtsov:'военный' });
 const ACTIONS = ['patrol','travel','trade','rest','search'];
 const { buildDialogue, interactDialogue } = require('./npc-dialogue');
+
+function isHostileFaction(a,b,diplomacy={}) {
+  if(!a||!b||a===b||a==='Учёные'||b==='Учёные') return false;
+  const enemies={ 'Долг':['Свобода','Бандиты','Монолит'], 'Свобода':['Долг','Бандиты','Монолит'], 'Одиночки':['Бандиты','Монолит'], 'Бандиты':['Одиночки','Долг','Свобода','Военные'], 'Военные':['Бандиты','Монолит'], 'Наёмники':['Монолит'], 'Монолит':['Одиночки','Долг','Свобода','Военные','Наёмники'] };
+  if((enemies[a]||[]).includes(b)) return true;
+  return Number(diplomacy?.[a]?.[b])<=-25;
+}
+
 const NPC_DISPLAY = {sid:'Сидорович',wolf:'Волк',fanatic:'Фанатик',scout:'Разведчик',bandit:'Бандит',barman:'Бармен',seriy:'Серый',scientist:'Учёный',merc:'Наёмник',prof:'Профессор Сахаров',freedom:'Свободовец',guide:'Проводник',loner:'Одиночка',lebedev:'Николай Лебедев',novikov:'Новиков',cold:'Холод',lukash:'Лукаш',voronin:'Генерал Воронин',sultan:'Султан',beard:'Борода',charon:'Харон',wolfhound:'Вольфхаунд',archivist:'Архивист',kravtsov:'Командир Кравцов'};
 function createNpcRoster(npcHome, now = Date.now()) {
   const roster = {};
@@ -45,20 +53,47 @@ function tickNpcWorld(world, locations, random = Math.random, now = Date.now()) 
     npc.lastActionAt = now;
     npc.history ||= []; npc.history.push({ action:npc.action, location:npc.location, at:now }); npc.history = npc.history.slice(-12);
   }
-  // Simulated skirmishes only occur when hostile faction NPCs share a sector.
+  // Persistent faction warfare: opposing squads sharing a sector exchange fire.
   const byLocation = new Map();
   for (const npc of Object.values(world.npcState)) if (npc.alive) { const group = byLocation.get(npc.location) || []; group.push(npc); byLocation.set(npc.location, group); }
+  world.battlefronts ||= []; world.convoys ||= [];
+  const hostility = (a,b) => isHostileFaction(a,b,world.diplomacy);
   for (const [location, group] of byLocation) {
-    const pair = group.find(a => group.some(b => b.id !== a.id && b.faction !== a.faction && b.faction !== 'Учёные' && a.faction !== 'Учёные'));
-    if (pair && random() < 0.08) {
-      const rival = group.find(b => b.id !== pair.id && b.faction !== pair.faction && b.faction !== 'Учёные' && pair.faction !== 'Учёные');
-      if (rival) {
-        const damage = 5 + Math.floor(random() * 11); rival.health = clamp(rival.health - damage, 0, 100); pair.morale = clamp(pair.morale + 3, 0, 100);
-        if (rival.health === 0) { rival.alive = false; rival.action = 'dead'; rival.deathCause = `перестрелка с отрядом ${pair.faction}`; rival.diedAt = now; for(const friendId of rival.friends||[]){const friend=world.npcState[friendId];if(friend){friend.mood='скорбит';friend.memory ||= [];friend.memory.push({type:'friend_lost',npcId:rival.id,at:now});friend.memory=friend.memory.slice(-20);}} }
-        events.push({ type:'npc_skirmish', location, participants:[pair.id,rival.id], text:`Столкновение: ${pair.faction} и ${rival.faction} в секторе ${location}.`, at:now });
-      }
+    const sides=[...new Set(group.map(n=>n.faction))].filter(f=>group.some(n=>hostility(f,n.faction)));
+    if(sides.length<2 || random()>.42) continue;
+    const a=group.find(n=>n.faction===sides[0]), b=group.find(n=>hostility(sides[0],n.faction));
+    if(!a||!b) continue;
+    const battle=world.battlefronts.find(x=>x.location===location&&x.status==='active');
+    const engagement=battle||{id:`battle_${location}_${now}`,location,attacker:a.faction,defender:b.faction,status:'active',startedAt:now,rounds:0,losses:0};
+    engagement.rounds++; engagement.lastAt=now;
+    const damageA=4+Math.floor(random()*13), damageB=4+Math.floor(random()*13);
+    b.health=clamp(b.health-damageA,0,100); a.health=clamp(a.health-damageB,0,100);
+    a.action=b.action='combat'; a.mood=b.mood='в бою';
+    for(const [victim,killer] of [[a,b],[b,a]]) if(victim.health<=0&&victim.alive){victim.alive=false;victim.action='dead';victim.deathCause=`погиб в бою с группировкой «${killer.faction}»`;victim.diedAt=now;engagement.losses++;}
+    if(!battle) world.battlefronts.unshift(engagement);
+    const attackAlive=group.filter(n=>n.alive&&n.faction===engagement.attacker).length;
+    const defenseAlive=group.filter(n=>n.alive&&n.faction===engagement.defender).length;
+    if(engagement.rounds>=4 || attackAlive===0 || defenseAlive===0){
+      engagement.status='resolved';engagement.endedAt=now;
+      const winner=attackAlive===defenseAlive?(attackAlive>0?(random()<.5?engagement.attacker:engagement.defender):null):(attackAlive>defenseAlive?engagement.attacker:engagement.defender);
+      engagement.winner=winner;
+      if(winner){world.territoryOwners ||= {};world.territoryControl ||= {};world.territoryOwners[location]=winner;world.territoryControl[location]=55;events.push({type:'territory_captured',location,winner,text:`Группировка «${winner}» установила контроль над сектором ${location} после столкновения.`,at:now});}
     }
+    events.push({type:'npc_skirmish',location,participants:[a.id,b.id],attacker:engagement.attacker,defender:engagement.defender,text:`Перестрелка: ${engagement.attacker} и ${engagement.defender} ведут бой в секторе ${location}.`,at:now});
   }
+  world.battlefronts=world.battlefronts.slice(0,40);
+  // Rare supply convoys travel between connected sectors and can be ambushed.
+  if(!world.convoys.length || (now-(world.convoys.at(-1)?.createdAt||0)>12*60*1000 && random()<.35)){
+    const routes=[['cordon','dump','bar'],['swamps','yantar','agro'],['jupiter','zaton','pripyat'],['army','red','radar']];
+    const route=choose(routes,random); world.convoys.push({id:`convoy_${now}`,faction:choose(['Одиночки','Долг','Свобода','Учёные'],random),route,index:0,location:route[0],strength:3+Math.floor(random()*4),status:'moving',createdAt:now});
+    events.push({type:'convoy_started',location:route[0],text:`Караван снабжения отправился из сектора ${route[0]}.`,at:now});
+  }
+  for(const convoy of world.convoys.filter(x=>x.status==='moving')){
+    if(random()<.7){convoy.index++;convoy.location=convoy.route[Math.min(convoy.index,convoy.route.length-1)];if(convoy.index>=convoy.route.length-1)convoy.status='arrived';}
+    const enemies=Object.values(world.npcState).filter(n=>n.alive&&n.location===convoy.location&&hostility(convoy.faction,n.faction));
+    if(enemies.length&&random()<.25){convoy.status='ambushed';events.push({type:'convoy_ambush',location:convoy.location,text:`Засада на караван ${convoy.faction} в секторе ${convoy.location}!`,at:now});}
+  }
+  world.convoys=world.convoys.filter(x=>now-x.createdAt<24*60*60*1000).slice(-20);
   world.npcPositions = Object.fromEntries(Object.values(world.npcState).filter(n => n.alive).map(n => [n.id,n.location]));
   world.npcEvents ||= []; world.npcEvents.push(...events); world.npcEvents = world.npcEvents.slice(-60);
   return events;
@@ -76,4 +111,4 @@ function interactWithNpc(npc, player, action, now = Date.now(), context = {}) {
   return { ok:true, ...result, relationship:npc.relationships[player.id], npcId:npc.id };
 }
 
-module.exports = { NPC_FACTIONS, ROLES, createNpcRoster, tickNpcWorld, interactWithNpc };
+module.exports = { NPC_FACTIONS, ROLES, createNpcRoster, tickNpcWorld, interactWithNpc, isHostileFaction };

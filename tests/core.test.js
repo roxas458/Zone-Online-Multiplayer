@@ -28,7 +28,7 @@ test('world bootstrap creates NPC positions, quests and diplomacy', () => {
   assert.ok(world.diplomacy['Одиночки']['Долг'] !== undefined);
   assert.equal(world.territoryOwners.dump, 'Бандиты');
   assert.equal(world.warOperations.length, 0);
-  assert.equal(Object.values(world.npcState).filter(n => n.generated).length, 60);
+  assert.equal(Object.values(world.npcState).filter(n => n.generated).length, 340);
 });
 
 test('expanded world includes Great Swamps and server-side food items', () => {
@@ -87,7 +87,7 @@ test('WAR SYSTEM rejects premature resolution and unauthorized side deployments'
 });
 
 
-const { createNpcRoster, tickNpcWorld, interactWithNpc } = require('../src/systems/npc-ai');
+const { createNpcRoster, tickNpcWorld, interactWithNpc, isHostileFaction } = require('../src/systems/npc-ai');
 test('NPC AI bootstraps independent NPC profiles with roles and factions', () => {
   const roster = createNpcRoster(NPC_HOME, 100);
   assert.equal(roster.sid.faction, 'Одиночки');
@@ -105,6 +105,31 @@ test('NPC AI advances schedules, records history and publishes shared positions'
   assert.ok(Array.isArray(world.npcEvents));
   assert.ok(Array.isArray(events));
 });
+
+test('NPC faction hostility matrix distinguishes enemy and neutral factions', () => {
+  assert.equal(isHostileFaction('Долг','Свобода',{}), true);
+  assert.equal(isHostileFaction('Одиночки','Учёные',{}), false);
+  assert.equal(isHostileFaction('Свобода','Свобода',{}), false);
+});
+
+test('NPC warfare creates server-side battles and convoy events between hostile factions', () => {
+  const { tickNpcWorld } = require('../src/systems/npc-ai');
+  const world = { npcPositions: { duty:'cordon', freedom:'cordon' }, npcState: {
+    duty:{id:'duty',name:'Долговец',faction:'Долг',location:'cordon',alive:true,health:100,morale:60,supplies:60},
+    freedom:{id:'freedom',name:'Свободовец',faction:'Свобода',location:'cordon',alive:true,health:100,morale:60,supplies:60}
+  }, npcEvents:[], zoneEvents:[], diplomacy:{'Долг':{'Свобода':0},'Свобода':{'Долг':0}} };
+  const events = tickNpcWorld(world, ['cordon','dump'], () => 0.1, 1000000);
+  assert.ok(events.some(e => e.type === 'npc_skirmish'));
+  assert.equal(world.battlefronts.length, 1);
+  assert.ok(world.battlefronts[0].rounds >= 1);
+  assert.ok(world.convoys.length >= 1);
+});
+
+test('anti-radiation consumable is available in the shared server market', () => {
+  assert.equal(TRADE_ITEM_IDS.has('anti_rad'), true);
+  assert.equal(SHOP.anti_rad.name, 'Антирад');
+});
+
 test('NPC interaction requires same location and builds personal trust', () => {
   const npc = createNpcRoster({ sid:'cordon' }, 100).sid;
   assert.equal(interactWithNpc(npc,{id:'p1',location:'dump'},'greet').ok,false);

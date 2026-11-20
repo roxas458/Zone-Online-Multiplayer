@@ -111,3 +111,16 @@
 - Added click-to-walk, WASD/arrow-key movement and touch movement controls.
 - Added validated multiplayer position updates; position is scoped to the player's current sector.
 - Local map uses schematic sector centers and a bounded movement area; detailed collision/navigation mesh and physical-device testing remain future work.
+
+
+## 4.19.0 — WAR OF THE ZONE
+- Added 340 additional generated NPCs across the 17 supplied sectors.
+- Added server-side faction skirmishes, battlefront records, supply convoys and ambushes.
+- Added hostile NPC encounters for the player; winning a fight is validated and recorded by the server.
+- NPC battle outcomes can change sector ownership.
+- Added battlefield and convoy feed to the war PDA.
+- Optimized map redraws by removing the 6.5-second full SVG rebuild and rendering only when visible/dirty.
+- Reduced map marker footprint; global map supports up to 360 NPC markers.
+- Added radiation accumulation and Anti-rad with 12-minute protection.
+- Added rank and faction label to inventory backpack identity panel.
+- Expanded encyclopedia with radiation field entry.

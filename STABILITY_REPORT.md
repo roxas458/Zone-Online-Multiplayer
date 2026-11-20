@@ -1,67 +1,15 @@
-# Stability report — 4.18.0
-
-- Retained the canonical developer-supplied map and its 17 labeled locations.
-- NPCs without server coordinates receive stable per-character positions around their assigned sector; offline map markers drift gradually rather than overlapping at the sector center.
-- Server-provided NPC coordinates take priority over client-generated map positions.
-- NPC/player map markers are now substantially smaller.
-- Rebuilt the inventory UI around the supplied S.T.A.L.K.E.R. reference while retaining item inspection, use, equip, sell, weight and equipment-state logic.
-- Validation: `npm run check` passes.
-- Automated tests: `npm test` passes (49/49).
-
-Known limitations: client-generated NPC drift is a visual offline fallback, not authoritative multiplayer movement. For identical positions across clients, NPC movement must be published by the server simulation. The equipment mannequin is a stylized CSS illustration rather than original game artwork. Detailed per-location map tiles and exact building collision meshes remain future work.
-
-# ZONE ONLINE 4.7.1 — Stability audit report
-
-## Critical defect found and fixed
-
-The browser client called `render()` before initializing the multiplayer globals:
-- `serverWorld`
-- `zoneSocket`
-- `onlinePlayers`
-- `serverChat`
-- `incomingTrades`
-- `applyingServerState`
-
-The initial `render()` calls `renderPeople()` -> `nearbyNpcs()` -> `syncNpcRosterToClient()`. That function reads `serverWorld`, which was declared later with `let`. JavaScript throws `ReferenceError: Cannot access 'serverWorld' before initialization` (temporal dead zone). This aborts the rest of the client script, so the game may partially display while many interactions and multiplayer initialization never run.
-
-The multiplayer globals are now initialized before the first render.
-
-## Additional repairs
-
-- Socket.IO browser client loads from the local game server first and falls back to the official Socket.IO CDN.
-- Multiplayer view now has a configurable server origin. Leave blank when game and backend share an origin; enter the deployed Node/Render origin when the frontend is hosted separately.
-- Connection failures show the address and error context rather than appearing as an unexplained endless connection.
-- Existing saves and gameplay systems are retained; no save reset or schema wipe was introduced.
+# Stability report — 4.19.0
 
 ## Automated checks
+- `npm run check`: passed (server and browser JavaScript syntax checks).
+- `npm test`: passed, 52 tests.
+- Added coverage for faction hostility, NPC battles, convoys, anti-radiation market item, radiation HUD and PDA redraw behavior.
 
-- `npm run check`: passed.
-- `npm test`: 24 passed, 0 failed.
-- Browser client bootstrap smoke test: passed.
-- Main view navigation smoke test: all 17 views opened without a JavaScript exception.
-- Static audit: no duplicate HTML IDs, no unresolved literal `$()` DOM IDs, no missing inline click handlers.
+## Runtime note
+A full HTTP server launch was not completed in this build environment because project dependencies (`express`, `socket.io`, `pg`) are not installed in the workspace. Install dependencies with `npm install` before running `npm start`.
 
-## Deployment verification still required
-
-The archive was syntax-checked and its pure/client tests passed. A live production Socket.IO + PostgreSQL test cannot be completed without installing the production dependencies and knowing the deployed server origin/environment variables. The attempted dependency install did not complete in this environment.
-
-After deploying:
-1. Set the Node service start command to `npm start` and build command to `npm install`.
-2. Open `https://YOUR-SERVER/health`; verify `ok: true`.
-3. If the browser frontend is hosted on another domain, open Multiplayer, enter `https://YOUR-SERVER` in "Адрес игрового сервера", and press "Подключиться / переподключиться".
-4. If frontend and backend are served by the same Node service, leave that field empty.
-5. Verify two browser sessions appear in each other's online list.
-
-## 4.14.0 verification
-- `npm run check`: passed.
-- `npm test`: 46/46 passed, including squad travel, role, journal, escort, and encounter source-level integration checks.
-- ZIP integrity checked after packaging.
-- Live Render/PostgreSQL multiplayer session and physical mobile devices were not available for runtime verification.
-
-
-## 4.15 — FREE ROAM MAP
-- Added the supplied aerial Zone map as the shared cartographic background.
-- Added overview and current-location map modes with sector, NPC, player and discovered-cache markers.
-- Added click-to-walk, WASD/arrow-key movement and touch movement controls.
-- Added validated multiplayer position updates; position is scoped to the player's current sector.
-- Local map uses schematic sector centers and a bounded movement area; detailed collision/navigation mesh and physical-device testing remain future work.
+## Known implementation boundaries
+- NPC-vs-NPC warfare, battlefront records, convoy movement and ambushes are server-side simulations on the existing world tick.
+- Player-vs-hostile-NPC combat uses the existing abstract turn-based combat UI; the server validates the final NPC defeat and records the memorial/event.
+- Radiation exposure is currently advanced in the browser client on a one-minute interval; Anti-rad gives 12 minutes of local protection. A future server-authoritative survival pass should move player radiation state fully server-side.
+- PDA map optimization removes periodic full SVG rebuilds and updates only the player marker during movement. Map markers refresh on authoritative NPC state updates.

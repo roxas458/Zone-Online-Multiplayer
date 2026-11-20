@@ -286,3 +286,8 @@ body.reduce-motion *,body.reduce-motion *:before,body.reduce-motion *:after{anim
 @media(max-width:390px){.gear-layout{grid-template-columns:68px minmax(95px,1fr) 68px;gap:3px;padding:7px 5px}.gear-slot b{font-size:8px}.gear-suit{height:110px}.backpack-grid{grid-template-columns:repeat(5,minmax(0,1fr));grid-auto-rows:60px}.backpack-tools{grid-template-columns:minmax(0,1fr) 68px}.backpack-tools select:last-child{grid-column:1/-1}.backpack-foot{grid-template-columns:auto auto auto auto}.backpack-foot span:last-of-type{display:none}}
 .backpack-portrait{overflow:hidden}.backpack-portrait img{width:100%;height:100%;object-fit:cover;object-position:center 22%;filter:grayscale(.75) contrast(1.12)}
 .backpack-portrait{overflow:hidden}.backpack-portrait img{width:100%;height:100%;object-fit:cover;object-position:center 22%;filter:grayscale(.75) contrast(1.12)}
+
+/* 4.19: compact tactical markers and faction identity in backpack */
+.world-marker .marker-pulse{opacity:.18}.world-marker .marker-dot{stroke-width:1.1}.marker-direction{stroke-width:1.1;filter:none}.inventory-identity{display:flex;justify-content:space-between;gap:8px;padding:7px 10px;background:#181b19;border:1px solid #55564a;color:#d8d0a7;font:700 10px monospace;letter-spacing:.8px}.inventory-identity span{color:#a9b38b;text-align:right}.topstats span:has(#topRadiation){color:#d6b4a1}
+
+.marker-convoy .marker-dot{fill:#e4c36d;stroke:#fff0b5}.marker-convoy .marker-pulse{fill:#e4c36d}

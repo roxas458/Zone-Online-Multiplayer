@@ -1,8 +1,8 @@
 {
   "name": "zone-online",
-  "version": "4.18.0",
+  "version": "4.19.0",
   "private": true,
-  "description": "Browser-based STALKER-inspired living Zone with the developer-supplied 17-location map, distributed NPC movement and STALKER-style inventory",
+  "description": "Browser-based STALKER-inspired living Zone with faction warfare, 340 additional NPCs, radiation and optimized tactical map",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
