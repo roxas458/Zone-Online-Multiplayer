@@ -118,6 +118,19 @@ test('4.20 generated NPCs are stationed only on their faction territory', () => 
   assert.ok(!generated.some(n=>n.faction==='Чистое небо'&&n.location==='cordon'));
 });
 
+test('4.31 every faction has a medic and technician and generated NPC surnames are unique', () => {
+  const world = { npcState:{}, npcPositions:{}, territoryOwners:Object.fromEntries(Object.entries(TERRITORY_START).map(([id,v])=>[id,v.owner])) };
+  ensureRandomNpcs(world,340);
+  const generated=Object.values(world.npcState).filter(n=>n.generated);
+  const surnames=generated.map(n=>String(n.name).trim().split(/\s+/).slice(1).join(' '));
+  assert.equal(new Set(surnames).size,generated.length);
+  for(const faction of FACTIONS){
+    const specialists=generated.filter(n=>n.faction===faction&&n.supportSpecialist).map(n=>n.role);
+    assert.ok(specialists.includes('медик'),`${faction} has a medic`);
+    assert.ok(specialists.includes('техник'),`${faction} has a technician`);
+  }
+});
+
 test('4.20 NPCs stay at their post between decisions instead of teleport-wandering', () => {
   const world={npcPositions:{guard:'cordon'},territoryOwners:{cordon:'Одиночки'},npcState:{guard:{id:'guard',name:'Постовой',faction:'Одиночки',location:'cordon',homeLocation:'cordon',baseLocation:'cordon',alive:true,health:100,morale:70,supplies:70,action:'guard',behavior:'guard',duty:'base_guard',guardPost:true,nextDecisionAt:900000,lastActionAt:0}}};
   tickNpcWorld(world,new Set(['cordon','dump']),()=>0.99,60000);
@@ -278,16 +291,10 @@ test('dialogue topic selection returns the chosen current server-side topic', ()
   assert.equal(result.reply.includes(d.topics[1][1]), true);
 });
 
-test('4.21 account auth is PostgreSQL-backed and uses hashed password/token credentials', () => {
+test('4.31 guest-only mode removes account registration and login routes', () => {
   const source = require('node:fs').readFileSync(require('node:path').join(__dirname, '..', 'server.js'), 'utf8');
-  assert.match(source, /app\.post\('\/api\/auth\/register'/);
-  assert.match(source, /app\.post\('\/api\/auth\/login'/);
-  assert.match(source, /crypto\.scrypt\(/);
-  assert.match(source, /hashToken\(token\)/);
-  assert.match(source, /CREATE TABLE IF NOT EXISTS zone_accounts/);
-  assert.match(source, /CREATE TABLE IF NOT EXISTS zone_account_sessions/);
-  assert.match(source, /payload\?\.token/);
-  assert.match(source, /pendingNewCharacter/);
+  assert.doesNotMatch(source, /api\/auth\/(register|login)/);
+  assert.match(source, /guest identity/);
 });
 test('4.21 new characters spawn at their faction home and faction chat is location-scoped', () => {
   const server = require('node:fs').readFileSync(require('node:path').join(__dirname, '..', 'server.js'), 'utf8');

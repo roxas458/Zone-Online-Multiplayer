@@ -1,28 +1,31 @@
-# ZONE ONLINE 4.30.4 — ACCOUNT / MULTIPLAYER RECOVERY
+# ZONE ONLINE 4.31.0 — Guest Multiplayer Recovery
 
-## Critical fixes
-- An invalid, expired, or unverifiable account token no longer blocks Socket.IO multiplayer. The server safely creates a separate guest identity; it never trusts the account player ID without a valid session.
-- The browser clears stale account credentials when the server reports an invalid session and continues in guest mode.
-- Guest multiplayer works without PostgreSQL. Account registration/login and cross-device persistence explicitly require PostgreSQL (`DATABASE_URL`).
-- Added `/api/diagnostics` with service version, multiplayer status, online count, Socket.IO path/transports and account database availability.
-- Added an in-game “Проверить сеть и сервер” diagnostic action.
-- Added a connection-attempt guard to prevent overlapping asynchronous reconnect attempts from creating competing sockets.
-- Relaxed the separate-server version check: a valid ZONE ONLINE server is no longer rejected merely because it is running an earlier compatible 4.20+ release.
+This build removes account registration and login completely. Players enter as guests with a browser-stored UUID. Existing local game saves are retained; old account tokens are cleared from local storage and are no longer sent to the server.
 
-## Deploy
-Build: `yarn install` or `npm install`
-Start: `yarn start` or `npm start`
-Deploy the complete project to the existing Render Web Service. Do not create a new service or delete the database.
+## Multiplayer changes
+- The server registers a guest player, sends the small `player:hello` acknowledgement first, and only then queues the world snapshot. This prevents a large world payload from delaying the acknowledgement over Socket.IO long-polling.
+- The initial `player:ready` snapshot omits internal NPC state. A compact public NPC roster is sent separately.
+- Socket.IO listeners are installed before the client explicitly calls `connect()`.
+- Polling is attempted first and may upgrade to WebSocket.
+- A separate `zonePlayerReady` state prevents NPC interactions from being sent before the server has hydrated the player.
+- NPC rumor interactions remain available offline with local fallback dialogue.
 
-## Required Render configuration
-- For guest multiplayer only: PostgreSQL is optional.
-- For account registration/login and cross-device saves: attach Render PostgreSQL and set `DATABASE_URL` to its Internal Database URL.
+## NPC and faction additions
+- Every faction has one dedicated medic and one technician, assigned to existing generated NPCs so the roster does not inflate.
+- Medics restore up to 35 health for 75 RU.
+- Technicians repair equipped armor by up to 35 condition points for 100 RU.
+- Generated NPC names use an expanded first-name/surname pool and deterministic unique surnames.
 
-## Verify after deploy
-- `https://YOUR-SERVICE.onrender.com/health` should return `ok: true`, `version: "4.30.4"`.
-- `https://YOUR-SERVICE.onrender.com/api/diagnostics` should return `multiplayer: true`.
-- In the game, Multiplayer → “Проверить сеть и сервер” shows HTTP, Socket.IO and database status.
-- Render logs should show `[socket] connected`, `[socket] player:hello received`, and `player:hello completed`.
+## Deploy to Render
+- Build command: `yarn install` (or `npm install`)
+- Start command: `yarn start` (or `npm start`)
+- Health check: `/health`
+- PostgreSQL is optional for multiplayer. Without `DATABASE_URL`, player/world state is held in memory and resets when the Render service restarts. Local browser saves remain on the player's device.
 
-## Important
-The patch cannot enable persistent accounts without an actual PostgreSQL database. It does prevent missing/expired account sessions from disabling anonymous multiplayer. Existing browser saves are not deleted.
+## Verify
+- `/health` should return `ok: true` and version `4.31.0`.
+- `/api/diagnostics` should report `multiplayer: true` and `guestMode: true`.
+- Render logs should show `[socket] connected`, `player:hello received`, `player:hello ack sent`, and `player:hello completed`.
+- For two-player verification, open the game in two separate browsers/devices and confirm both appear in the online player list.
+
+Automated tests do not prove the live Render deployment is healthy; the deployed service and two real browser clients must still be checked.

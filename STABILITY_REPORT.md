@@ -1,37 +1,26 @@
-# Stability report — 4.30.0
+# Stability report — ZONE ONLINE 4.31.0
 
-## 4.30.0 changes
-- Removed the hard-coded six-NPC trading whitelist. Server-side trade now requires a living NPC in the same sector with a dialogue record.
-- Added per-NPC persisted economy records: independent balance, stock, restock timestamp and last 30 transactions.
-- Named trader accounts initialize at 10,000,000 RU; other NPC accounts initialize at 5,000 RU.
-- Purchases debit only the player. Sales credit the player and debit only the NPC. Both sides are checked against non-negative balances.
-- NPC stock is replenished gradually with a maximum cap.
-- Added a Trade action to the NPC dialogue and displayed the NPC's separate balance in the trade panel.
-- Added Socket.IO connection/transport/error/disconnect diagnostics to Render logs.
+## Root-cause-oriented changes
+- Removed account registration, login, session-token verification and account UI. The multiplayer handshake is now guest-only and does not depend on account tables or account tokens.
+- The `player:hello` acknowledgement is sent after the guest is registered in the online map but before the large world snapshot is queued. This specifically avoids acknowledgement delay caused by long-polling delivery of large packets.
+- `player:ready` now receives a reduced world snapshot without the full internal NPC state or NPC event history.
+- NPC state is transmitted separately as a compact public roster, excluding internal AI memory, pathing and server-only fields.
+- Socket.IO is created with `autoConnect:false`; all event handlers are attached before calling `connect()`.
+- Client tracks `zonePlayerReady`, not merely the low-level Socket.IO `connected` flag, before sending live NPC interactions.
+- NPC rumor queries have a local fallback while offline or before player hydration completes.
 
-## Verification limits
-Automated checks cannot establish whether the live Render deployment points to this project, whether the correct service is running, or whether two external clients can exchange live state. Those require deploying this archive and testing the actual service URL.
+## Gameplay additions
+- Every faction is assigned one generated medic and one generated technician without increasing the generated NPC count.
+- Medic service: up to +35 health for 75 RU.
+- Technician service: up to +35 armor condition for 100 RU.
+- Added medic/technician dialogue topics.
+- Expanded generated first-name and surname pools; generated NPC surnames are unique within the active generated roster and deterministic across restarts.
 
-# Stability report — 4.29.1
+## Verification
+- `node --check` passed for server, client and changed NPC modules.
+- `npm test`: **81 passed, 0 failed**.
+- A local live-server integration check could not be completed in this environment because project dependencies were not installed and package installation timed out. Therefore this archive is syntax- and test-verified, not confirmed against the live Render service.
 
-## Automated checks
-- `npm test`: **77 tests passed, 0 failed**.
-- `npm run check`: **passed** (all configured JavaScript syntax checks).
-- Server and client JavaScript syntax checks: passed.
-- ZIP archive integrity: verified after packaging.
-
-## Dialogue
-- Replaced the previous green modal with a two-sided industrial dialogue screen: NPC/player portrait cards, large translucent conversation panel, separate response list, and bottom Trade/Exit actions.
-- Kept server-driven dialogue topic updates and offline dialogue behavior.
-- Responsive layout added for narrow screens.
-
-## Trading
-- Added drag-and-drop plus click-to-add controls for a deal basket.
-- Basket previews purchase/sale totals and supports item removal and clearing.
-- Offline deal validates funds and item quantities before applying changes.
-- Online deal uses a new atomic `market:deal` server event. The server aggregates duplicate rows, validates all requested items and quantities before applying inventory and balance changes, then persists once.
-- Existing `market:buy` and `market:sell` events remain for compatibility.
-- Item icons remain the project's original vector glyphs; no original game asset files were extracted or redistributed.
-
-## Verification limits
-- Automated tests and syntax checks do not verify the live Render deployment, real database connectivity, or browser rendering on every device. Those require testing against the deployed service.
+## Operational notes
+- PostgreSQL is optional for guest multiplayer. Without `DATABASE_URL`, server-side world/player state is in memory and resets on service restart; local browser saves remain available.
+- After deployment, verify `/health`, `/api/diagnostics`, and Render socket logs. A real two-client test is still required to confirm live multiplayer.

@@ -71,56 +71,31 @@ io.engine.on('connection_error', error=>console.error(`[engine] connection_error
 const PORT = process.env.PORT || 3000;
 const SECTOR_COORDS = Object.freeze({chaes:[503,104],zaton:[561,405],pripyat:[676,649],jupiter:[391,703],limansk:[128,838],red:[311,903],radar:[675,897],army:[502,1046],wild:[347,1212],bar:[441,1215],yantar:[174,1302],dump:[466,1470],agro:[243,1528],dark:[787,1418],cordon:[463,1753],swamps:[185,1788],darkhollow:[793,1742]});
 const SPAWN_BY_FACTION = Object.freeze({'Одиночки':'cordon','Долг':'bar','Свобода':'army','Бандиты':'dump','Военные':'agro','Учёные':'yantar','Наёмники':'limansk','Монолит':'radar','Чистое небо':'swamps'});
-const hashToken = value => crypto.createHash('sha256').update(String(value)).digest('hex');
-const derivePassword = (password, salt) => new Promise((resolve,reject)=>crypto.scrypt(password,salt,64,(err,key)=>err?reject(err):resolve(key.toString('hex'))));
-function accountName(value){ return clean(value,24).toLowerCase(); }
-function validPassword(value){ return typeof value==='string' && value.length>=8 && value.length<=128; }
-async function resolveSession(token){ if(!pool||typeof token!=='string'||token.length<32)return null; try{const r=await pool.query('SELECT s.account_id,a.username,a.player_id FROM zone_account_sessions s JOIN zone_accounts a ON a.id=s.account_id WHERE s.token_hash=$1 AND s.expires_at>NOW()',[hashToken(token)]);return r.rows[0]||null;}catch(e){await dbFallback(e,'session lookup');return null;} }
-async function issueSession(accountId){const token=crypto.randomBytes(32).toString('hex');await pool.query("INSERT INTO zone_account_sessions(account_id,token_hash,expires_at) VALUES($1,$2,NOW()+INTERVAL '30 days')",[accountId,hashToken(token)]);return token;}
-
 app.use(express.json({limit:'64kb'}));
 app.use(express.static(path.join(__dirname, 'public')));
-app.post('/api/auth/register', async (req,res)=>{
-  if(!pool||!dbReady)return res.status(503).json({ok:false,message:'Для аккаунтов нужна подключённая PostgreSQL. Сейчас сервер работает без постоянной базы данных.'});
-  const username=accountName(req.body?.username), password=req.body?.password, playerId=validId(req.body?.playerId)?String(req.body.playerId):crypto.randomUUID();
-  if(!/^[a-zа-яё0-9_-]{3,24}$/i.test(username))return res.status(400).json({ok:false,message:'Логин: 3–24 символа, буквы, цифры, _ или -.'});
-  if(!validPassword(password))return res.status(400).json({ok:false,message:'Пароль должен содержать от 8 до 128 символов.'});
-  const salt=crypto.randomBytes(16).toString('hex');
-  try{
-    const passwordHash=await derivePassword(password,salt);
-    const state=safeState(req.body?.state).state;
-    const client=await pool.connect(); let accountId;
-    try{await client.query('BEGIN');const a=await client.query('INSERT INTO zone_accounts(id,username,password_hash,password_salt,player_id) VALUES($1,$2,$3,$4,$5) RETURNING id',[crypto.randomUUID(),username,passwordHash,salt,playerId]);accountId=a.rows[0].id;await client.query('INSERT INTO zone_players(id,state,account_id,updated_at) VALUES($1,$2,$3,NOW()) ON CONFLICT(id) DO UPDATE SET state=EXCLUDED.state,account_id=EXCLUDED.account_id,updated_at=NOW()',[playerId,state,accountId]);await client.query('COMMIT');}catch(e){await client.query('ROLLBACK');throw e;}finally{client.release();}
-    const token=await issueSession(accountId);res.status(201).json({ok:true,token,playerId,state,message:'Аккаунт создан. Теперь можно входить с другого устройства.'});
-  }catch(e){if(e.code==='23505')return res.status(409).json({ok:false,message:'Такой логин уже занят.'});console.error('account register:',e);res.status(500).json({ok:false,message:'Не удалось создать аккаунт.'});}
-});
-app.post('/api/auth/login', async (req,res)=>{
-  if(!pool||!dbReady)return res.status(503).json({ok:false,message:'Вход по аккаунту требует подключённой PostgreSQL.'});
-  const username=accountName(req.body?.username), password=req.body?.password;
-  try{const r=await pool.query('SELECT id,username,password_hash,password_salt,player_id FROM zone_accounts WHERE username=$1',[username]);const a=r.rows[0];if(!a||!validPassword(password)||!crypto.timingSafeEqual(Buffer.from(await derivePassword(password,a.password_salt),'hex'),Buffer.from(a.password_hash,'hex')))return res.status(401).json({ok:false,message:'Неверный логин или пароль.'});const pr=await pool.query('SELECT state FROM zone_players WHERE id=$1',[a.player_id]);const token=await issueSession(a.id);res.json({ok:true,token,playerId:a.player_id,state:pr.rows[0]?.state||null,username:a.username});}catch(e){console.error('account login:',e);res.status(500).json({ok:false,message:'Ошибка входа. Попробуй позже.'});}
-});
-app.get('/api/auth/me', async (req,res)=>{const a=await resolveSession(String(req.headers.authorization||'').replace(/^Bearer\s+/i,''));if(!a)return res.status(401).json({ok:false});res.json({ok:true,username:a.username,playerId:a.player_id});});
-app.post('/api/auth/logout', async (req,res)=>{const token=String(req.headers.authorization||'').replace(/^Bearer\s+/i,'');if(pool&&token)try{await pool.query('DELETE FROM zone_account_sessions WHERE token_hash=$1',[hashToken(token)]);}catch(e){await dbFallback(e,'logout');}res.json({ok:true});});
-app.get('/health', (_req,res) => { res.set('Access-Control-Allow-Origin','*'); res.set('Cache-Control','no-store'); res.status(200).json({ ok:true, service:'ZONE ONLINE', version:require('./package.json').version, database:dbReady?'postgres':'memory-fallback', databaseRequiredForAccounts:true, online:online.size, revision:world.revision||1, timestamp:Date.now() }); });
-app.get('/api/diagnostics', (_req,res) => { res.set('Access-Control-Allow-Origin','*'); res.set('Cache-Control','no-store'); res.json({ ok:true, version:require('./package.json').version, multiplayer:true, accountsAvailable:!!(pool&&dbReady), database:dbReady?'postgres':'memory-fallback', online:online.size, socketPath:'/socket.io', transports:['polling','websocket'], timestamp:Date.now() }); });
-app.get('/api/status', (_req,res) => res.json({ ...publicWorldStatus(world, online.size), persistent:dbReady, service:'ZONE ONLINE 4.30.4 ACCOUNT / MULTIPLAYER RECOVERY' }));
+app.get('/health', (_req,res) => { res.set('Access-Control-Allow-Origin','*'); res.set('Cache-Control','no-store'); res.status(200).json({ ok:true, service:'ZONE ONLINE', version:require('./package.json').version, database:dbReady?'postgres':'memory-fallback', databaseRequiredForAccounts:false, online:online.size, revision:world.revision||1, timestamp:Date.now() }); });
+app.get('/api/diagnostics', (_req,res) => { res.set('Access-Control-Allow-Origin','*'); res.set('Cache-Control','no-store'); res.json({ ok:true, version:require('./package.json').version, multiplayer:true, guestMode:true, database:dbReady?'postgres':'memory-fallback', online:online.size, socketPath:'/socket.io', transports:['polling','websocket'], timestamp:Date.now() }); });
+app.get('/api/status', (_req,res) => res.json({ ...publicWorldStatus(world, online.size), persistent:dbReady, service:'ZONE ONLINE 4.31.0 GUEST MULTIPLAYER' }));
 app.get('/api/world/snapshot', (_req,res) => res.json({ status:publicWorldStatus(world, online.size), world }));
 app.get('/api/world/events', (req,res) => { const since=Number(req.query.since||0); const sync=buildWorldSync(world, Number.isSafeInteger(since)?since:0); res.json(sync); });
 
 function publicPlayer(p){ return { id:p.id, name:p.name, faction:p.faction, location:p.location, x:p.x, y:p.y, hp:p.hp, xp:p.xp, joinedAt:p.joinedAt, lastSeen:p.lastSeen }; }
 function onlineList(){ return [...online.values()].map(publicPlayer).sort((a,b)=>a.name.localeCompare(b.name,'ru')); }
+function publicNpcRoster(){
+  const fields=['id','name','faction','role','location','alive','generated','supportSpecialist','icon','personality','mood','action','behavior','duty','guardPost','homeLocation','health','morale','supplies','biography','friends','rivals','squadId','squadName','dialogueVersion','dialogue','relationships','equipment'];
+  return Object.fromEntries(Object.entries(world.npcState||{}).map(([id,n])=>[id,Object.fromEntries(fields.filter(k=>n[k]!==undefined).map(k=>[k,n[k]]))]));
+}
+function publicWorldSnapshot(){const {npcState,npcEvents,...snapshot}=world;return snapshot;}
+function emitNpcState(target=io){target.emit('world:npc-state',{npcs:publicNpcRoster(),events:(world.npcEvents||[]).slice(-20),squads:world.npcSquads||[],memorial:world.npcMemorial||[],battlefronts:world.battlefronts||[],convoys:world.convoys||[],factionBases:world.factionBases||[],frontlineOrders:world.frontlineOrders||[]});}
 function broadcastOnline(){ io.emit('world:players',onlineList()); }
 function systemMessage(text){ const m={id:crypto.randomUUID(),system:true,name:'Система',text:clean(text,240),time:Date.now()}; recentChat.push(m); if(recentChat.length>80)recentChat.shift(); io.emit('world:chat',m); }
 initDiplomacy(world, FACTIONS); initSharedWorld(world, NPC_HOME, LOCATIONS, COOP_TEMPLATES); initSouls(world); ensureOnlineWorld(world);
 async function initDb(){
-  if(!process.env.DATABASE_URL){ console.warn('DATABASE_URL missing: running in memory mode. Add Render PostgreSQL for persistence.'); return; }
+  if(!process.env.DATABASE_URL){ console.warn('DATABASE_URL missing: guest multiplayer is active in memory mode; server-side saves reset on restart.'); return; }
   try {
     const { Pool } = require('pg');
     pool = new Pool({ connectionString:process.env.DATABASE_URL, ssl:process.env.DATABASE_URL.includes('localhost')?false:{rejectUnauthorized:false}, max:10, idleTimeoutMillis:30000, connectionTimeoutMillis:8000, query_timeout:8000, statement_timeout:8000 });
-    await pool.query(`CREATE TABLE IF NOT EXISTS zone_players (id TEXT PRIMARY KEY, state JSONB NOT NULL, account_id UUID, updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`);
-    await pool.query(`ALTER TABLE zone_players ADD COLUMN IF NOT EXISTS account_id UUID`);
-    await pool.query(`CREATE TABLE IF NOT EXISTS zone_accounts (id UUID PRIMARY KEY, username TEXT UNIQUE NOT NULL, password_hash TEXT NOT NULL, password_salt TEXT NOT NULL, player_id TEXT UNIQUE NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`);
-    await pool.query(`CREATE TABLE IF NOT EXISTS zone_account_sessions (id BIGSERIAL PRIMARY KEY, account_id UUID NOT NULL REFERENCES zone_accounts(id) ON DELETE CASCADE, token_hash TEXT UNIQUE NOT NULL, expires_at TIMESTAMPTZ NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`);
+    await pool.query(`CREATE TABLE IF NOT EXISTS zone_players (id TEXT PRIMARY KEY, state JSONB NOT NULL, updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`);
     await pool.query(`CREATE TABLE IF NOT EXISTS zone_world (id INTEGER PRIMARY KEY CHECK (id=1), state JSONB NOT NULL, updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`);
     await pool.query(`CREATE TABLE IF NOT EXISTS zone_chat (id BIGSERIAL PRIMARY KEY, payload JSONB NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`);
     await pool.query(`CREATE TABLE IF NOT EXISTS zone_private_messages (id BIGSERIAL PRIMARY KEY, message_id TEXT UNIQUE NOT NULL, from_id TEXT NOT NULL, to_id TEXT NOT NULL, payload JSONB NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`);
@@ -152,7 +127,7 @@ function squadJournal(q,type,text,extra={}){ q.journal ||= []; q.journal.unshift
 function publishSquad(q){ if(!q)return; for(const m of q.members||[])io.to(m.id).emit('squad:state',{squad:q}); }
 function publishSquadMove(q,from,to,leader){
   q.location=to; squadJournal(q,'move',`${leader} повёл отряд из сектора ${from} в сектор ${to}.`);
-  if(q.escortNpcId){const escort=world.npcState?.[q.escortNpcId];if(escort&&escort.alive!==false){escort.location=to;world.npcPositions ||= {};world.npcPositions[escort.id]=to;io.emit('world:npcs',world.npcPositions);io.emit('world:npc-state',{npcs:world.npcState,events:(world.npcEvents||[]).slice(-20),squads:world.npcSquads||[],memorial:world.npcMemorial||[],battlefronts:world.battlefronts||[],convoys:world.convoys||[],factionBases:world.factionBases||[],frontlineOrders:world.frontlineOrders||[]});squadJournal(q,'escort_move',`${escort.name} продолжает идти вместе с отрядом.`);}else q.escortNpcId=null;}
+  if(q.escortNpcId){const escort=world.npcState?.[q.escortNpcId];if(escort&&escort.alive!==false){escort.location=to;world.npcPositions ||= {};world.npcPositions[escort.id]=to;io.emit('world:npcs',world.npcPositions);emitNpcState();squadJournal(q,'escort_move',`${escort.name} продолжает идти вместе с отрядом.`);}else q.escortNpcId=null;}
   for(const m of q.members||[]){ const member=online.get(m.id); if(!member)continue; const old=member.location; member.location=to;
     const st=safeState(member.state); st.state.loc=to; member.state=st.state; const memberSocket=member.socketId&&io.sockets.sockets.get(member.socketId); if(memberSocket){memberSocket.leave(`location:${old}`);memberSocket.join(`location:${to}`);memberSocket.emit('world:chat:history',recentChat.filter(m=>!m.location||m.location===to).slice(-60));} persistPlayer(member.id,member.state).catch(()=>{});
     io.to(member.id).emit('squad:travelled',{location:to,from:old,leader:leader,squad:q});
@@ -174,46 +149,32 @@ io.on('connection', socket=>{
   socket.on('player:hello', async (payload, ack)=>{
     const helloStartedAt=Date.now();
     console.info(`[socket] player:hello received id=${socket.id} transport=${socket.conn.transport.name}`);
-    // Confirm receipt synchronously, before database lookups or save migration.
-    // Render cold starts and slow PostgreSQL queries must not consume the client's
-    // Socket.IO acknowledgement deadline. The actual profile/world arrives in player:ready.
-    let helloAcknowledged=false;
-    if(typeof ack==='function'){
-      try { ack({ok:true,accepted:true,persistent:dbReady}); helloAcknowledged=true; console.info(`[socket] player:hello ack sent id=${socket.id}`); }
-      catch(error) { console.warn('player:hello acknowledgement failed:',error.message); }
-    }
     try {
-      const suppliedToken=typeof payload?.token==='string'&&payload.token.length>0;
-      const auth=suppliedToken?await resolveSession(payload.token):null;
-      // A stale token or a temporarily unavailable PostgreSQL must never block
-      // anonymous multiplayer. Do not reuse an account's player ID without a
-      // verified session: create a separate guest identity and preserve only the
-      // local state explicitly sent by this browser.
-      const authFallback=suppliedToken&&!auth;
-      const id=auth?.player_id||(authFallback?crypto.randomUUID():(validId(payload?.id)?String(payload.id):crypto.randomUUID()));
-      if(authFallback)socket.emit('player:auth-expired',{reason:pool?'invalid_or_expired':'database_unavailable',message:pool?'Сессия аккаунта истекла. Ты вошёл как гость; войди в аккаунт повторно для синхронизации.':'База аккаунтов недоступна. Ты вошёл как гость; мультиплеер продолжает работать.'});
+      // guest identity mode: account registration/login has been removed. Every connection is a guest
+      // identified by a browser-generated UUID; no token or database lookup is required.
+      const id=validId(payload?.id)?String(payload.id):crypto.randomUUID();
       let saved=await loadPlayer(id);
-      if(auth&&pool){const owned=await pool.query('SELECT state FROM zone_players WHERE id=$1 AND account_id=$2',[id,auth.account_id]);saved=owned.rows[0]?.state||saved;}
       const pendingNewCharacter=payload?.state?.characterCreated===true&&saved?.characterCreated!==true;
       if((!saved||pendingNewCharacter) && payload?.state) { saved=safeState(payload.state).state; await persistPlayer(id,saved); }
       const s=saved?safeState(saved):safeState(payload?.state);
       const spawnPoint=SECTOR_COORDS[s.loc]||SECTOR_COORDS.cordon;const savedPos=s.state?.worldPosition;const p={ id, name:s.name, faction:s.faction, location:s.loc, x:Number.isFinite(Number(savedPos?.x))?Math.max(0,Math.min(1000,Number(savedPos.x))):spawnPoint[0], y:Number.isFinite(Number(savedPos?.y))?Math.max(0,Math.min(2000,Number(savedPos.y))):spawnPoint[1], hp:s.hp, xp:s.xp, joinedAt:Date.now(), lastSeen:Date.now(), state:saved||s.state, moveOrder:null, travelEncounter:null };
       const previous=online.get(id); if(previous?.socketId&&previous.socketId!==socket.id){const oldSocket=io.sockets.sockets.get(previous.socketId);if(oldSocket)oldSocket.disconnect(true);}
-      socket.data.playerId=id; socket.data.name=p.name; socket.data.accountId=auth?.account_id||null; p.socketId=socket.id; online.set(id,p); socket.join('zone-world'); socket.join(id); socket.join(`location:${p.location}`); socket.join(`faction:${p.faction}`);
+      socket.data.playerId=id; socket.data.name=p.name; p.socketId=socket.id; online.set(id,p); socket.join('zone-world'); socket.join(id); socket.join(`location:${p.location}`); socket.join(`faction:${p.faction}`);
       world.onlineMetrics ||= { totalJoins:0, totalMoves:0, lastTickAt:0 }; world.onlineMetrics.totalJoins += 1;
       const joinEvent = appendWorldEvent(world, 'player_joined', { player:publicPlayer(p) });
-      // Acknowledgement was already sent synchronously above. Keep the ready payload
-      // separate so the client can distinguish accepted login from profile hydration.
-      socket.emit('player:ready',{id, savedState:saved, account:auth?{username:auth.username}:null, authFallback, world, worldSync:buildWorldSync(world, Number(payload?.lastRevision)||0), status:publicWorldStatus(world,online.size), chat:recentChat.filter(m=>!m.location||m.location===p.location).slice(-60), players:onlineList(), position:{x:p.x,y:p.y}, persistent:dbReady});
+      // Acknowledge after registration but BEFORE the world snapshot, so long-polling
+      // clients receive the small acknowledgement without waiting for a large NPC payload.
+      if(typeof ack==='function'){ack({ok:true,accepted:true,persistent:dbReady});console.info(`[socket] player:hello ack sent id=${socket.id}`);}
+      socket.emit('player:ready',{id, savedState:saved, guest:true, world:publicWorldSnapshot(), worldSync:buildWorldSync(world, Number(payload?.lastRevision)||0), status:publicWorldStatus(world,online.size), chat:recentChat.filter(m=>!m.location||m.location===p.location).slice(-60), players:onlineList(), position:{x:p.x,y:p.y}, persistent:dbReady});
       console.log(`player:hello completed for ${id} in ${Date.now()-helloStartedAt}ms (db=${dbReady?'postgres':'memory-fallback'})`);
       socket.to('zone-world').emit('world:event',joinEvent);
-      io.emit('world:npcs',world.npcPositions); io.emit('world:npc-state',{npcs:world.npcState,events:(world.npcEvents||[]).slice(-20),squads:world.npcSquads||[],memorial:world.npcMemorial||[],battlefronts:world.battlefronts||[],convoys:world.convoys||[],factionBases:world.factionBases||[],frontlineOrders:world.frontlineOrders||[]}); io.emit('world:ecosystem',world.ecosystem); io.emit('world:coop',world.coOpQuests); io.emit('war:state',{operations:world.warOperations||[],history:(world.warHistory||[]).slice(0,12)});
+      io.emit('world:npcs',world.npcPositions); emitNpcState(); io.emit('world:ecosystem',world.ecosystem); io.emit('world:coop',world.coOpQuests); io.emit('war:state',{operations:world.warOperations||[],history:(world.warHistory||[]).slice(0,12)});
       systemMessage(`${p.name} вошёл в Зону.`); broadcastOnline(); persistWorld().catch(e=>console.error('join persistence:',e.message));
     } catch(e){
       console.error(`[socket] player:hello failed id=${socket.id} after ${Date.now()-helloStartedAt}ms:`,e);
-      const message=e?.message==='Сессия аккаунта истекла. Войди в аккаунт заново.'?e.message:'Сервер принял соединение, но не смог загрузить профиль. Проверь журнал Render.';
+      const message='Сервер принял соединение, но не смог загрузить профиль. Проверь журнал Render.';
       socket.emit('player:hello:error',{message,detail:clean(e?.message||'unknown',180)});
-      if(!helloAcknowledged&&typeof ack==='function')try{ack({ok:false,message});}catch{}
+      if(typeof ack==='function')ack({ok:false,message,detail:clean(e?.message||'unknown',180)});
     }
   });
   socket.on('player:save', async input=>{
@@ -515,7 +476,26 @@ io.on('connection', socket=>{
     world.npcMemorial||=[];world.npcMemorial.unshift({id:`mem_${npc.id}_${npc.diedAt}`,name:npc.name,faction:npc.faction,role:npc.role,location:npc.location,cause:npc.deathCause,diedAt:npc.diedAt});world.npcMemorial=world.npcMemorial.slice(0,100);
     world.npcPositions[npc.id]=npc.location;
     const ev=appendWorldEvent(world,'npc_killed',{npcId:npc.id,name:npc.name,faction:npc.faction,playerId:p.id,playerName:p.name,location:p.location});
-    await persistWorld();io.emit('world:event',ev);io.emit('world:npc-state',{npcs:world.npcState,events:(world.npcEvents||[]).slice(-20),squads:world.npcSquads||[],memorial:world.npcMemorial||[],battlefronts:world.battlefronts||[],convoys:world.convoys||[],factionBases:world.factionBases||[],frontlineOrders:world.frontlineOrders||[]});socket.emit('npc:combat:result',{ok:true,npcId:npc.id});
+    await persistWorld();io.emit('world:event',ev);emitNpcState();socket.emit('npc:combat:result',{ok:true,npcId:npc.id});
+  });
+  socket.on('npc:specialist', async input=>{
+    const p=online.get(socket.data.playerId);if(!p)return;
+    const npc=world.npcState?.[String(input?.npcId||'').slice(0,48)];
+    if(!npc||npc.alive===false||npc.location!==p.location||!npc.supportSpecialist){socket.emit('npc:specialist:result',{ok:false,message:'Специалист должен быть жив и находиться рядом.'});return;}
+    const state=safeState(p.state),medic=npc.role==='медик',technician=npc.role==='техник';
+    if(!medic&&!technician){socket.emit('npc:specialist:result',{ok:false,message:'Этот сталкер не оказывает такую услугу.'});return;}
+    const cost=medic?75:100;
+    if(state.money<cost){socket.emit('npc:specialist:result',{ok:false,message:`Нужно ${cost} ₽ за услугу.`});return;}
+    if(medic){if(state.hp>=100){socket.emit('npc:specialist:result',{ok:false,message:'Здоровье уже в порядке.'});return;}state.state.hp=Math.min(100,state.hp+35);}
+    else{
+      const armor=(state.state.items||[]).find(x=>x.name===state.state.equipment?.suit&&x.type==='Броня');
+      if(!armor){socket.emit('npc:specialist:result',{ok:false,message:'Сначала надень броню, которую нужно отремонтировать.'});return;}
+      if(Number(armor.condition??100)>=100){socket.emit('npc:specialist:result',{ok:false,message:'Броня уже полностью исправна.'});return;}
+      armor.condition=Math.min(100,Number(armor.condition??70)+35);
+    }
+    state.state.money=state.money-cost;p.state=state.state;p.hp=state.state.hp;await persistPlayer(p.id,p.state);
+    const message=medic?`${npc.name} оказал медицинскую помощь. Здоровье восстановлено на 35 пунктов.`:`${npc.name} отремонтировал броню. Состояние улучшено на 35 пунктов.`;
+    socket.emit('npc:specialist:result',{ok:true,state:p.state,message});
   });
   socket.on('npc:interact', async input=>{
     const p=online.get(socket.data.playerId); if(!p)return;
@@ -523,7 +503,7 @@ io.on('connection', socket=>{
     const npc=world.npcState?.[npcId];
     const result=interactWithNpc(npc,{id:p.id,location:p.location},action,Date.now(),{recentWorldEvent:world.zoneEvents?.at(-1)?.title||'',locationName:npc?.location,topicIndex:input?.topicIndex,friendName:world.npcState?.[npc?.friends?.[0]]?.name||'',rivalName:world.npcState?.[npc?.rivals?.[0]]?.name||''});
     socket.emit('npc:interaction-result',result);
-    if(result.ok){ const syncEvent=appendWorldEvent(world,'npc_interaction',{npcId,playerId:p.id,action,relationship:result.relationship}); await persistWorld(); io.emit('world:event',syncEvent); io.emit('world:npc-state',{npcs:world.npcState,events:(world.npcEvents||[]).slice(-20),squads:world.npcSquads||[],memorial:world.npcMemorial||[],battlefronts:world.battlefronts||[],convoys:world.convoys||[],factionBases:world.factionBases||[],frontlineOrders:world.frontlineOrders||[]}); }
+    if(result.ok){ const syncEvent=appendWorldEvent(world,'npc_interaction',{npcId,playerId:p.id,action,relationship:result.relationship}); await persistWorld(); io.emit('world:event',syncEvent); emitNpcState(); }
   });
   socket.on('base:upgrade', async input=>{
     const p=online.get(socket.data.playerId);if(!p)return;const cost=500,st=safeState(p.state);
@@ -602,7 +582,7 @@ setInterval(async()=>{
     io.emit('world:event',tickEvent);
     for(const event of [...events,...ecoEvents,...soulEvents]){const ev=appendWorldEvent(world,event.type,{...event},now);io.emit('world:event',ev);io.emit('world:npc-event',event);if(['npc_skirmish','mutant_migration','convoy_ambush','convoy_started'].includes(event.type))systemMessage(event.text);}
     await persistWorld(); io.emit('world:npcs',world.npcPositions);
-    io.emit('world:npc-state',{npcs:world.npcState,events:(world.npcEvents||[]).slice(-20),squads:world.npcSquads||[],memorial:world.npcMemorial||[],battlefronts:world.battlefronts||[],convoys:world.convoys||[],factionBases:world.factionBases||[],frontlineOrders:world.frontlineOrders||[]});io.emit('world:ecosystem',world.ecosystem);
+    emitNpcState();io.emit('world:ecosystem',world.ecosystem);
     io.emit('world:status',publicWorldStatus(world,online.size));
   }catch(e){console.error('NPC AI schedule:',e.message);} finally {npcTickRunning=false;}
 },60*1000).unref();

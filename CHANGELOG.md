@@ -1,5 +1,15 @@
 # Changelog
 
+## 4.31.0 — Guest multiplayer recovery and faction specialists
+- Removed account registration, login, session tokens and account UI; multiplayer now uses persistent guest IDs from the browser.
+- Moved the small `player:hello` acknowledgement ahead of the large world snapshot to avoid long-polling acknowledgement delays.
+- Reduced the initial world snapshot by excluding the full internal NPC state; clients receive a compact public NPC roster separately.
+- Added offline NPC rumor responses so asking about rumors remains playable without a live connection.
+- Added one medic and one technician to each faction, with paid healing and armor repair actions.
+- Expanded generated first/last-name pools and deterministic unique surnames for generated NPCs.
+
+# Changelog
+
 ## 4.30.3 — Multiplayer connection compatibility
 - Restored the Socket.IO transport order and connection options from the known-working 4.20.0 release.
 - Removed `forceNew` and the newer `tryAllTransports` flag from the browser client.

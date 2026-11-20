@@ -413,9 +413,9 @@ test('4.25 field PDA keeps long-page filters and map controls reachable', () => 
 test('4.30 build labels are consistent', () => {
   const html = fs.readFileSync(path.join(root, 'public/index.html'), 'utf8');
   const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
-  assert.equal(pkg.version, '4.30.4');
-  assert.match(html, /BUILD 4\.30\.4/);
-  assert.match(html, /ZONE ONLINE 4\.30/);
+  assert.equal(pkg.version, '4.31.0');
+  assert.match(html, /BUILD 4\.31\.0/);
+  assert.match(html, /ZONE ONLINE 4\.31/);
 });
 
 test('4.27 connection diagnostics support a separate server URL and health endpoint', () => {
@@ -446,14 +446,14 @@ test('4.27 login acknowledgement timeout accounts for Render cold starts', () =>
   assert.match(game, /Сервер подтвердил вход, но не прислал профиль мира/);
 });
 
-test('4.27 server acknowledges login before sending the large world snapshot', () => {
+test('4.31 guest server acknowledges before the large world snapshot', () => {
   const server = fs.readFileSync(path.join(root, 'server.js'), 'utf8');
   const handler = server.indexOf("socket.on('player:hello', async (payload, ack)=>{");
   const ack = server.indexOf("ack({ok:true,accepted:true,persistent:dbReady})", handler);
-  const firstAwait = server.indexOf('await resolveSession(payload.token)', handler);
+  const firstAwait = server.indexOf('await loadPlayer(id)', handler);
   const ready = server.indexOf("socket.emit('player:ready'", handler);
-  assert.ok(ack > handler && firstAwait > ack, 'login acknowledgement must be synchronous before database work');
-  assert.ok(ready > firstAwait, 'profile snapshot must be sent after profile loading');
+  assert.ok(firstAwait > handler && ready > firstAwait, 'profile snapshot follows profile loading');
+  assert.ok(ack > firstAwait && ack < ready, 'guest acknowledgement is sent before large ready payload');
   assert.match(server, /player:hello completed for/);
   assert.match(server, /query_timeout:8000, statement_timeout:8000/);
 });
@@ -514,15 +514,23 @@ test('4.30 enables dialogue NPC trade with independent NPC wallets and bounded s
 });
 
 
-test('4.30.4 invalid account sessions fall back to a separate guest and diagnostics are exposed', () => {
+test('4.31 NPC rumors work offline and faction specialists expose service actions', () => {
+  const client = fs.readFileSync(path.join(root, 'public/js/game.js'), 'utf8');
+  assert.doesNotMatch(client, /Для взаимодействия с живым NPC нужно подключение к серверу/);
+  assert.match(client, /Offline fallback keeps NPC rumor interaction playable/);
+  assert.match(client, /function npcSpecialistAction\(/);
+  assert.match(client, /Медицинская помощь/);
+  assert.match(client, /Ремонт снаряжения/);
+});
+
+test('4.31 removes account registration and login and uses guest multiplayer', () => {
+  const server = fs.readFileSync(path.join(root, 'server.js'), 'utf8');
   const html = fs.readFileSync(path.join(root, 'public/index.html'), 'utf8');
   const client = fs.readFileSync(path.join(root, 'public/js/game.js'), 'utf8');
-  const server = fs.readFileSync(path.join(root, 'server.js'), 'utf8');
-  assert.match(server, /const authFallback=suppliedToken&&!auth/);
-  assert.match(server, /authFallback\?crypto\.randomUUID\(\)/);
-  assert.match(server, /player:auth-expired/);
-  assert.match(server, /app\.get\('\/api\/diagnostics'/);
-  assert.match(client, /zoneSocket\.on\('player:auth-expired'/);
-  assert.match(client, /function runNetworkCheck\(/);
-  assert.match(html, /Проверить сеть и сервер/);
+  assert.doesNotMatch(server, /api\/auth\/(register|login)/);
+  assert.doesNotMatch(html, /accountOverlay|accountTrigger|Создать аккаунт/);
+  assert.match(client, /guest:true/);
+  assert.match(client, /zoneAccountToken/);
 });
+
+
