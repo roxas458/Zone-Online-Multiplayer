@@ -410,10 +410,31 @@ test('4.25 field PDA keeps long-page filters and map controls reachable', () => 
   assert.match(css, /@media\(max-width:760px\)[\s\S]*?main>\.right\{display:none\}/);
 });
 
-test('4.25 build labels are consistent', () => {
+test('4.26 build labels are consistent', () => {
   const html = fs.readFileSync(path.join(root, 'public/index.html'), 'utf8');
   const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
-  assert.equal(pkg.version, '4.25.0');
-  assert.match(html, /BUILD 4\.25/);
-  assert.match(html, /ZONE ONLINE 4\.25/);
+  assert.equal(pkg.version, '4.26.0');
+  assert.match(html, /BUILD 4\.26/);
+  assert.match(html, /ZONE ONLINE 4\.26/);
+});
+
+test('4.26 connection diagnostics support a separate server URL and health endpoint', () => {
+  const html = fs.readFileSync(path.join(root, 'public/index.html'), 'utf8');
+  const client = fs.readFileSync(path.join(root, 'public/js/game.js'), 'utf8');
+  const server = fs.readFileSync(path.join(root, 'server.js'), 'utf8');
+  assert.match(html, /\?server=https:\/\/адрес-сервера/);
+  assert.match(client, /queryMatch=.*server=/);
+  assert.match(client, /\/health/);
+  assert.match(client, /forceNew:true/);
+  assert.match(client, /connect_error/);
+  assert.match(server, /app\.get\('\/health'/);
+  assert.match(server, /version:require\('\.\/package\.json'\)\.version/);
+  assert.match(server, /Access-Control-Allow-Origin/);
+});
+
+test('4.26 trader panel uses local portrait assets for the active trader', () => {
+  const html = fs.readFileSync(path.join(root, 'public/index.html'), 'utf8');
+  const client = fs.readFileSync(path.join(root, 'public/js/game.js'), 'utf8');
+  assert.match(html, /id="traderPortrait"/);
+  assert.match(client, /traderPortrait\.src=g\.loc/);
 });
