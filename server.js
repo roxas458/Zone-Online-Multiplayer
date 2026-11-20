@@ -25,6 +25,43 @@ let dbReady = false;
 let world = { diplomacy: {}, events: [], revision: 1, npcPositions: {}, coOpQuests: [], discoveredPoints: {}, zoneEvents: [], warOperations: [], warHistory: [], eventLog: [] };
 let npcTickRunning = false;
 
+const NPC_RICH_TRADERS = new Set(['sid','barman','scout','prof','scientist','beard']);
+const NPC_STARTING_STOCK = Object.freeze(Object.keys(SHOP).slice(0, 18));
+function npcEconomyFor(npc) {
+  world.npcEconomy ||= {};
+  const id=String(npc.id);
+  let account=world.npcEconomy[id];
+  if(!account) {
+    account={
+      balance:NPC_RICH_TRADERS.has(id)||String(npc.role||'').toLowerCase().includes('торгов')?10000000:5000,
+      stock:Object.fromEntries(NPC_STARTING_STOCK.map(item=>[item,Math.max(1,(SHOP[item]?.qty||1)*3)])),
+      maxStock:Object.fromEntries(NPC_STARTING_STOCK.map(item=>[item,Math.max(3,(SHOP[item]?.qty||1)*10)])),
+      restockedAt:Date.now(),
+      history:[]
+    };
+    world.npcEconomy[id]=account;
+  }
+  account.balance=Math.max(0,Math.min(999999999,Math.floor(Number(account.balance)||0)));
+  account.stock ||= {};
+  account.maxStock ||= {};
+  account.history ||= [];
+  const now=Date.now(), elapsed=now-(Number(account.restockedAt)||now);
+  if(elapsed>=300000) {
+    const cycles=Math.min(12,Math.floor(elapsed/300000));
+    for(const item of Object.keys(account.stock)) {
+      if(!SHOP[item])continue;
+      const max=Math.max(1,Math.min(99,Number(account.maxStock[item])||((SHOP[item].qty||1)*10)));
+      account.stock[item]=Math.min(max,Math.max(0,Number(account.stock[item])||0)+cycles*(SHOP[item].qty||1));
+    }
+    account.restockedAt=now;
+  }
+  return account;
+}
+function recordNpcTrade(account, entry) {
+  account.history.unshift({...entry,at:Date.now()});
+  account.history=account.history.slice(0,30);
+}
+
 
 const app = express();
 const server = http.createServer(app);
@@ -128,6 +165,9 @@ function publishSquadMove(q,from,to,leader){
 }
 
 io.on('connection', socket=>{
+  console.info(`[socket] connected id=${socket.id} transport=${socket.conn.transport.name} origin=${clean(socket.handshake.headers.origin||'unknown',180)}`);
+  socket.conn.on('upgrade', transport=>console.info(`[socket] upgraded id=${socket.id} transport=${transport.name}`));
+  socket.on('error', error=>console.warn(`[socket] error id=${socket.id}:`,clean(error?.message||error,240)));
   socket.on('player:hello', async (payload, ack)=>{
     // Confirm receipt synchronously, before database lookups or save migration.
     // Render cold starts and slow PostgreSQL queries must not consume the client's
@@ -245,19 +285,38 @@ io.on('connection', socket=>{
   socket.on('npc:trade:buy', async input=>{
     const p=online.get(socket.data.playerId), npcId=String(input?.npcId||'').slice(0,48), itemId=String(input?.item||''), goods=SHOP[itemId];
     const npc=world.npcState?.[npcId], st=p?safeState(p.state):null;
-    if(!p||!npc||npc.alive===false||npc.location!==p.location||!goods){socket.emit('npc:trade:result',{ok:false,message:'Торговец недоступен в этой локации.'});return;}
-    if(!['sid','barman','scout','prof','scientist','beard'].includes(npcId)){socket.emit('npc:trade:result',{ok:false,message:'Этот сталкер не занимается торговлей.'});return;}
+    if(!p||!npc||npc.alive===false||npc.location!==p.location||!npc.dialogue||!goods){
+      socket.emit('npc:trade:result',{ok:false,message:'Этот сталкер сейчас не может торговать или находится не рядом.'});return;
+    }
+    const account=npcEconomyFor(npc);account.stock[itemId]??=goods.qty*3;account.maxStock[itemId]??=goods.qty*10;const available=Math.max(0,Math.floor(Number(account.stock[itemId])||0));
+    if(available<goods.qty){socket.emit('npc:trade:result',{ok:false,message:'У сталкера временно закончился этот товар. Запасы пополняются автоматически.',economy:{balance:account.balance,stock:account.stock}});return;}
     if(st.money<goods.price){socket.emit('npc:trade:result',{ok:false,message:'Недостаточно рублей.'});return;}
-    st.state.money=st.money-goods.price;st.state.items ||= [];const existing=st.state.items.find(x=>x.id===itemId);
-    if(existing)existing.qty+=goods.qty;else st.state.items.push({id:itemId,name:goods.name,type:goods.type,desc:goods.desc,weight:goods.weight,qty:goods.qty,value:goods.value});
-    p.state=st.state;await persistPlayer(p.id,p.state);socket.emit('npc:trade:result',{ok:true,message:`${npc.name}: сделка состоялась. ${goods.name} передан тебе.`,state:p.state});
+    // Buying transfers player money out of the player's wallet only.
+    // The NPC's independent balance is intentionally not debited.
+    st.state.money=st.money-goods.price;
+    st.state.items ||= [];
+    const existing=st.state.items.find(x=>x.id===itemId);
+    if(existing)existing.qty+=goods.qty;
+    else st.state.items.push({id:itemId,name:goods.name,type:goods.type,desc:goods.desc,weight:goods.weight,qty:goods.qty,value:goods.value});
+    account.stock[itemId]=available-goods.qty;
+    recordNpcTrade(account,{playerId:p.id,playerName:p.name,type:'buy_from_npc',item:itemId,qty:goods.qty,price:goods.price});
+    p.state=st.state;await persistPlayer(p.id,p.state);await persistWorld();
+    socket.emit('npc:trade:result',{ok:true,message:`${npc.name}: сделка состоялась. ${goods.name} передан тебе.`,state:p.state,economy:{balance:account.balance,stock:account.stock}});
   });
   socket.on('npc:trade:sell', async input=>{
     const p=online.get(socket.data.playerId),npcId=String(input?.npcId||'').slice(0,48),itemId=String(input?.item||''),qty=Math.max(1,Math.min(10,Math.floor(Number(input?.qty)||1)));
     const npc=world.npcState?.[npcId],st=p?safeState(p.state):null,base=SELL_VALUES[itemId];
-    if(!p||!npc||npc.alive===false||npc.location!==p.location||!['sid','barman','scout','prof','scientist','beard'].includes(npcId)||!base){socket.emit('npc:trade:result',{ok:false,message:'Этот торговец не принимает такой предмет.'});return;}
-    st.state.items ||= [];const item=st.state.items.find(x=>x.id===itemId);if(!item||item.qty<qty){socket.emit('npc:trade:result',{ok:false,message:'Недостаточно предметов для продажи.'});return;}
-    item.qty-=qty;if(item.qty<=0)st.state.items=st.state.items.filter(x=>x.id!==itemId);const payout=Math.floor(base*.5)*qty;st.state.money=Math.min(99999999,st.money+payout);p.state=st.state;await persistPlayer(p.id,p.state);socket.emit('npc:trade:result',{ok:true,message:`${npc.name}: забираю. Получено ${payout} ₽.`,state:p.state});
+    if(!p||!npc||npc.alive===false||npc.location!==p.location||!npc.dialogue||!base){socket.emit('npc:trade:result',{ok:false,message:'Этот сталкер не принимает такой предмет.'});return;}
+    st.state.items ||= [];const item=st.state.items.find(x=>x.id===itemId);
+    if(!item||item.qty<qty){socket.emit('npc:trade:result',{ok:false,message:'Недостаточно предметов для продажи.'});return;}
+    const account=npcEconomyFor(npc),payout=Math.floor(base*.5)*qty;
+    if(account.balance<payout){socket.emit('npc:trade:result',{ok:false,message:`У ${npc.name} недостаточно денег для этой покупки.`,economy:{balance:account.balance}});return;}
+    item.qty-=qty;if(item.qty<=0)st.state.items=st.state.items.filter(x=>x.id!==itemId);
+    account.balance=Math.max(0,account.balance-payout);
+    st.state.money=Math.min(99999999,st.money+payout);
+    recordNpcTrade(account,{playerId:p.id,playerName:p.name,type:'sell_to_npc',item:itemId,qty,price:payout});
+    p.state=st.state;await persistPlayer(p.id,p.state);await persistWorld();
+    socket.emit('npc:trade:result',{ok:true,message:`${npc.name}: забираю. Получено ${payout} ₽.`,state:p.state,economy:{balance:account.balance,stock:account.stock}});
   });
   socket.on('market:buy', async input=>{
     const p=online.get(socket.data.playerId), itemId=String(input?.item||''), goods=SHOP[itemId];
@@ -479,7 +538,8 @@ io.on('connection', socket=>{
     io.emit('world:update',{world,notice:`${p.name} провёл дипломатическую миссию между «${p.faction}» и «${target}».`});
     socket.emit('diplomacy:result',{ok:true,state:p.state,world});
   });
-  socket.on('disconnect',()=>{
+  socket.on('disconnect',(reason)=>{
+    console.info(`[socket] disconnected id=${socket.id} reason=${reason}`);
     const id=socket.data.playerId,p=online.get(id);if(!p||p.socketId!==socket.id)return;
     online.delete(id);const ev=appendWorldEvent(world,'player_left',{playerId:id,name:p.name,faction:p.faction,location:p.location});io.to('zone-world').emit('world:event',ev);persistWorld().catch(e=>console.error('leave persistence:',e.message));systemMessage(`${p.name} покинул Зону.`);broadcastOnline();
   });

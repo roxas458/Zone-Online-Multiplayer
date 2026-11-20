@@ -1,3 +1,22 @@
+# ZONE ONLINE 4.30.0 — NPC ECONOMY & MULTIPLAYER FIX
+
+## 4.30.0
+- Any living NPC with a server-generated dialogue can open a trade window; the previous six-ID whitelist is removed.
+- NPCs now have independent persisted wallets, personal stock and a bounded trade history.
+- Named traders start with 10,000,000 RU; ordinary NPCs start with 5,000 RU.
+- Buying from an NPC debits only the player's wallet; the NPC wallet is unchanged.
+- Selling to an NPC credits the player and debits only that NPC's wallet; transactions are rejected rather than allowing negative balances.
+- NPC stock replenishes gradually and is capped per item.
+- The dialogue window now includes a direct Trade action.
+- Socket connection, transport upgrades, errors and disconnect reasons are logged for Render diagnosis.
+- Version and client cache-busting updated to 4.30.0.
+
+## Important multiplayer verification
+The source archive can validate the client/server implementation and add diagnostics, but it cannot prove the live Render service is deployed correctly. Deploy this complete project as a Node Web Service (`npm install`, `npm start`), then check `/health` and Render Logs. A live multiplayer test still requires the actual Render service URL and two connected browser sessions.
+
+## Verification
+Run `npm run check` and `npm test`. No database reset is intended; NPC economy is stored inside the existing world state. Keep the current PostgreSQL database and `DATABASE_URL`.
+
 # ZONE ONLINE 4.29.1 — FULL-SCREEN TRADING
 
 ## 4.29.1 — COP-inspired full-screen trader

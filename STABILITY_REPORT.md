@@ -1,3 +1,17 @@
+# Stability report — 4.30.0
+
+## 4.30.0 changes
+- Removed the hard-coded six-NPC trading whitelist. Server-side trade now requires a living NPC in the same sector with a dialogue record.
+- Added per-NPC persisted economy records: independent balance, stock, restock timestamp and last 30 transactions.
+- Named trader accounts initialize at 10,000,000 RU; other NPC accounts initialize at 5,000 RU.
+- Purchases debit only the player. Sales credit the player and debit only the NPC. Both sides are checked against non-negative balances.
+- NPC stock is replenished gradually with a maximum cap.
+- Added a Trade action to the NPC dialogue and displayed the NPC's separate balance in the trade panel.
+- Added Socket.IO connection/transport/error/disconnect diagnostics to Render logs.
+
+## Verification limits
+Automated checks cannot establish whether the live Render deployment points to this project, whether the correct service is running, or whether two external clients can exchange live state. Those require deploying this archive and testing the actual service URL.
+
 # Stability report — 4.29.1
 
 ## Automated checks

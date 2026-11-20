@@ -410,12 +410,12 @@ test('4.25 field PDA keeps long-page filters and map controls reachable', () => 
   assert.match(css, /@media\(max-width:760px\)[\s\S]*?main>\.right\{display:none\}/);
 });
 
-test('4.29 build labels are consistent', () => {
+test('4.30 build labels are consistent', () => {
   const html = fs.readFileSync(path.join(root, 'public/index.html'), 'utf8');
   const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
-  assert.equal(pkg.version, '4.29.1');
-  assert.match(html, /BUILD 4\.29/);
-  assert.match(html, /ZONE ONLINE 4\.29/);
+  assert.equal(pkg.version, '4.30.0');
+  assert.match(html, /BUILD 4\.30\.0/);
+  assert.match(html, /ZONE ONLINE 4\.30/);
 });
 
 test('4.27 connection diagnostics support a separate server URL and health endpoint', () => {
@@ -498,4 +498,17 @@ test('4.29.1 trade basket supports drag/drop and an atomic online market deal', 
   assert.match(server, /socket\.on\('market:deal'/);
   assert.match(server, /Недостаточно рублей для сделки/);
   assert.match(server, /Недостаточно предметов для продажи/);
+});
+
+
+test('4.30 enables dialogue NPC trade with independent NPC wallets and bounded stock', () => {
+  const client = fs.readFileSync(path.join(root, 'public/js/game.js'), 'utf8');
+  const server = fs.readFileSync(path.join(root, 'server.js'), 'utf8');
+  assert.match(client, /dialogue-trade-action/);
+  assert.match(server, /npcEconomyFor/);
+  assert.match(server, /npc\.dialogue/);
+  assert.match(server, /NPC_RICH_TRADERS/);
+  assert.match(server, /account\.balance-payout/);
+  assert.match(server, /The NPC's independent balance is intentionally not debited/);
+  assert.match(server, /account\.stock\[itemId\]=available-goods\.qty/);
 });
