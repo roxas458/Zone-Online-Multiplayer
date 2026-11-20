@@ -1,26 +1,20 @@
-# Stability report — ZONE ONLINE 4.31.0
+# ZONE ONLINE 4.32.0 — Stability & Feature Report
 
-## Root-cause-oriented changes
-- Removed account registration, login, session-token verification and account UI. The multiplayer handshake is now guest-only and does not depend on account tables or account tokens.
-- The `player:hello` acknowledgement is sent after the guest is registered in the online map but before the large world snapshot is queued. This specifically avoids acknowledgement delay caused by long-polling delivery of large packets.
-- `player:ready` now receives a reduced world snapshot without the full internal NPC state or NPC event history.
-- NPC state is transmitted separately as a compact public roster, excluding internal AI memory, pathing and server-only fields.
-- Socket.IO is created with `autoConnect:false`; all event handlers are attached before calling `connect()`.
-- Client tracks `zonePlayerReady`, not merely the low-level Socket.IO `connected` flag, before sending live NPC interactions.
-- NPC rumor queries have a local fallback while offline or before player hydration completes.
+## Implemented
+- 60-second timed sector survey; abandoning the sector interrupts the survey.
+- Survey results reveal up to two undiscovered local points and report mutant/anomaly activity.
+- Artifact search requires a detector, spends stamina, has a 20-second cooldown, and uses local anomaly/field-intel modifiers.
+- Map overlay renders mutant packs and anomaly fields in Zone overview and local map; a deterministic local fallback keeps the map useful without multiplayer.
+- Personal field notebook stores up to 100 entries in the browser save.
+- NPC relationship activity now requires the NPC to be in the same sector, costs 50 RU, has a six-hour per-NPC cooldown, and grants only +1 relationship with no free reputation.
+- Renegades are a valid faction, with named NPCs in the Swamps, supporting NPC roster, hostile faction rules, and Dark Hollow as their starting territory. A guarded migration only changes the untouched default Dark Hollow owner; captured territory is preserved.
+- Zombified stalkers are included in mutant pack ecology and the encyclopedia.
 
-## Gameplay additions
-- Every faction is assigned one generated medic and one generated technician without increasing the generated NPC count.
-- Medic service: up to +35 health for 75 RU.
-- Technician service: up to +35 armor condition for 100 RU.
-- Added medic/technician dialogue topics.
-- Expanded generated first-name and surname pools; generated NPC surnames are unique within the active generated roster and deterministic across restarts.
+## Validation
+- `npm test`: 84 tests passed.
+- `npm run check`: passed (Node syntax checks for server and client modules).
 
-## Verification
-- `node --check` passed for server, client and changed NPC modules.
-- `npm test`: **81 passed, 0 failed**.
-- A local live-server integration check could not be completed in this environment because project dependencies were not installed and package installation timed out. Therefore this archive is syntax- and test-verified, not confirmed against the live Render service.
-
-## Operational notes
-- PostgreSQL is optional for guest multiplayer. Without `DATABASE_URL`, server-side world/player state is in memory and resets on service restart; local browser saves remain available.
-- After deployment, verify `/health`, `/api/diagnostics`, and Render socket logs. A real two-client test is still required to confirm live multiplayer.
+## Not claimed as verified
+- This package was not deployed to the user's Render service from this environment.
+- External multiplayer behavior and cross-device synchronization of field notes have not been end-to-end tested. Field notes are local browser-save data.
+- No claim is made that all possible gameplay balance issues have been eliminated.

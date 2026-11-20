@@ -1,11 +1,12 @@
 // Lightweight persistent simulation for mutant packs, faction bases, clans and local markets.
 const crypto=require('crypto');
-const SPECIES=['плоть','псевдособака','кабан','снорк','контролёр'];
+const SPECIES=['плоть','псевдособака','кабан','снорк','контролёр','кровосос','тушкан','зомбированный сталкер'];
 const ZONES=['cordon','dump','bar','agro','dark','yantar','army','red','pripyat','zaton','jupiter','radar','wild','darkhollow','limansk','swamps'];
 function initEcosystem(world){
-  world.ecosystem ||= {mutantPacks:[],bases:{},markets:{},clans:{},events:[],revision:1};
-  const e=world.ecosystem;
+  world.ecosystem ||= {mutantPacks:[],anomalies:[],bases:{},markets:{},clans:{},events:[],revision:1};
+  const e=world.ecosystem; e.anomalies ||= [];
   if(!e.mutantPacks.length){for(let i=0;i<18;i++)e.mutantPacks.push({id:`pack_${i+1}`,species:SPECIES[i%SPECIES.length],location:ZONES[(i*7+1)%ZONES.length],count:2+(i*3)%7,aggression:25+(i*13)%76,health:100,updatedAt:Date.now()});}
+  if(!e.anomalies.length){const kinds=['Электра','Жарка','Воронка','Кисель','Трамплин','Карусель','Пузырь','Пси-поле'];for(let i=0;i<28;i++)e.anomalies.push({id:`anomaly_${i+1}`,kind:kinds[i%kinds.length],location:ZONES[(i*5+3)%ZONES.length],danger:35+(i*17)%66,stability:45+(i*11)%55,discovered:false,updatedAt:Date.now()});}
   for(const [loc,owner] of Object.entries(world.territoryOwners||{}))e.bases[loc] ||= {location:loc,faction:owner,level:1,fortification:20,supplies:70,updatedAt:Date.now()};
   for(const loc of ZONES)e.markets[loc] ||= {location:loc,priceIndex:1,scarcity:0,updatedAt:Date.now()};
   return e;

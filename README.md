@@ -29,3 +29,12 @@ This build removes account registration and login completely. Players enter as g
 - For two-player verification, open the game in two separate browsers/devices and confirm both appear in the online player list.
 
 Automated tests do not prove the live Render deployment is healthy; the deployed service and two real browser clients must still be checked.
+
+
+## 4.32.0 — Fieldwork & Living Zone expansion
+- Timed 60-second sector surveys with discovered points and local threat reports.
+- Detector-based artifact searches with stamina cost, heat cooldown and location/anomaly modifiers.
+- Tactical map overlays for mutant packs and anomaly fields from the shared ecosystem.
+- Persistent personal field notebook stored with the local player save.
+- Renegades added as a valid faction with swamp NPCs and Dark Hollow territory; zombified stalkers added to mutant ecology.
+- NPC relationship activity now costs supplies and has a six-hour cooldown; no free reputation gain.

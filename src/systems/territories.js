@@ -9,7 +9,7 @@ const TERRITORY_ADJACENCY = Object.freeze({
 const FACTION_HOME = Object.freeze({
   'Одиночки':['cordon','zaton'], 'Долг':['bar'], 'Свобода':['jupiter','red','army'],
   'Бандиты':['dump','dark','darkhollow'], 'Военные':['agro'], 'Учёные':['yantar'],
-  'Наёмники':['limansk','wild'], 'Монолит':['chaes','pripyat','radar'], 'Чистое небо':['swamps']
+  'Наёмники':['limansk','wild'], 'Монолит':['chaes','pripyat','radar'], 'Чистое небо':['swamps'], 'Ренегаты':['darkhollow']
 });
 function addInfluence(control,amount){return Math.max(0,Math.min(100,(Number(control)||0)+amount));}
 function resolveControl(owner,claimant,control){return control>=100?{owner:claimant,control:55}:{owner,control};}

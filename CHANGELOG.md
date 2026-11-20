@@ -193,3 +193,13 @@
 - Prevented overlapping asynchronous connect attempts.
 - Compatible separately hosted server URLs are no longer rejected solely for not matching the 4.30 version prefix.
 - PostgreSQL remains required for account registration/login and cross-device persistence, but not for guest multiplayer.
+
+
+## 4.32.0 — Fieldwork & Living Zone expansion
+- Replaced instant exploration with a timed 60-second field survey.
+- Replaced generic random artifact reward with detector-based search and cooldown.
+- Added anomaly and mutant markers to both Zone overview and local map.
+- Added saved personal field notes.
+- Added Renegades faction, swamp NPCs and Dark Hollow base territory.
+- Added zombified stalkers to mutant pack species.
+- Removed free NPC relationship farming; shared rest costs 50 RU and is limited to once per NPC every six hours.

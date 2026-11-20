@@ -4,19 +4,19 @@ const NPC_FACTIONS = Object.freeze({
   sid:'Одиночки', wolf:'Одиночки', fanatic:'Одиночки', scout:'Одиночки', bandit:'Бандиты',
   barman:'Одиночки', seriy:'Одиночки', scientist:'Учёные', merc:'Наёмники', prof:'Учёные',
   freedom:'Свобода', guide:'Одиночки', loner:'Одиночки', lebedev:'Чистое небо', novikov:'Чистое небо',
-  cold:'Чистое небо', lukash:'Свобода', voronin:'Долг', sultan:'Бандиты', beard:'Одиночки',
+  cold:'Чистое небо', renegade_leader:'Ренегаты', renegade_scout:'Ренегаты', lukash:'Свобода', voronin:'Долг', sultan:'Бандиты', beard:'Одиночки',
   charon:'Монолит', wolfhound:'Наёмники', archivist:'Учёные', kravtsov:'Военные', monolith_scout:'Монолит'
 });
-const ROLES = Object.freeze({ sid:'торговец', wolf:'сталкер', fanatic:'сталкер', scout:'разведчик', bandit:'бандит', barman:'торговец', seriy:'сталкер', scientist:'учёный', merc:'наёмник', prof:'учёный', freedom:'боец', guide:'проводник', loner:'сталкер', lebedev:'командир', novikov:'техник', cold:'боец', lukash:'командир', voronin:'командир', sultan:'главарь', beard:'торговец', charon:'командир', wolfhound:'боец', archivist:'учёный', kravtsov:'военный', monolith_scout:'разведчик' });
+const ROLES = Object.freeze({ sid:'торговец', wolf:'сталкер', fanatic:'сталкер', scout:'разведчик', bandit:'бандит', barman:'торговец', seriy:'сталкер', scientist:'учёный', merc:'наёмник', prof:'учёный', freedom:'боец', guide:'проводник', loner:'сталкер', lebedev:'командир', novikov:'техник', cold:'боец', renegade_leader:'главарь ренегатов', renegade_scout:'разведчик ренегатов', lukash:'командир', voronin:'командир', sultan:'главарь', beard:'торговец', charon:'командир', wolfhound:'боец', archivist:'учёный', kravtsov:'военный', monolith_scout:'разведчик' });
 const { TERRITORY_ADJACENCY, homeForFaction, nearestFriendlyLocation, canEnterTerritory } = require('./territories');
 const { buildDialogue, interactDialogue } = require('./npc-dialogue');
 function isHostileFaction(a,b,diplomacy={}) {
   if(!a||!b||a===b||a==='Учёные'||b==='Учёные') return false;
-  const enemies={ 'Долг':['Свобода','Бандиты','Монолит'], 'Свобода':['Долг','Бандиты','Монолит'], 'Одиночки':['Бандиты','Монолит'], 'Бандиты':['Одиночки','Долг','Свобода','Военные'], 'Военные':['Бандиты','Монолит'], 'Наёмники':['Монолит'], 'Монолит':['Одиночки','Долг','Свобода','Военные','Наёмники'] };
+  const enemies={ 'Долг':['Свобода','Бандиты','Монолит'], 'Свобода':['Долг','Бандиты','Монолит'], 'Одиночки':['Бандиты','Монолит'], 'Бандиты':['Одиночки','Долг','Свобода','Военные'], 'Военные':['Бандиты','Монолит'], 'Наёмники':['Монолит'], 'Монолит':['Одиночки','Долг','Свобода','Военные','Наёмники'], 'Ренегаты':['Одиночки','Долг','Свобода','Военные','Учёные','Чистое небо'] };
   if((enemies[a]||[]).includes(b)) return true;
   return Number(diplomacy?.[a]?.[b])<=-25;
 }
-const NPC_DISPLAY = {sid:'Сидорович',wolf:'Волк',fanatic:'Фанатик',scout:'Разведчик',bandit:'Бандит',barman:'Бармен',seriy:'Серый',scientist:'Учёный',merc:'Наёмник',prof:'Профессор Сахаров',freedom:'Свободовец',guide:'Проводник',loner:'Одиночка',lebedev:'Николай Лебедев',novikov:'Новиков',cold:'Холод',lukash:'Лукаш',voronin:'Генерал Воронин',sultan:'Султан',beard:'Борода',charon:'Харон',wolfhound:'Вольфхаунд',archivist:'Архивист',kravtsov:'Командир Кравцов',monolith_scout:'Монолитовский разведчик'};
+const NPC_DISPLAY = {sid:'Сидорович',wolf:'Волк',fanatic:'Фанатик',scout:'Разведчик',bandit:'Бандит',barman:'Бармен',seriy:'Серый',scientist:'Учёный',merc:'Наёмник',prof:'Профессор Сахаров',freedom:'Свободовец',guide:'Проводник',loner:'Одиночка',lebedev:'Николай Лебедев',novikov:'Новиков',cold:'Холод',renegade_leader:'Грач',renegade_scout:'Шило',lukash:'Лукаш',voronin:'Генерал Воронин',sultan:'Султан',beard:'Борода',charon:'Харон',wolfhound:'Вольфхаунд',archivist:'Архивист',kravtsov:'Командир Кравцов',monolith_scout:'Монолитовский разведчик'};
 function createNpcRoster(npcHome, now = Date.now()) {
   const roster = {};
   for (const [id, location] of Object.entries(npcHome || {})) {

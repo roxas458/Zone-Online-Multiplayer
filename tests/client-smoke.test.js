@@ -413,9 +413,21 @@ test('4.25 field PDA keeps long-page filters and map controls reachable', () => 
 test('4.30 build labels are consistent', () => {
   const html = fs.readFileSync(path.join(root, 'public/index.html'), 'utf8');
   const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
-  assert.equal(pkg.version, '4.31.0');
-  assert.match(html, /BUILD 4\.31\.0/);
-  assert.match(html, /ZONE ONLINE 4\.31/);
+  assert.equal(pkg.version, '4.32.0');
+  assert.match(html, /BUILD 4\.32\.0/);
+  assert.match(html, /ZONE ONLINE 4\.32/);
+});
+
+test('4.32 fieldwork, detector search, journal and map ecology layers are wired into the client', () => {
+  const html = fs.readFileSync(path.join(root, 'public/index.html'), 'utf8');
+  const client = fs.readFileSync(path.join(root, 'public/js/game.js'), 'utf8');
+  assert.match(html, /Начать осмотр/);
+  assert.match(html, /Личный блокнот сталкера/);
+  assert.match(client, /function startAreaSurvey/);
+  assert.match(client, /function searchArtifacts/);
+  assert.match(client, /marker-mutant/);
+  assert.match(client, /marker-anomaly/);
+  assert.match(client, /relationshipCooldowns/);
 });
 
 test('4.27 connection diagnostics support a separate server URL and health endpoint', () => {
