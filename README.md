@@ -1,4 +1,15 @@
-# ZONE ONLINE 4.19 — WAR OF THE ZONE
+# ZONE ONLINE 4.20 — LIVING FACTIONS
+
+## 4.20 — Living Factions and territorial NPC AI
+
+- Replaced random per-minute NPC roaming with scheduled, persistent base behavior: campfire, guard post, rest and short patrol.
+- Added a canonical adjacency graph and faction home territories for all 17 map sectors.
+- Generated 340 supporting stalkers are distributed according to the owner of their home sector; old generated NPCs are migrated out of unrelated faction territory.
+- Added border assault orders. Squads may cross into hostile sectors only with a server-side attack/recon/escort/retreat order.
+- Captured sectors receive occupation guards; defeated/stranded units return toward friendly territory.
+- Added faction base summaries (guards, campfire population, patrols and squad count) to the PDA war feed.
+- Tactical map tooltips now show NPC activity such as campfire, guard, patrol, assault, combat and retreat.
+- Added regression tests for faction stationing, no-wander behavior and hostile-border assault dispatch.
 
 ## 4.19 — Faction warfare, radiation and optimized PDA
 - NPCs without authoritative coordinates receive stable, unique map positions around their own sector anchors instead of stacking on one shared point.

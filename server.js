@@ -30,8 +30,8 @@ const io = new Server(server, { cors: { origin: true, methods: ['GET','POST'] },
 const PORT = process.env.PORT || 3000;
 
 app.use(express.static(path.join(__dirname, 'public')));
-app.get('/health', (_req,res) => res.json({ ok:true, service:'ZONE ONLINE 4.13 LIVING WORLD', database:dbReady?'postgres':'memory-fallback', online:online.size, revision:world.revision||1 }));
-app.get('/api/status', (_req,res) => res.json({ ...publicWorldStatus(world, online.size), persistent:dbReady, service:'ZONE ONLINE 4.13 LIVING WORLD' }));
+app.get('/health', (_req,res) => res.json({ ok:true, service:'ZONE ONLINE 4.20 LIVING FACTIONS', database:dbReady?'postgres':'memory-fallback', online:online.size, revision:world.revision||1 }));
+app.get('/api/status', (_req,res) => res.json({ ...publicWorldStatus(world, online.size), persistent:dbReady, service:'ZONE ONLINE 4.20 LIVING FACTIONS' }));
 app.get('/api/world/snapshot', (_req,res) => res.json({ status:publicWorldStatus(world, online.size), world }));
 app.get('/api/world/events', (req,res) => { const since=Number(req.query.since||0); const sync=buildWorldSync(world, Number.isSafeInteger(since)?since:0); res.json(sync); });
 
@@ -77,7 +77,7 @@ function squadJournal(q,type,text,extra={}){ q.journal ||= []; q.journal.unshift
 function publishSquad(q){ if(!q)return; for(const m of q.members||[])io.to(m.id).emit('squad:state',{squad:q}); }
 function publishSquadMove(q,from,to,leader){
   q.location=to; squadJournal(q,'move',`${leader} повёл отряд из сектора ${from} в сектор ${to}.`);
-  if(q.escortNpcId){const escort=world.npcState?.[q.escortNpcId];if(escort&&escort.alive!==false){escort.location=to;world.npcPositions ||= {};world.npcPositions[escort.id]=to;io.emit('world:npcs',world.npcPositions);io.emit('world:npc-state',{npcs:world.npcState,events:(world.npcEvents||[]).slice(-20),squads:world.npcSquads||[],memorial:world.npcMemorial||[],battlefronts:world.battlefronts||[],convoys:world.convoys||[]});squadJournal(q,'escort_move',`${escort.name} продолжает идти вместе с отрядом.`);}else q.escortNpcId=null;}
+  if(q.escortNpcId){const escort=world.npcState?.[q.escortNpcId];if(escort&&escort.alive!==false){escort.location=to;world.npcPositions ||= {};world.npcPositions[escort.id]=to;io.emit('world:npcs',world.npcPositions);io.emit('world:npc-state',{npcs:world.npcState,events:(world.npcEvents||[]).slice(-20),squads:world.npcSquads||[],memorial:world.npcMemorial||[],battlefronts:world.battlefronts||[],convoys:world.convoys||[],factionBases:world.factionBases||[],frontlineOrders:world.frontlineOrders||[]});squadJournal(q,'escort_move',`${escort.name} продолжает идти вместе с отрядом.`);}else q.escortNpcId=null;}
   for(const m of q.members||[]){ const member=online.get(m.id); if(!member)continue; const old=member.location; member.location=to;
     const st=safeState(member.state); st.state.loc=to; member.state=st.state; persistPlayer(member.id,member.state).catch(()=>{});
     io.to(member.id).emit('squad:travelled',{location:to,from:old,leader:leader,squad:q});
@@ -107,7 +107,7 @@ io.on('connection', socket=>{
       socket.emit('player:ready',{id, savedState:saved, world, worldSync:buildWorldSync(world, Number(payload?.lastRevision)||0), status:publicWorldStatus(world,online.size), chat:recentChat.slice(-60), players:onlineList(), persistent:dbReady});
       if(typeof ack==='function')ack({ok:true,id,persistent:dbReady});
       socket.to('zone-world').emit('world:event',joinEvent);
-      io.emit('world:npcs',world.npcPositions); io.emit('world:npc-state',{npcs:world.npcState,events:(world.npcEvents||[]).slice(-20),squads:world.npcSquads||[],memorial:world.npcMemorial||[],battlefronts:world.battlefronts||[],convoys:world.convoys||[]}); io.emit('world:ecosystem',world.ecosystem); io.emit('world:coop',world.coOpQuests); io.emit('war:state',{operations:world.warOperations||[],history:(world.warHistory||[]).slice(0,12)});
+      io.emit('world:npcs',world.npcPositions); io.emit('world:npc-state',{npcs:world.npcState,events:(world.npcEvents||[]).slice(-20),squads:world.npcSquads||[],memorial:world.npcMemorial||[],battlefronts:world.battlefronts||[],convoys:world.convoys||[],factionBases:world.factionBases||[],frontlineOrders:world.frontlineOrders||[]}); io.emit('world:ecosystem',world.ecosystem); io.emit('world:coop',world.coOpQuests); io.emit('war:state',{operations:world.warOperations||[],history:(world.warHistory||[]).slice(0,12)});
       systemMessage(`${p.name} вошёл в Зону.`); broadcastOnline(); persistWorld().catch(e=>console.error('join persistence:',e.message));
     } catch(e){ console.error('player:hello failed:',e); const message='Сервер принял соединение, но не смог завершить вход. Попробуй переподключиться.'; socket.emit('player:hello:error',{message}); if(typeof ack==='function')ack({ok:false,message}); }
   });
@@ -328,7 +328,7 @@ io.on('connection', socket=>{
     world.npcMemorial||=[];world.npcMemorial.unshift({id:`mem_${npc.id}_${npc.diedAt}`,name:npc.name,faction:npc.faction,role:npc.role,location:npc.location,cause:npc.deathCause,diedAt:npc.diedAt});world.npcMemorial=world.npcMemorial.slice(0,100);
     world.npcPositions[npc.id]=npc.location;
     const ev=appendWorldEvent(world,'npc_killed',{npcId:npc.id,name:npc.name,faction:npc.faction,playerId:p.id,playerName:p.name,location:p.location});
-    await persistWorld();io.emit('world:event',ev);io.emit('world:npc-state',{npcs:world.npcState,events:(world.npcEvents||[]).slice(-20),squads:world.npcSquads||[],memorial:world.npcMemorial||[],battlefronts:world.battlefronts||[],convoys:world.convoys||[]});socket.emit('npc:combat:result',{ok:true,npcId:npc.id});
+    await persistWorld();io.emit('world:event',ev);io.emit('world:npc-state',{npcs:world.npcState,events:(world.npcEvents||[]).slice(-20),squads:world.npcSquads||[],memorial:world.npcMemorial||[],battlefronts:world.battlefronts||[],convoys:world.convoys||[],factionBases:world.factionBases||[],frontlineOrders:world.frontlineOrders||[]});socket.emit('npc:combat:result',{ok:true,npcId:npc.id});
   });
   socket.on('npc:interact', async input=>{
     const p=online.get(socket.data.playerId); if(!p)return;
@@ -336,7 +336,7 @@ io.on('connection', socket=>{
     const npc=world.npcState?.[npcId];
     const result=interactWithNpc(npc,{id:p.id,location:p.location},action,Date.now(),{recentWorldEvent:world.zoneEvents?.at(-1)?.title||'',locationName:npc?.location,topicIndex:input?.topicIndex,friendName:world.npcState?.[npc?.friends?.[0]]?.name||'',rivalName:world.npcState?.[npc?.rivals?.[0]]?.name||''});
     socket.emit('npc:interaction-result',result);
-    if(result.ok){ const syncEvent=appendWorldEvent(world,'npc_interaction',{npcId,playerId:p.id,action,relationship:result.relationship}); await persistWorld(); io.emit('world:event',syncEvent); io.emit('world:npc-state',{npcs:world.npcState,events:(world.npcEvents||[]).slice(-20),squads:world.npcSquads||[],memorial:world.npcMemorial||[],battlefronts:world.battlefronts||[],convoys:world.convoys||[]}); }
+    if(result.ok){ const syncEvent=appendWorldEvent(world,'npc_interaction',{npcId,playerId:p.id,action,relationship:result.relationship}); await persistWorld(); io.emit('world:event',syncEvent); io.emit('world:npc-state',{npcs:world.npcState,events:(world.npcEvents||[]).slice(-20),squads:world.npcSquads||[],memorial:world.npcMemorial||[],battlefronts:world.battlefronts||[],convoys:world.convoys||[],factionBases:world.factionBases||[],frontlineOrders:world.frontlineOrders||[]}); }
   });
   socket.on('base:upgrade', async input=>{
     const p=online.get(socket.data.playerId);if(!p)return;const cost=500,st=safeState(p.state);
@@ -380,7 +380,7 @@ setInterval(async()=>{
     io.emit('world:event',tickEvent);
     for(const event of [...events,...ecoEvents,...soulEvents]){const ev=appendWorldEvent(world,event.type,{...event},now);io.emit('world:event',ev);io.emit('world:npc-event',event);if(['npc_skirmish','mutant_migration','convoy_ambush','convoy_started'].includes(event.type))systemMessage(event.text);}
     await persistWorld(); io.emit('world:npcs',world.npcPositions);
-    io.emit('world:npc-state',{npcs:world.npcState,events:(world.npcEvents||[]).slice(-20),squads:world.npcSquads||[],memorial:world.npcMemorial||[],battlefronts:world.battlefronts||[],convoys:world.convoys||[]});io.emit('world:ecosystem',world.ecosystem);
+    io.emit('world:npc-state',{npcs:world.npcState,events:(world.npcEvents||[]).slice(-20),squads:world.npcSquads||[],memorial:world.npcMemorial||[],battlefronts:world.battlefronts||[],convoys:world.convoys||[],factionBases:world.factionBases||[],frontlineOrders:world.frontlineOrders||[]});io.emit('world:ecosystem',world.ecosystem);
     io.emit('world:status',publicWorldStatus(world,online.size));
   }catch(e){console.error('NPC AI schedule:',e.message);} finally {npcTickRunning=false;}
 },60*1000).unref();

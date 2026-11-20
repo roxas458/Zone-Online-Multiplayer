@@ -1,15 +1,22 @@
-# Stability report — 4.19.0
+# Stability report — 4.20.0
 
 ## Automated checks
-- `npm run check`: passed (server and browser JavaScript syntax checks).
-- `npm test`: passed, 52 tests.
-- Added coverage for faction hostility, NPC battles, convoys, anti-radiation market item, radiation HUD and PDA redraw behavior.
+- `npm run check`: passed (server, browser client and system JavaScript syntax checks).
+- `npm test`: passed, 55 tests.
+- Added tests for faction-based NPC home assignment, stable base guard behavior and hostile-border assault dispatch.
+
+## NPC simulation notes
+- NPC AI remains server-authoritative and runs on the existing 60-second world tick.
+- Normal behavior is stationary: campfire, guard post or rest. Decisions are spaced across 5–18 minutes; patrols are limited to adjacent friendly sectors.
+- Generated NPCs are distributed only into sectors controlled by their faction at bootstrap/migration.
+- Hostile territory entry requires a temporary server-side order. Border assaults are dispatched probabilistically when at least three eligible squad members are available.
+- A winning assault creates an occupation garrison; unsupported units are routed back toward friendly territory.
+- Battles remain abstract server-side simulations; no real-time 3D combat/ballistics are implemented by this update.
 
 ## Runtime note
-A full HTTP server launch was not completed in this build environment because project dependencies (`express`, `socket.io`, `pg`) are not installed in the workspace. Install dependencies with `npm install` before running `npm start`.
+A full HTTP server launch was not completed because dependencies (`express`, `socket.io`, `pg`) are not installed in this build environment. Run `npm install` before `npm start`. PostgreSQL is optional; without `DATABASE_URL`, the world uses memory mode and will not persist after a server restart.
 
-## Known implementation boundaries
-- NPC-vs-NPC warfare, battlefront records, convoy movement and ambushes are server-side simulations on the existing world tick.
-- Player-vs-hostile-NPC combat uses the existing abstract turn-based combat UI; the server validates the final NPC defeat and records the memorial/event.
-- Radiation exposure is currently advanced in the browser client on a one-minute interval; Anti-rad gives 12 minutes of local protection. A future server-authoritative survival pass should move player radiation state fully server-side.
-- PDA map optimization removes periodic full SVG rebuilds and updates only the player marker during movement. Map markers refresh on authoritative NPC state updates.
+## Remaining boundaries
+- Base camp behavior is represented as authoritative NPC state and map/PDA labels; individual animated campfire scenes are not yet part of the 2D global map.
+- Assaults and territory capture are strategic simulations, not a tactical RTS battle interface.
+- Client-side PDA rendering still uses the existing SVG map renderer; this update adds no new heavy animation loop.

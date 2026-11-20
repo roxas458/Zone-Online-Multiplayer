@@ -1,59 +1,109 @@
-// NPC AI simulation. Server-authoritative, deterministic inputs are injectable for tests.
+// Server-authoritative faction AI. Stationary life is the default; movement requires an order.
 const clamp = (n, min, max) => Math.max(min, Math.min(max, Number(n) || 0));
 const NPC_FACTIONS = Object.freeze({
   sid:'Одиночки', wolf:'Одиночки', fanatic:'Одиночки', scout:'Одиночки', bandit:'Бандиты',
   barman:'Одиночки', seriy:'Одиночки', scientist:'Учёные', merc:'Наёмники', prof:'Учёные',
   freedom:'Свобода', guide:'Одиночки', loner:'Одиночки', lebedev:'Чистое небо', novikov:'Чистое небо',
   cold:'Чистое небо', lukash:'Свобода', voronin:'Долг', sultan:'Бандиты', beard:'Одиночки',
-  charon:'Монолит', wolfhound:'Долг', archivist:'Учёные', kravtsov:'Военные'
+  charon:'Монолит', wolfhound:'Наёмники', archivist:'Учёные', kravtsov:'Военные', monolith_scout:'Монолит'
 });
-const ROLES = Object.freeze({ sid:'торговец', wolf:'сталкер', fanatic:'сталкер', scout:'разведчик', bandit:'бандит', barman:'торговец', seriy:'сталкер', scientist:'учёный', merc:'наёмник', prof:'учёный', freedom:'боец', guide:'проводник', loner:'сталкер', lebedev:'командир', novikov:'техник', cold:'боец', lukash:'командир', voronin:'командир', sultan:'главарь', beard:'торговец', charon:'командир', wolfhound:'боец', archivist:'учёный', kravtsov:'военный' });
-const ACTIONS = ['patrol','travel','trade','rest','search'];
+const ROLES = Object.freeze({ sid:'торговец', wolf:'сталкер', fanatic:'сталкер', scout:'разведчик', bandit:'бандит', barman:'торговец', seriy:'сталкер', scientist:'учёный', merc:'наёмник', prof:'учёный', freedom:'боец', guide:'проводник', loner:'сталкер', lebedev:'командир', novikov:'техник', cold:'боец', lukash:'командир', voronin:'командир', sultan:'главарь', beard:'торговец', charon:'командир', wolfhound:'боец', archivist:'учёный', kravtsov:'военный', monolith_scout:'разведчик' });
+const { TERRITORY_ADJACENCY, homeForFaction, nearestFriendlyLocation, canEnterTerritory } = require('./territories');
 const { buildDialogue, interactDialogue } = require('./npc-dialogue');
-
 function isHostileFaction(a,b,diplomacy={}) {
   if(!a||!b||a===b||a==='Учёные'||b==='Учёные') return false;
   const enemies={ 'Долг':['Свобода','Бандиты','Монолит'], 'Свобода':['Долг','Бандиты','Монолит'], 'Одиночки':['Бандиты','Монолит'], 'Бандиты':['Одиночки','Долг','Свобода','Военные'], 'Военные':['Бандиты','Монолит'], 'Наёмники':['Монолит'], 'Монолит':['Одиночки','Долг','Свобода','Военные','Наёмники'] };
   if((enemies[a]||[]).includes(b)) return true;
   return Number(diplomacy?.[a]?.[b])<=-25;
 }
-
-const NPC_DISPLAY = {sid:'Сидорович',wolf:'Волк',fanatic:'Фанатик',scout:'Разведчик',bandit:'Бандит',barman:'Бармен',seriy:'Серый',scientist:'Учёный',merc:'Наёмник',prof:'Профессор Сахаров',freedom:'Свободовец',guide:'Проводник',loner:'Одиночка',lebedev:'Николай Лебедев',novikov:'Новиков',cold:'Холод',lukash:'Лукаш',voronin:'Генерал Воронин',sultan:'Султан',beard:'Борода',charon:'Харон',wolfhound:'Вольфхаунд',archivist:'Архивист',kravtsov:'Командир Кравцов'};
+const NPC_DISPLAY = {sid:'Сидорович',wolf:'Волк',fanatic:'Фанатик',scout:'Разведчик',bandit:'Бандит',barman:'Бармен',seriy:'Серый',scientist:'Учёный',merc:'Наёмник',prof:'Профессор Сахаров',freedom:'Свободовец',guide:'Проводник',loner:'Одиночка',lebedev:'Николай Лебедев',novikov:'Новиков',cold:'Холод',lukash:'Лукаш',voronin:'Генерал Воронин',sultan:'Султан',beard:'Борода',charon:'Харон',wolfhound:'Вольфхаунд',archivist:'Архивист',kravtsov:'Командир Кравцов',monolith_scout:'Монолитовский разведчик'};
 function createNpcRoster(npcHome, now = Date.now()) {
   const roster = {};
   for (const [id, location] of Object.entries(npcHome || {})) {
-    roster[id] = { id, name: NPC_DISPLAY[id] || id, faction: NPC_FACTIONS[id] || 'Одиночки', role: ROLES[id] || 'сталкер', location, destination: null, action: 'rest', mood: 'спокоен', health: 100, morale: 60, supplies: 50, alive: true, lastActionAt: now, relationships: {}, inventory: [], history: [], generated:false, dialogueVersion:0, dialogueCycle:Math.floor(now/900000), lastApproachAt:0 };
+    roster[id] = { id, name: NPC_DISPLAY[id] || id, faction: NPC_FACTIONS[id] || 'Одиночки', role: ROLES[id] || 'сталкер', location, homeLocation:location, baseLocation:location, destination: null, action: 'camp', behavior:'camp', duty:'base_guard', guardPost:true, mood: 'спокоен', health: 100, morale: 60, supplies: 50, alive: true, lastActionAt: now, nextDecisionAt:now+5*60000, relationships: {}, inventory: [], history: [], generated:false, dialogueVersion:0, dialogueCycle:Math.floor(now/900000), lastApproachAt:0, route:[] };
   }
   return roster;
 }
 function choose(list, random) { return list[Math.floor(random() * list.length)] || null; }
+function scheduleNext(npc,now,random,min=5,max=16){npc.nextDecisionAt=now+(min+Math.floor(random()*(max-min+1)))*60000;}
+function recordAction(npc,now){npc.lastActionAt=now;npc.history ||= [];npc.history.push({action:npc.action,location:npc.location,at:now});npc.history=npc.history.slice(-12);}
+function moveNpc(npc,to,now,events,reason='patrol'){
+  if(!to||to===npc.location)return false;
+  const from=npc.location;npc.location=to;npc.destination=null;npc.action='travel';npc.behavior=reason;npc.route=[from,to];npc.direction=(npc.direction||0)+90;
+  events.push({type:'npc_travel',npcId:npc.id,from,location:to,text:`${npc.name} переместился из сектора ${from} в сектор ${to}.`,at:now});return true;
+}
 function tickNpcWorld(world, locations, random = Math.random, now = Date.now()) {
-  world.npcState ||= createNpcRoster(world.npcPositions || {}, now);
-  const events = [];
-  const allLocations = [...locations];
+  world.npcState ||= {}; world.npcPositions ||= {};
+  const events = [], owners=world.territoryOwners||{};
   for (const npc of Object.values(world.npcState)) {
     if (!npc.equipment) { const role=npc.role||'сталкер'; npc.equipment={suit:role.includes('учёный')?'Научный комбинезон':role.includes('торговец')?'Куртка торговца':'Комбинезон сталкера',weapon:role.includes('охотник')?'ТОЗ-34':role.includes('разведчик')?'АКС-74У':'ПМ',tool:'Обычный детектор',backpack:'Полевой рюкзак'}; }
     if (!npc.alive) continue;
     const cycle=Math.floor(now/900000); if(npc.dialogueCycle!==cycle){npc.dialogueCycle=cycle;npc.dialogueVersion=(npc.dialogueVersion||0)+1;events.push({type:'npc_dialogue_updated',npcId:npc.id,text:`${npc.name}: появились новые темы и слухи для разговора.`,at:now});}
     npc.dialogue = buildDialogue(npc, {recentWorldEvent:world.zoneEvents?.at(-1)?.title || ''}, now);
-    npc.health = clamp(npc.health, 0, 100); npc.morale = clamp(npc.morale, 0, 100); npc.supplies = clamp(npc.supplies, 0, 100);
-    if (npc.destination && npc.destination !== npc.location) {
-      const from = npc.location; npc.location = npc.destination; npc.destination = null;
-      world.npcPositions[npc.id] = npc.location; npc.action = 'travel';
-      events.push({ type:'npc_travel', npcId:npc.id, from, location:npc.location, text:`${npc.name} прибыл в сектор ${npc.location}.`, at:now });
-    } else {
-      npc.action = choose(ACTIONS, random) || 'rest';
-      if (npc.action === 'travel' || npc.action === 'patrol') {
-        const options = allLocations.filter(x => x !== npc.location);
-        if (options.length) { npc.destination = choose(options, random); npc.action = npc.action === 'patrol' ? 'patrol' : 'travel'; }
-      } else if (npc.action === 'trade') npc.supplies = clamp(npc.supplies + 8, 0, 100);
-      else if (npc.action === 'search') npc.supplies = clamp(npc.supplies + 5, 0, 100);
-      else if (npc.action === 'rest') { npc.health = clamp(npc.health + 4, 0, 100); npc.morale = clamp(npc.morale + 2, 0, 100); }
+    npc.health=clamp(npc.health,0,100);npc.morale=clamp(npc.morale,0,100);npc.supplies=clamp(npc.supplies,0,100);
+    npc.homeLocation ||= homeForFaction(npc.faction,owners,npc.location);
+    npc.baseLocation ||= npc.homeLocation;
+    npc.behavior ||= 'camp'; npc.nextDecisionAt ||= now+5*60000;
+    // No unauthorized faction migration: old-save NPCs return to their own nearest friendly sector.
+    const hasOrder=!!npc.missionOrder;
+    const occupied=!!npc.occupationGarrison&&owners[npc.location]===npc.faction;
+    if(Object.keys(owners).length&&!occupied&&!hasOrder&&!canEnterTerritory(npc.faction,npc.location,owners,world.territoryOrders||{})){
+      const safe=nearestFriendlyLocation(npc.location,npc.faction,owners);
+      if(safe!==npc.location){moveNpc(npc,safe,now,events,'retreat');npc.action='retreat';npc.behavior='retreat';npc.duty='return_to_faction';scheduleNext(npc,now,random,8,14);recordAction(npc,now);world.npcPositions[npc.id]=npc.location;continue;}
     }
-    npc.lastActionAt = now;
-    npc.history ||= []; npc.history.push({ action:npc.action, location:npc.location, at:now }); npc.history = npc.history.slice(-12);
+    if(now < npc.nextDecisionAt && npc.action!=='combat') continue;
+    if(npc.action==='combat') { npc.action='guard';npc.behavior='guard';npc.mood='насторожен';scheduleNext(npc,now,random,4,9);recordAction(npc,now);continue; }
+    if(npc.missionOrder){
+      const target=npc.missionOrder.target;
+      if(npc.location===target){npc.action='guard';npc.behavior='mission';npc.duty=npc.missionOrder.type||'mission';npc.missionOrder=null;}
+      else {
+        const next=(TERRITORY_ADJACENCY[npc.location]||[]).find(id=>id===target||(TERRITORY_ADJACENCY[id]||[]).includes(target)&&canEnterTerritory(npc.faction,id,owners,world.territoryOrders||{}));
+        if(next&&canEnterTerritory(npc.faction,next,owners,world.territoryOrders||{}))moveNpc(npc,next,now,events,'mission');
+        else {npc.missionOrder=null;npc.action='retreat';npc.behavior='retreat';}
+      }
+      scheduleNext(npc,now,random,5,9);recordAction(npc,now);
+    } else {
+      const atHome=npc.location===npc.homeLocation||npc.location===npc.baseLocation;
+      const roll=random();
+      if(roll<.43){npc.action='camp';npc.behavior='campfire';npc.duty='rest_at_base';npc.guardPost=false;npc.mood='спокоен';npc.health=clamp(npc.health+3,0,100);npc.morale=clamp(npc.morale+3,0,100);npc.supplies=clamp(npc.supplies+1,0,100);}
+      else if(roll<.78){npc.action='guard';npc.behavior='guard';npc.duty='base_guard';npc.guardPost=true;npc.mood='насторожен';npc.morale=clamp(npc.morale+1,0,100);}
+      else if(roll<.91){npc.action='rest';npc.behavior='rest';npc.duty='recover';npc.guardPost=false;npc.health=clamp(npc.health+5,0,100);npc.morale=clamp(npc.morale+2,0,100);}
+      else {
+        const friendly=(TERRITORY_ADJACENCY[npc.location]||[]).filter(id=>owners[id]===npc.faction);
+        const next=choose(friendly,random);
+        if(next){npc.action='patrol';npc.behavior='patrol';npc.duty='sector_patrol';npc.guardPost=false;moveNpc(npc,next,now,events,'patrol');npc.homeLocation=npc.homeLocation||npc.baseLocation;}
+        else {npc.action='guard';npc.behavior='guard';npc.duty='base_guard';npc.guardPost=true;}
+      }
+      if(atHome&&npc.action==='camp'&&random()<.12)events.push({type:'npc_camp_event',npcId:npc.id,location:npc.location,text:`${npc.name} отдыхает у костра на базе «${npc.faction}».`,at:now});
+      scheduleNext(npc,now,random,5,18);recordAction(npc,now);
+    }
+    npc.destination=null;
+    world.npcPositions[npc.id]=npc.location;
   }
-  // Persistent faction warfare: opposing squads sharing a sector exchange fire.
+  // Border commands: send a small, persistent assault squad only across a real hostile frontier.
+  world.territoryOrders ||= {}; world.frontlineOrders ||= []; world.battlefronts ||= []; world.convoys ||= [];
+  for(const [sector,order] of Object.entries(world.territoryOrders))if(order.expiresAt&&order.expiresAt<=now)delete world.territoryOrders[sector];
+  const borders=[];const seenBorders=new Set();
+  for(const [from,neighbors] of Object.entries(TERRITORY_ADJACENCY))for(const to of neighbors){
+    const key=[from,to].sort().join('|');if(seenBorders.has(key))continue;seenBorders.add(key);
+    const fromFaction=owners[from],toFaction=owners[to];
+    if(fromFaction&&toFaction&&fromFaction!==toFaction&&isHostileFaction(fromFaction,toFaction,world.diplomacy))borders.push({from,to,attacker:fromFaction,defender:toFaction});
+  }
+  if(borders.length&&random()<.14){
+    const border=choose(borders,random);
+    const alreadyActive=world.frontlineOrders.some(o=>o.target===border.to&&o.status==='active'&&o.attacker===border.attacker);
+    if(!alreadyActive&&!world.battlefronts.some(b=>b.location===border.to&&b.status==='active')){
+      const squad=Object.values(world.npcState).filter(n=>n.alive&&n.faction===border.attacker&&n.location===border.from&&!n.missionOrder&&!n.occupationGarrison).slice(0,6);
+      if(squad.length>=3){
+        const order={id:`front_${border.from}_${border.to}_${now}`,from:border.from,target:border.to,attacker:border.attacker,defender:border.defender,status:'active',launchedAt:now,squad:squad.map(n=>n.id)};
+        world.frontlineOrders.unshift(order);world.frontlineOrders=world.frontlineOrders.slice(0,24);
+        world.territoryOrders[border.to]={faction:border.attacker,type:'attack',expiresAt:now+45*60000};
+        for(const npc of squad){npc.missionOrder={type:'attack',target:border.to,orderId:order.id};npc.nextDecisionAt=now;npc.action='travel';npc.behavior='assault';npc.duty='assault_squad';npc.guardPost=false;}
+        events.push({type:'faction_assault',location:border.to,attacker:border.attacker,defender:border.defender,text:`Отряд группировки «${border.attacker}» выдвинулся из ${border.from} к сектору ${border.to}, который контролирует «${border.defender}».`,at:now});
+      }
+    }
+  }
+  // Persistent faction warfare: hostile units that meet in a sector exchange fire.
   const byLocation = new Map();
   for (const npc of Object.values(world.npcState)) if (npc.alive) { const group = byLocation.get(npc.location) || []; group.push(npc); byLocation.set(npc.location, group); }
   world.battlefronts ||= []; world.convoys ||= [];
@@ -65,28 +115,32 @@ function tickNpcWorld(world, locations, random = Math.random, now = Date.now()) 
     if(!a||!b) continue;
     const battle=world.battlefronts.find(x=>x.location===location&&x.status==='active');
     const engagement=battle||{id:`battle_${location}_${now}`,location,attacker:a.faction,defender:b.faction,status:'active',startedAt:now,rounds:0,losses:0};
-    engagement.rounds++; engagement.lastAt=now;
-    const damageA=4+Math.floor(random()*13), damageB=4+Math.floor(random()*13);
-    b.health=clamp(b.health-damageA,0,100); a.health=clamp(a.health-damageB,0,100);
-    a.action=b.action='combat'; a.mood=b.mood='в бою';
-    for(const [victim,killer] of [[a,b],[b,a]]) if(victim.health<=0&&victim.alive){victim.alive=false;victim.action='dead';victim.deathCause=`погиб в бою с группировкой «${killer.faction}»`;victim.diedAt=now;engagement.losses++;}
-    if(!battle) world.battlefronts.unshift(engagement);
+    engagement.rounds++;engagement.lastAt=now;
+    const damageA=4+Math.floor(random()*13),damageB=4+Math.floor(random()*13);
+    b.health=clamp(b.health-damageA,0,100);a.health=clamp(a.health-damageB,0,100);a.action=b.action='combat';a.behavior=b.behavior='combat';a.mood=b.mood='в бою';
+    for(const [victim,killer] of [[a,b],[b,a]])if(victim.health<=0&&victim.alive){victim.alive=false;victim.action='dead';victim.deathCause=`погиб в бою с группировкой «${killer.faction}»`;victim.diedAt=now;engagement.losses++;}
+    if(!battle)world.battlefronts.unshift(engagement);
     const attackAlive=group.filter(n=>n.alive&&n.faction===engagement.attacker).length;
     const defenseAlive=group.filter(n=>n.alive&&n.faction===engagement.defender).length;
-    if(engagement.rounds>=4 || attackAlive===0 || defenseAlive===0){
+    if(engagement.rounds>=4||attackAlive===0||defenseAlive===0){
       engagement.status='resolved';engagement.endedAt=now;
       const winner=attackAlive===defenseAlive?(attackAlive>0?(random()<.5?engagement.attacker:engagement.defender):null):(attackAlive>defenseAlive?engagement.attacker:engagement.defender);
       engagement.winner=winner;
-      if(winner){world.territoryOwners ||= {};world.territoryControl ||= {};world.territoryOwners[location]=winner;world.territoryControl[location]=55;events.push({type:'territory_captured',location,winner,text:`Группировка «${winner}» установила контроль над сектором ${location} после столкновения.`,at:now});}
+      if(winner){world.territoryOwners ||= {};world.territoryControl ||= {};world.territoryOwners[location]=winner;world.territoryControl[location]=55;
+        for(const survivor of group.filter(n=>n.alive&&n.faction===winner)){survivor.occupationGarrison=true;survivor.duty='occupation_garrison';survivor.action='guard';survivor.behavior='guard';survivor.guardPost=true;}
+        for(const order of world.frontlineOrders||[])if(order.target===location&&order.status==='active'){order.status=winner===order.attacker?'captured':'repelled';order.resolvedAt=now;order.winner=winner;}
+        delete world.territoryOrders?.[location];
+        events.push({type:'territory_captured',location,winner,text:`Группировка «${winner}» установила контроль над сектором ${location} после столкновения.`,at:now});}
     }
     events.push({type:'npc_skirmish',location,participants:[a.id,b.id],attacker:engagement.attacker,defender:engagement.defender,text:`Перестрелка: ${engagement.attacker} и ${engagement.defender} ведут бой в секторе ${location}.`,at:now});
   }
   world.battlefronts=world.battlefronts.slice(0,40);
-  // Rare supply convoys travel between connected sectors and can be ambushed.
-  if(!world.convoys.length || (now-(world.convoys.at(-1)?.createdAt||0)>12*60*1000 && random()<.35)){
-    const routes=[['cordon','dump','bar'],['swamps','yantar','agro'],['jupiter','zaton','pripyat'],['army','red','radar']];
-    const route=choose(routes,random); world.convoys.push({id:`convoy_${now}`,faction:choose(['Одиночки','Долг','Свобода','Учёные'],random),route,index:0,location:route[0],strength:3+Math.floor(random()*4),status:'moving',createdAt:now});
-    events.push({type:'convoy_started',location:route[0],text:`Караван снабжения отправился из сектора ${route[0]}.`,at:now});
+  // Convoys use the Zone's connected routes and remain visible to every player.
+  if(!world.convoys.length||(now-(world.convoys.at(-1)?.createdAt||0)>12*60*1000&&random()<.35)){
+    const routes=[['cordon','agro','dump','bar'],['swamps','cordon','agro','yantar'],['jupiter','pripyat','zaton'],['limansk','red','jupiter','radar']];
+    const route=choose(routes,random);const originOwner=owners[route[0]]||'Одиночки';
+    world.convoys.push({id:`convoy_${now}`,faction:originOwner,route,index:0,location:route[0],strength:3+Math.floor(random()*4),status:'moving',createdAt:now});
+    events.push({type:'convoy_started',location:route[0],text:`Караван снабжения группировки «${originOwner}» отправился из сектора ${route[0]}.`,at:now});
   }
   for(const convoy of world.convoys.filter(x=>x.status==='moving')){
     if(random()<.7){convoy.index++;convoy.location=convoy.route[Math.min(convoy.index,convoy.route.length-1)];if(convoy.index>=convoy.route.length-1)convoy.status='arrived';}
@@ -94,8 +148,12 @@ function tickNpcWorld(world, locations, random = Math.random, now = Date.now()) 
     if(enemies.length&&random()<.25){convoy.status='ambushed';events.push({type:'convoy_ambush',location:convoy.location,text:`Засада на караван ${convoy.faction} в секторе ${convoy.location}!`,at:now});}
   }
   world.convoys=world.convoys.filter(x=>now-x.createdAt<24*60*60*1000).slice(-20);
-  world.npcPositions = Object.fromEntries(Object.values(world.npcState).filter(n => n.alive).map(n => [n.id,n.location]));
-  world.npcEvents ||= []; world.npcEvents.push(...events); world.npcEvents = world.npcEvents.slice(-60);
+  world.npcPositions=Object.fromEntries(Object.values(world.npcState).filter(n=>n.alive).map(n=>[n.id,n.location]));
+  world.factionBases=Object.entries(owners).map(([location,faction])=>{
+    const stationed=Object.values(world.npcState).filter(n=>n.alive&&n.location===location&&n.faction===faction);
+    return {location,faction,total:stationed.length,guards:stationed.filter(n=>n.guardPost||n.duty==='base_guard'||n.duty==='occupation_garrison').length,campfire:stationed.filter(n=>n.behavior==='campfire').length,patrols:stationed.filter(n=>n.behavior==='patrol').length,squads:[...new Set(stationed.map(n=>n.squadId).filter(Boolean))].length};
+  });
+  world.npcEvents ||= [];world.npcEvents.push(...events);world.npcEvents=world.npcEvents.slice(-60);
   return events;
 }
 function interactWithNpc(npc, player, action, now = Date.now(), context = {}) {
@@ -106,9 +164,7 @@ function interactWithNpc(npc, player, action, now = Date.now(), context = {}) {
   const delta = action === 'help' ? 5 : action === 'greet' ? 2 : action === 'trade' ? 1 : 0;
   npc.relationships[player.id] = clamp(current + delta, -100, 100);
   npc.memory ||= []; npc.memory.push({type:'player_interaction',playerId:player.id,action,at:now}); npc.memory=npc.memory.slice(-30);
-  const result=interactDialogue(npc,player,action,context,now);
-  npc.lastInteractionAt = now;
+  const result=interactDialogue(npc,player,action,context,now);npc.lastInteractionAt=now;
   return { ok:true, ...result, relationship:npc.relationships[player.id], npcId:npc.id };
 }
-
 module.exports = { NPC_FACTIONS, ROLES, createNpcRoster, tickNpcWorld, interactWithNpc, isHostileFaction };

@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { LOCATIONS, FACTIONS, NPC_HOME, COOP_TEMPLATES, TRADE_ITEM_IDS, SHOP } = require('../src/shared/game-data');
+const { LOCATIONS, FACTIONS, NPC_HOME, COOP_TEMPLATES, TRADE_ITEM_IDS, SHOP, TERRITORY_START } = require('../src/shared/game-data');
 const { clean, validId, createSafeState } = require('../src/server/validation');
 const { initSharedWorld, initDiplomacy } = require('../src/server/world');
 
@@ -98,12 +98,45 @@ test('NPC AI bootstraps independent NPC profiles with roles and factions', () =>
 test('NPC AI advances schedules, records history and publishes shared positions', () => {
   const world = { npcPositions: { alpha:'cordon', beta:'dump' } };
   world.npcState = createNpcRoster({ alpha:'cordon', beta:'dump' }, 100);
+  world.npcState.alpha.nextDecisionAt = -1; world.npcState.beta.nextDecisionAt = -1;
   const events = tickNpcWorld(world, new Set(['cordon','dump','bar']), () => 0, 200);
   assert.equal(world.npcState.alpha.lastActionAt, 200);
   assert.ok(world.npcState.alpha.history.length >= 1);
   assert.ok(world.npcPositions.alpha);
   assert.ok(Array.isArray(world.npcEvents));
   assert.ok(Array.isArray(events));
+});
+
+
+test('4.20 generated NPCs are stationed only on their faction territory', () => {
+  const world = { npcState:{}, npcPositions:{}, territoryOwners:Object.fromEntries(Object.entries(TERRITORY_START).map(([id,v])=>[id,v.owner])) };
+  ensureRandomNpcs(world,340);
+  const generated=Object.values(world.npcState).filter(n=>n.generated);
+  assert.equal(generated.length,340);
+  assert.ok(generated.every(n=>world.territoryOwners[n.location]===n.faction));
+  assert.ok(generated.some(n=>n.faction==='Чистое небо'&&n.location==='swamps'));
+  assert.ok(!generated.some(n=>n.faction==='Чистое небо'&&n.location==='cordon'));
+});
+
+test('4.20 NPCs stay at their post between decisions instead of teleport-wandering', () => {
+  const world={npcPositions:{guard:'cordon'},territoryOwners:{cordon:'Одиночки'},npcState:{guard:{id:'guard',name:'Постовой',faction:'Одиночки',location:'cordon',homeLocation:'cordon',baseLocation:'cordon',alive:true,health:100,morale:70,supplies:70,action:'guard',behavior:'guard',duty:'base_guard',guardPost:true,nextDecisionAt:900000,lastActionAt:0}}};
+  tickNpcWorld(world,new Set(['cordon','dump']),()=>0.99,60000);
+  assert.equal(world.npcState.guard.location,'cordon');
+  assert.equal(world.npcState.guard.action,'guard');
+  assert.equal(world.npcState.guard.duty,'base_guard');
+});
+
+
+test('4.20 faction AI launches border assaults only across hostile adjacent sectors', () => {
+  const { TERRITORY_ADJACENCY } = require('../src/systems/territories');
+  assert.ok(TERRITORY_ADJACENCY.bar.includes('dump'));
+  const world={territoryOwners:{bar:'Долг',dump:'Бандиты'},territoryControl:{bar:70,dump:60},npcPositions:{},npcState:{}};
+  for(let i=0;i<6;i++){const id=`duty_${i}`;world.npcState[id]={id,name:`Долговец ${i}`,faction:'Долг',location:'bar',homeLocation:'bar',baseLocation:'bar',alive:true,health:100,morale:70,supplies:70,action:'guard',behavior:'guard',duty:'base_guard',guardPost:true,nextDecisionAt:9999999,squadId:'duty_squad'};world.npcPositions[id]='bar';}
+  const events=tickNpcWorld(world,new Set(['bar','dump']),()=>0,1000);
+  assert.ok(events.some(e=>e.type==='faction_assault'));
+  assert.equal(world.frontlineOrders[0].target,'dump');
+  assert.equal(world.npcState.duty_0.missionOrder.target,'dump');
+  assert.equal(world.territoryOrders.dump.faction,'Долг');
 });
 
 test('NPC faction hostility matrix distinguishes enemy and neutral factions', () => {

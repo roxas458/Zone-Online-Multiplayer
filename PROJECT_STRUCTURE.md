@@ -56,3 +56,9 @@ ZONE_ONLINE/
 - Added click-to-walk, WASD/arrow-key movement and touch movement controls.
 - Added validated multiplayer position updates; position is scoped to the player's current sector.
 - Local map uses schematic sector centers and a bounded movement area; detailed collision/navigation mesh and physical-device testing remain future work.
+
+
+## 4.20 territorial simulation
+- `src/systems/territories.js` — canonical adjacency, faction home regions, legal territory entry and retreat routing.
+- `src/systems/npc-roster.js` — persistent faction-aligned NPC generation and migration of old roaming NPC records.
+- `src/systems/npc-ai.js` — server-authoritative camp, guard, rest, patrol, assault, combat and retreat decisions.

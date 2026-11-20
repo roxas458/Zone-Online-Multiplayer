@@ -124,3 +124,14 @@
 - Added radiation accumulation and Anti-rad with 12-minute protection.
 - Added rank and faction label to inventory backpack identity panel.
 - Expanded encyclopedia with radiation field entry.
+
+
+## 4.20.0 — LIVING FACTIONS
+
+- Reworked NPC decision logic: stalkers now remain at bases by default, sit at campfires, rest, guard checkpoints and patrol only short friendly routes.
+- Added faction home territories and a canonical connected-sector graph for all 17 locations.
+- Corrected legacy generated NPCs whose faction did not match their home territory (including Clear Sky units appearing in Cordon).
+- Added server-side hostile-border assault orders, temporary territory permissions and occupation garrisons after successful captures.
+- Added faction base status aggregation and exposed guard/campfire/patrol counts in the PDA war feed.
+- Added NPC activity labels to global map markers.
+- Added regression coverage for faction territory assignment, stationary guards and border assault dispatch.
