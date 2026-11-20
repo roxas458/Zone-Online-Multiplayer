@@ -328,3 +328,54 @@ body.dialogue-open{overflow:hidden}
 .squad-overview-card{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:14px;border:1px solid #77704e;background:linear-gradient(110deg,#343d2c,#1b241b);border-radius:8px}
 .squad-overview-card b{color:#e1d39b}.squad-overview-card span{font-size:11px;color:#b7b69a;text-align:right}
 @media(max-width:650px){.npc-dialogue-overlay{padding:0}.npc-dialogue-window{width:100%;height:100dvh;max-height:100dvh;border-radius:0;border-left:0;border-right:0}.npc-dialogue-toolbar{padding:8px 12px}.npc-dialogue-content{padding:13px}.npc-dialogue-content .dialogue-top{gap:12px;padding:12px}.npc-dialogue-content .choices{grid-template-columns:1fr}.npc-dialogue-content .choices button{min-height:46px}.squad-overview-card{align-items:flex-start;flex-direction:column}.squad-overview-card span{text-align:left}}
+
+/* 4.25 — FIELD PDA REFINED: less scrolling, clearer touch targets */
+html{scroll-behavior:smooth;scroll-padding-top:84px}
+.content{min-width:0}
+.view{min-width:0}
+.view>h1{display:flex;align-items:center;gap:9px;min-height:36px}
+/* Keep the controls that filter long lists within reach while browsing. */
+#quests .tabs,#inventory .backpack-tools,#encyclopedia .inventory-toolbar,
+#armory .inventory-toolbar,#trade .trade-tabs,#world .map-toolbar{
+  position:sticky;top:68px;z-index:4;padding:8px 0;
+  background:linear-gradient(180deg,#1b2119f5 78%,#1b211900);
+  backdrop-filter:blur(8px)
+}
+#quests .tabs{margin:6px 0 12px}
+#trade .trade-tabs{margin:4px 0 8px;overflow-x:auto;flex-wrap:nowrap}
+#trade .trade-tabs button{flex:0 0 auto}
+#inventory .backpack-tools{top:62px;gap:6px}
+#inventory .backpack-tools input,#inventory .backpack-tools select{min-width:0}
+#world .map-toolbar{top:62px}
+#world .map-order-status{position:sticky;top:112px;z-index:3}
+#quests .item.block{padding:13px;gap:7px}
+#quests .item.block p{margin:5px 0}
+#trade .section{scroll-margin-top:130px}
+#inventory .backpack-grid-wrap{overscroll-behavior:contain}
+.mobile-dock{z-index:40;box-shadow:0 -8px 28px #0008;padding-bottom:env(safe-area-inset-bottom)}
+.mobile-dock button{min-width:0;touch-action:manipulation}
+button,input,select{touch-action:manipulation}
+@media(max-width:760px){
+  main{padding:7px;gap:8px}
+  main>.right{display:none}
+  main>aside.panel{display:none}
+  .content{width:100%;min-height:0}
+  .view{padding:10px}
+  .view>h1{font-size:21px;margin:2px 0 8px}
+  .topstats{max-width:58vw;max-height:42px;overflow:hidden;align-content:flex-start}
+  .mobile-dock{position:fixed;left:0;right:0;bottom:0;display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:2px;padding:6px 5px calc(6px + env(safe-area-inset-bottom));background:linear-gradient(180deg,#20251cf5,#10140ffb);border-top:1px solid #777354}
+  main{padding-bottom:calc(68px + env(safe-area-inset-bottom))}
+  .mobile-dock button{font-size:10px;padding:6px 1px;min-height:48px}
+  .mobile-dock button span{display:block;font-size:16px;line-height:1.2}
+  #quests .tabs,#inventory .backpack-tools,#encyclopedia .inventory-toolbar,
+  #armory .inventory-toolbar,#trade .trade-tabs,#world .map-toolbar{top:0}
+  #world .map-order-status{top:54px}
+  #trade .trade-grid{gap:7px}
+  #quests .item.block{padding:11px}
+}
+@media(max-width:390px){
+  .mobile-dock button{font-size:9px}
+  .topstats{font-size:9px;gap:5px}
+  #inventory .backpack-tools{grid-template-columns:minmax(0,1fr) 74px 74px}
+}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}

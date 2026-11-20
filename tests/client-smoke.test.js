@@ -396,3 +396,24 @@ test('4.24 squads have a dedicated navigation view and are removed from the mult
   assert.doesNotMatch(multiplayer, /playerSquadPanel/);
   assert.match(html, /id="localNpcSquads"/);
 });
+
+test('4.25 field PDA keeps long-page filters and map controls reachable', () => {
+  const html = fs.readFileSync(path.join(root, 'public/index.html'), 'utf8');
+  const css = fs.readFileSync(path.join(root, 'public/css/game.css'), 'utf8');
+  assert.match(html, /id="quests"[\s\S]*?id="questList"/);
+  assert.match(html, /id="inventory"[\s\S]*?id="invSearch"/);
+  assert.match(html, /id="trade"[\s\S]*?class="trade-tabs"/);
+  assert.match(html, /class="mobile-dock"/);
+  assert.match(css, /#quests \.tabs[\s\S]*?position:sticky/);
+  assert.match(css, /#trade \.trade-tabs[\s\S]*?position:sticky/);
+  assert.match(css, /#world \.map-toolbar[\s\S]*?position:sticky/);
+  assert.match(css, /@media\(max-width:760px\)[\s\S]*?main>\.right\{display:none\}/);
+});
+
+test('4.25 build labels are consistent', () => {
+  const html = fs.readFileSync(path.join(root, 'public/index.html'), 'utf8');
+  const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
+  assert.equal(pkg.version, '4.25.0');
+  assert.match(html, /BUILD 4\.25/);
+  assert.match(html, /ZONE ONLINE 4\.25/);
+});
