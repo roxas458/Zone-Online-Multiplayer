@@ -1,5 +1,5 @@
 // Persistent social lives for wandering stalkers: biographies, bonds, squads, raids and memorials.
-const { ensureRandomNpcs } = require('./npc-roster');
+const { ensureRandomNpcs, generatedName } = require('./npc-roster');
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,Number(n)||0));
 const BIOGRAPHY_BITS=[
   'Пришёл в Зону после того, как обычная жизнь стала казаться слишком тесной.',
@@ -73,9 +73,7 @@ function tickSouls(world,locations,random=Math.random,now=Date.now()){
   return events;
 }
 function makeReplacement(id,locations,random,now,used){
-  const first=['Вадим','Вовка','Гена','Серёга','Мишаня','Костян','Рома','Федя','Жека','Лёха','Тимоха','Борис','Данила','Егор','Стас','Ярик','Игнат','Славик','Гриша','Толя'];
-  const last=['Спагетти','Табак','Кабачок','Пельмень','Шуруп','Кефир','Бублик','Картридж','Сухарь','Болт','Кирпич','Шпрот','Самовар','Квас','Чебурек','Комар','Фонарик','Пончик','Гвоздь'];
-  let name;let attempts=0;do{name=`${pick(first,random)} ${pick(last,random)}`;attempts++;if(attempts>100)name=`Новый сталкер ${id}`;}while(used.has(name));
+  const name=generatedName(id,used);
   const factions=['Одиночки','Долг','Свобода','Бандиты','Наёмники','Чистое небо'];
   const roles=['сталкер','разведчик','механик','проводник','охотник'];
   const locs=[...locations];const location=pick(locs,random)||'cordon';

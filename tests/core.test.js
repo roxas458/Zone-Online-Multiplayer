@@ -118,12 +118,13 @@ test('4.20 generated NPCs are stationed only on their faction territory', () => 
   assert.ok(!generated.some(n=>n.faction==='Чистое небо'&&n.location==='cordon'));
 });
 
-test('4.31 every faction has a medic and technician and generated NPC surnames are unique', () => {
+test('4.31 every faction has a medic and technician and generated stalker nicknames are unique', () => {
   const world = { npcState:{}, npcPositions:{}, territoryOwners:Object.fromEntries(Object.entries(TERRITORY_START).map(([id,v])=>[id,v.owner])) };
   ensureRandomNpcs(world,340);
   const generated=Object.values(world.npcState).filter(n=>n.generated);
-  const surnames=generated.map(n=>String(n.name).trim().split(/\s+/).slice(1).join(' '));
-  assert.equal(new Set(surnames).size,generated.length);
+  const nicknames=generated.map(n=>String(n.name).trim());
+  assert.equal(new Set(nicknames).size,generated.length);
+  assert.ok(generated.every(n=>/^[А-ЯЁа-яё]+ [А-ЯЁа-яё0-9]+$/.test(n.name)), 'every generated stalker has a two-part callsign');
   for(const faction of FACTIONS){
     const specialists=generated.filter(n=>n.faction===faction&&n.supportSpecialist).map(n=>n.role);
     assert.ok(specialists.includes('медик'),`${faction} has a medic`);
@@ -223,7 +224,8 @@ test('ECOSYSTEM creates a persistent roster of oddly nicknamed supporting stalke
   ensureRandomNpcs(world, 60);
   const generated = Object.values(world.npcState).filter(n => n.generated);
   assert.equal(generated.length, 60);
-  assert.ok(generated.some(n => /Спагетти|Табак|Пельмень|Болт|Чебурек/.test(n.name)));
+  assert.ok(generated.some(n => /Спагетти|Табак|Пельмень|Болт|Чебурек|Бензин|Глобус|Бумага/.test(n.name)));
+  assert.ok(generated.some(n => n.name === 'Толик Бензин' || n.name === 'Кирюха Предатель' || n.name === 'Толя Факел'));
   const firstName = generated[0].name;
   ensureRandomNpcs(world, 60);
   assert.equal(world.npcState.wanderer_001.name, firstName);

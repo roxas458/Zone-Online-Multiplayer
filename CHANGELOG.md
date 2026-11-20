@@ -1,3 +1,8 @@
+## 4.33.2 — STALKER CALLSIGNS
+- Replaced procedural civilian-style names for generated NPC stalkers with unique Zone-flavoured nicknames.
+- Existing generated NPCs are migrated in place; named story characters and player names remain unchanged.
+- New NPC replacements and local fallback wanderers also use callsigns.
+
 # Changelog 4.33.0
 
 - Added real-time survival needs, expedition supply packs and route wear.

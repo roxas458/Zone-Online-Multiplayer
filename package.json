@@ -1,8 +1,8 @@
 {
   "name": "zone-online",
-  "version": "4.33.1",
+  "version": "4.33.2",
   "private": true,
-  "description": "ZONE ONLINE multiplayer transport stability patch",
+  "description": "ZONE ONLINE multiplayer stalker nickname refresh",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
