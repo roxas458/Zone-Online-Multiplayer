@@ -1,8 +1,8 @@
 {
   "name": "zone-online",
-  "version": "4.27.0",
+  "version": "4.28.0",
   "private": true,
-  "description": "Browser-based STALKER-inspired MMO with reliable login handshake and field PDA",
+  "description": "Browser-based STALKER-inspired MMO with immediate login acknowledgement and staged world hydration",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",

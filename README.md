@@ -1,3 +1,22 @@
+# ZONE ONLINE 4.28 — IMMEDIATE LOGIN ACKNOWLEDGEMENT
+
+## 4.28 — Login handshake reliability
+
+- The server now acknowledges `player:hello` synchronously before any database lookup or profile persistence.
+- Profile hydration and world snapshot delivery are a separate `player:ready` stage; failures now produce a specific `player:hello:error` message and a timed server log.
+- The browser distinguishes “server accepted the login request” from “world profile received”, with a 35-second watchdog for the second stage.
+- The client acknowledgement deadline is 20 seconds because the acknowledgement is now deliberately synchronous; the separate world-ready watchdog diagnoses delayed snapshot delivery.
+- PostgreSQL remains optional for anonymous multiplayer connectivity, but mandatory for registration, account login and cross-device persistence.
+- No save reset or database schema migration is required.
+
+## Deployment
+
+Deploy the full project folder to the existing Render Web Service using `npm install` and `npm start`. Keep the current service and `DATABASE_URL` configuration. After deployment, verify `/health` reports `version: "4.28.0"`. If the status remains `memory-fallback`, configure a Render PostgreSQL database and set its Internal Database URL as `DATABASE_URL` in the Web Service environment.
+
+## Checks
+
+Run `npm run check` and `npm test`.
+
 # ZONE ONLINE 4.27 — CONNECTION & FIELD PDA
 
 ## 4.27 — Connection diagnostics and illustrated PDA

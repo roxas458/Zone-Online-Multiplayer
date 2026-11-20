@@ -410,12 +410,12 @@ test('4.25 field PDA keeps long-page filters and map controls reachable', () => 
   assert.match(css, /@media\(max-width:760px\)[\s\S]*?main>\.right\{display:none\}/);
 });
 
-test('4.27 build labels are consistent', () => {
+test('4.28 build labels are consistent', () => {
   const html = fs.readFileSync(path.join(root, 'public/index.html'), 'utf8');
   const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
-  assert.equal(pkg.version, '4.27.0');
-  assert.match(html, /BUILD 4\.27/);
-  assert.match(html, /ZONE ONLINE 4\.27/);
+  assert.equal(pkg.version, '4.28.0');
+  assert.match(html, /BUILD 4\.28/);
+  assert.match(html, /ZONE ONLINE 4\.28/);
 });
 
 test('4.27 connection diagnostics support a separate server URL and health endpoint', () => {
@@ -441,15 +441,19 @@ test('4.27 trader panel uses local portrait assets for the active trader', () =>
 
 test('4.27 login acknowledgement timeout accounts for Render cold starts', () => {
   const game = fs.readFileSync(path.join(root, 'public/js/game.js'), 'utf8');
-  assert.match(game, /zoneSocket\.timeout\(60000\)\.emit\('player:hello'/);
+  assert.match(game, /zoneSocket\.timeout\(20000\)\.emit\('player:hello'/);
   assert.match(game, /timeout:60000,reconnection:true/);
-  assert.match(game, /за 60 секунд/);
+  assert.match(game, /Сервер подтвердил вход, но не прислал профиль мира/);
 });
 
 test('4.27 server acknowledges login before sending the large world snapshot', () => {
   const server = fs.readFileSync(path.join(root, 'server.js'), 'utf8');
-  const ack = server.indexOf("if(typeof ack==='function')ack({ok:true,id,persistent:dbReady});");
-  const ready = server.indexOf("socket.emit('player:ready'", ack);
-  assert.ok(ack >= 0 && ready > ack, 'login acknowledgement must precede world snapshot');
+  const handler = server.indexOf("socket.on('player:hello', async (payload, ack)=>{");
+  const ack = server.indexOf("ack({ok:true,accepted:true,persistent:dbReady})", handler);
+  const firstAwait = server.indexOf('await resolveSession(payload.token)', handler);
+  const ready = server.indexOf("socket.emit('player:ready'", handler);
+  assert.ok(ack > handler && firstAwait > ack, 'login acknowledgement must be synchronous before database work');
+  assert.ok(ready > firstAwait, 'profile snapshot must be sent after profile loading');
+  assert.match(server, /player:hello completed for/);
   assert.match(server, /query_timeout:8000, statement_timeout:8000/);
 });

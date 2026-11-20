@@ -129,6 +129,15 @@ function publishSquadMove(q,from,to,leader){
 
 io.on('connection', socket=>{
   socket.on('player:hello', async (payload, ack)=>{
+    // Confirm receipt synchronously, before database lookups or save migration.
+    // Render cold starts and slow PostgreSQL queries must not consume the client's
+    // Socket.IO acknowledgement deadline. The actual profile/world arrives in player:ready.
+    let helloAcknowledged=false;
+    if(typeof ack==='function'){
+      try { ack({ok:true,accepted:true,persistent:dbReady}); helloAcknowledged=true; }
+      catch(error) { console.warn('player:hello acknowledgement failed:',error.message); }
+    }
+    const helloStartedAt=Date.now();
     try {
       const auth=payload?.token?await resolveSession(payload.token):null;
       if(payload?.token&&!auth)throw new Error('Сессия аккаунта истекла. Войди в аккаунт заново.');
@@ -143,15 +152,19 @@ io.on('connection', socket=>{
       socket.data.playerId=id; socket.data.name=p.name; socket.data.accountId=auth?.account_id||null; p.socketId=socket.id; online.set(id,p); socket.join('zone-world'); socket.join(id); socket.join(`location:${p.location}`); socket.join(`faction:${p.faction}`);
       world.onlineMetrics ||= { totalJoins:0, totalMoves:0, lastTickAt:0 }; world.onlineMetrics.totalJoins += 1;
       const joinEvent = appendWorldEvent(world, 'player_joined', { player:publicPlayer(p) });
-      // Acknowledge the login before sending the potentially large world snapshot.
-      // On Render free instances / large persisted worlds, serializing the snapshot
-      // can otherwise consume the client's entire login acknowledgement timeout.
-      if(typeof ack==='function')ack({ok:true,id,persistent:dbReady});
+      // Acknowledgement was already sent synchronously above. Keep the ready payload
+      // separate so the client can distinguish accepted login from profile hydration.
       socket.emit('player:ready',{id, savedState:saved, account:auth?{username:auth.username}:null, world, worldSync:buildWorldSync(world, Number(payload?.lastRevision)||0), status:publicWorldStatus(world,online.size), chat:recentChat.filter(m=>!m.location||m.location===p.location).slice(-60), players:onlineList(), position:{x:p.x,y:p.y}, persistent:dbReady});
+      console.log(`player:hello completed for ${id} in ${Date.now()-helloStartedAt}ms (db=${dbReady?'postgres':'memory-fallback'})`);
       socket.to('zone-world').emit('world:event',joinEvent);
       io.emit('world:npcs',world.npcPositions); io.emit('world:npc-state',{npcs:world.npcState,events:(world.npcEvents||[]).slice(-20),squads:world.npcSquads||[],memorial:world.npcMemorial||[],battlefronts:world.battlefronts||[],convoys:world.convoys||[],factionBases:world.factionBases||[],frontlineOrders:world.frontlineOrders||[]}); io.emit('world:ecosystem',world.ecosystem); io.emit('world:coop',world.coOpQuests); io.emit('war:state',{operations:world.warOperations||[],history:(world.warHistory||[]).slice(0,12)});
       systemMessage(`${p.name} вошёл в Зону.`); broadcastOnline(); persistWorld().catch(e=>console.error('join persistence:',e.message));
-    } catch(e){ console.error('player:hello failed:',e); const message='Сервер принял соединение, но не смог завершить вход. Попробуй переподключиться.'; socket.emit('player:hello:error',{message}); if(typeof ack==='function')ack({ok:false,message}); }
+    } catch(e){
+      console.error(`player:hello failed after ${Date.now()-helloStartedAt}ms:`,e);
+      const message=e?.message==='Сессия аккаунта истекла. Войди в аккаунт заново.'?e.message:'Сервер принял соединение, но не смог загрузить профиль. Проверь журнал Render.';
+      socket.emit('player:hello:error',{message,detail:clean(e?.message||'unknown',180)});
+      if(!helloAcknowledged&&typeof ack==='function')try{ack({ok:false,message});}catch{}
+    }
   });
   socket.on('player:save', async input=>{
     const id=socket.data.playerId, p=online.get(id); if(!id||!p)return;
