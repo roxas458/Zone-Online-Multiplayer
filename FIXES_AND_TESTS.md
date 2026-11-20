@@ -13,3 +13,11 @@
 ## Remaining verification
 - A live HTTP/server smoke test could not be completed in this workspace because runtime dependencies (including `express`) are not installed. Install dependencies with `npm install` and run `npm start` in the deployment environment.
 - PostgreSQL and hosted WebSocket behavior require testing with the actual deployment environment and its `DATABASE_URL`/proxy configuration.
+
+
+## 4.33.8
+- Restored WebSocket-only transport across browser and server.
+- Added reconnect jitter and fixed Engine.IO close listener timing.
+- Added disconnect and graceful-shutdown persistence.
+- Bumped browser cache keys to avoid stale polling JavaScript.
+- Automated tests: 100/100 pass; syntax checks pass.

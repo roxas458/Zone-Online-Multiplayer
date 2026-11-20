@@ -1,5 +1,14 @@
 # Changelog
 
+## 4.33.8 — Restore stable WebSocket multiplayer
+- Restored the original WebSocket-only transport on both browser and server; removed the polling-only workaround.
+- Added randomized reconnect backoff while retaining automatic reconnection.
+- Bound Engine.IO close diagnostics to the actual live transport instance.
+- Persisted authoritative player state on disconnect and flushes online players plus world state during SIGTERM/SIGINT shutdown.
+- Bumped static asset cache keys to 4.33.8 so browsers do not keep the old polling client.
+
+# Changelog
+
 ## 4.33.4 — Stability and validation fixes
 - Persisted player-state canonical fields are now clamped in the actual saved state, not only in the validation summary; zero HP remains zero.
 - Existing PostgreSQL player records are normalized before being sent to clients or reused by server gameplay.

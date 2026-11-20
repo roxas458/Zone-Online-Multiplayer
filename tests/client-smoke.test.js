@@ -415,8 +415,8 @@ test('4.25 field PDA keeps long-page filters and map controls reachable', () => 
 test('4.33 build labels are consistent', () => {
   const html = fs.readFileSync(path.join(root, 'public/index.html'), 'utf8');
   const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
-  assert.equal(pkg.version, '4.33.7');
-  assert.match(html, /BUILD 4\.33\.7/);
+  assert.equal(pkg.version, '4.33.8');
+  assert.match(html, /BUILD 4\.33\.8/);
   assert.match(html, /ZONE ONLINE 4\.33/);
 });
 
@@ -439,7 +439,7 @@ test('4.27 connection diagnostics support a separate server URL and health endpo
   assert.match(html, /\?server=https:\/\/адрес-сервера/);
   assert.match(client, /queryMatch=.*server=/);
   assert.match(client, /\/health/);
-  assert.match(client, /transports:\['polling'\]/);
+  assert.match(client, /transports:\['websocket'\]/);
   assert.match(client, /connect_error/);
   assert.match(server, /app\.get\('\/health'/);
   assert.match(server, /version:require\('\.\/package\.json'\)\.version/);
@@ -454,8 +454,8 @@ test('4.33.5 keeps the configured Render URL when health preflight is slow and r
   assert.doesNotMatch(client, /localStorage\.removeItem\('zoneServerUrl'\);[\s\S]{0,180}Using the server that hosts this game/);
   assert.match(client, /reconnectionAttempts:Infinity/);
   assert.match(client, /reconnectionDelayMax:15000/);
-  assert.match(client, /timeout:60000/);
-  assert.match(server, /transports: \['polling'\]/);
+  assert.match(client, /timeout:30000/);
+  assert.match(server, /transports: \['websocket'\]/);
 });
 
 test('4.27 trader panel uses local portrait assets for the active trader', () => {
@@ -468,7 +468,7 @@ test('4.27 trader panel uses local portrait assets for the active trader', () =>
 test('4.27 login acknowledgement timeout accounts for Render cold starts', () => {
   const game = fs.readFileSync(path.join(root, 'public/js/game.js'), 'utf8');
   assert.match(game, /zoneSocket\.timeout\(60000\)\.emit\('player:hello'/);
-  assert.match(game, /timeout:60000,[\s\S]*reconnection:true/);
+  assert.match(game, /timeout:30000,[\s\S]*reconnection:true/);
   assert.match(game, /Сервер подтвердил вход, но не прислал профиль мира/);
 });
 
@@ -576,7 +576,7 @@ test('4.33 survival and expedition features are wired into the game and server',
   const client=fs.readFileSync(path.join(root,'public/js/game.js'),'utf8');
   const server=fs.readFileSync(path.join(root,'server.js'),'utf8');
   const data=fs.readFileSync(path.join(root,'src/shared/game-data.js'),'utf8');
-  assert.match(html,/survival\.js\?v=4\.33\.7/);
+  assert.match(html,/survival\.js\?v=4\.33\.8/);
   assert.match(html,/Подготовить рюкзак/);
   assert.match(html,/Охота на мутантов/);
   assert.match(client,/function tickSurvival\(/);
@@ -588,13 +588,13 @@ test('4.33 survival and expedition features are wired into the game and server',
 });
 
 
-test('4.33.7 prevents duplicate client reconnects and preserves session ownership after Render WebSocket transport errors', () => {
+test('4.33.8 keeps WebSocket transport and prevents duplicate client reconnects', () => {
   const client = fs.readFileSync(path.join(root, 'public/js/game.js'), 'utf8');
   const server = fs.readFileSync(path.join(root, 'server.js'), 'utf8');
-  assert.match(client, /transports:\['polling'\]/);
-  assert.match(client, /upgrade:false/);
-  assert.match(server, /transports: \['polling'\]/);
-  assert.match(server, /transportMode:'polling-stable'/);
+  assert.match(client, /transports:\['websocket'\]/);
+  assert.match(client, /randomizationFactor:0\.5/);
+  assert.match(server, /transports: \['websocket'\]/);
+  assert.match(server, /transportMode:'websocket-only'/);
   assert.match(client, /keeping existing Socket\.IO connection/);
   assert.match(client, /zoneSocketTarget===targetUrl/);
   assert.match(client, /zoneSocketTarget===targetUrl[\s\S]{0,240}return;[\s\S]{0,80}zonePlayerReady=false/);
@@ -603,12 +603,21 @@ test('4.33.7 prevents duplicate client reconnects and preserves session ownershi
 });
 
 
-test('4.33.7 pins Render to Node.js 22 LTS and disables unstable WebSocket upgrades', () => {
+test('4.33.8 pins Render to Node.js 22 LTS and restores WebSocket transport', () => {
   const nodeVersion = fs.readFileSync(path.join(root, '.node-version'), 'utf8').trim();
   const render = fs.readFileSync(path.join(root, 'render.yaml'), 'utf8');
   const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
   assert.equal(nodeVersion, '22.16.0');
   assert.match(render, /key: NODE_VERSION\s+value: 22\.16\.0/);
   assert.equal(pkg.engines.node, '>=22 <23');
-  assert.match(fs.readFileSync(path.join(root, 'server.js'), 'utf8'), /allowUpgrades: false/);
+  assert.match(fs.readFileSync(path.join(root, 'server.js'), 'utf8'), /transports: \[\'websocket\'\]/);
+});
+
+
+test('4.33.8 persists the last player state on disconnect and flushes state during Render shutdown', () => {
+  const server = fs.readFileSync(path.join(root, 'server.js'), 'utf8');
+  assert.match(server, /disconnect player persistence/);
+  assert.match(server, /process\.on\('SIGTERM',\(\)=>gracefulShutdown\('SIGTERM'\)\)/);
+  assert.match(server, /await Promise\.all\(\[\.\.\.online\.values\(\)\]/);
+  assert.match(server, /await persistWorld\(\)/);
 });

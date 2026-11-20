@@ -995,23 +995,26 @@ async function connectZone(){
  }
  if($('mpServerUrl') && $('mpServerUrl').value!==serverUrl)$('mpServerUrl').value=serverUrl;
  try{
-  // The deployed Render service accepts WebSocket handshakes but then closes
-  // them with `transport error`. Use HTTPS long-polling until WS stability is verified.
+  // Use the original WebSocket-only transport. It avoids Engine.IO polling
+  // session affinity issues and is natively supported by Render Web Services.
   zoneSocket=io(serverUrl||undefined,{
-   transports:['polling'],
-   upgrade:false,
-   timeout:60000,
+   transports:['websocket'],
+   timeout:30000,
    reconnection:true,
    reconnectionAttempts:Infinity,
    reconnectionDelay:1000,
    reconnectionDelayMax:15000,
+   randomizationFactor:0.5,
    path:'/socket.io/',
    autoConnect:false,
    withCredentials:false
   });
  zoneSocket.on('connect',()=>{console.info('ZONE ONLINE: Socket.IO connected; sending player:hello', {socketId:zoneSocket.id, transport:zoneSocket.io.engine?.transport?.name, playerId:zonePlayerId||'(new guest)'});setOnlineConnectionState('connecting','Связь установлена. Сервер принял соединение, загружаем профиль…');const lastRevision=Number(localStorage.getItem('zoneWorldRevision')||0);zoneSocket.timeout(60000).emit('player:hello',{id:zonePlayerId,state:g,lastRevision,guest:true},(err,result)=>{if(err){setOnlineConnectionState('offline','Сервер установил соединение, но не подтвердил запрос входа. Проверь журналы Render и попробуй переподключиться.');console.error('ZONE ONLINE: player:hello acknowledgement timeout',err);return;}console.info('ZONE ONLINE: player:hello acknowledgement',result);if(!result?.ok){setOnlineConnectionState('offline',result?.message||'Сервер отклонил вход.');return;}setOnlineConnectionState('connecting','Сервер подтвердил запрос. Получаем профиль и состояние Зоны…');if(zoneHelloReadyTimer)clearTimeout(zoneHelloReadyTimer);zoneHelloReadyTimer=setTimeout(()=>{if(zoneSocket?.connected)setOnlineConnectionState('offline','Сервер подтвердил вход, но не прислал профиль мира. Проверь ошибки player:hello в Render Logs.');},65000);});});
- zoneSocket.io.engine?.on('close',reason=>console.warn('ZONE ONLINE: Engine.IO transport closed',reason));
- zoneSocket.on('connect_error',err=>{const target=(localStorage.getItem('zoneServerUrl')||window.location.origin).trim();const reason=err?.message||'ошибка сети';const extra=/timeout|websocket|transport/i.test(reason)?' Render может запускаться после простоя до минуты. Адрес сохранён; клиент продолжит автоматические попытки. Проверь /health и журналы Render.':' Проверь /health, адрес сервера и журналы Render.';setOnlineConnectionState('offline',`Нет связи с ${target}. Причина: ${reason}.${extra}`);console.error('ZONE ONLINE Socket.IO connect_error:',err);});
+ zoneSocket.on('connect',()=>{
+  const engine=zoneSocket?.io?.engine;
+  if(engine&&!engine.__zoneCloseLogged){engine.__zoneCloseLogged=true;engine.on('close',reason=>console.warn('ZONE ONLINE: Engine.IO transport closed',reason));}
+ });
+ zoneSocket.on('connect_error',err=>{const target=(localStorage.getItem('zoneServerUrl')||window.location.origin).trim();const reason=err?.message||'ошибка сети';const extra=/timeout|websocket|transport/i.test(reason)?' Render может перезапустить экземпляр или оборвать сеть. Адрес сохранён; клиент продолжит автоматические попытки с увеличивающейся задержкой. Проверь /health и журналы Render.':' Проверь /health, адрес сервера и журналы Render.';setOnlineConnectionState('offline',`Нет связи с ${target}. Причина: ${reason}.${extra}`);console.error('ZONE ONLINE Socket.IO connect_error:',err);});
  zoneSocket.on('disconnect',(reason,details)=>{console.warn('ZONE ONLINE socket disconnected:',reason,details?.message||'',details?.description||'',{active:zoneSocket?.active,connected:zoneSocket?.connected,target:zoneSocketTarget});zonePlayerReady=false;if(zoneHelloReadyTimer){clearTimeout(zoneHelloReadyTimer);zoneHelloReadyTimer=null;}if(reason!=='io client disconnect')setOnlineConnectionState('offline',`Соединение с сервером потеряно (${reason||'неизвестная причина'}). Клиент автоматически попробует подключиться снова.`);renderOnlinePlayers();renderOnlineWorldStatus();});
  zoneSocket.io.on('reconnect_attempt',()=>setOnlineConnectionState('connecting','Повторное подключение к серверу…'));
  zoneSocket.on('player:hello:error',data=>setOnlineConnectionState('offline',data?.message||'Не удалось завершить вход.'));

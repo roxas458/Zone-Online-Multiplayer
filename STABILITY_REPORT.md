@@ -33,3 +33,12 @@ All NPCs outside the explicit story-character whitelist are converted to unique 
 - Player-session takeover now stores the new socket as the active owner before disconnecting the previous socket. The previous socket's disconnect handler is guarded by the socket ID and cannot delete the new session.
 - Added client Engine.IO close/acknowledgement diagnostics and server disconnect ownership details.
 - Local verification: `npm test` 99/99 passed; `npm run check` passed. Live Render validation is still required.
+
+
+## 4.33.8 transport rollback and shutdown safety
+- Compared 4.33.4 baseline with 4.33.7 and found the multiplayer transport had been changed from WebSocket-only to polling-only.
+- Restored WebSocket-only on client and server to avoid polling session affinity requirements; Render documents native WebSocket support and random instance routing for new connections.
+- Added jitter to Socket.IO automatic reconnect delay.
+- Added last-state persistence on real disconnect and graceful state flush on SIGTERM/SIGINT.
+- Bumped script query versions to 4.33.8 to force clients off cached polling code.
+- Local checks: 100/100 automated tests pass; all JavaScript syntax checks pass. Live Render validation is still required.

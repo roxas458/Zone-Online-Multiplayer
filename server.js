@@ -67,13 +67,12 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: { origin: true, methods: ['GET','POST'] },
-  // Render repeatedly closed successful WebSocket handshakes with `transport error`.
-  // HTTPS long-polling avoids the unstable upgraded transport path.
-  transports: ['polling'],
-  allowUpgrades: false,
-  pingInterval: 25000,
-  pingTimeout: 60000,
-  connectTimeout: 60000,
+  // Keep the original single-connection transport. Render supports WebSockets;
+  // polling can fail when successive requests are routed to different instances.
+  transports: ['websocket'],
+  pingInterval: 20000,
+  pingTimeout: 45000,
+  connectTimeout: 30000,
   maxHttpBufferSize: 1e6
 });
 io.engine.on('connection', rawSocket=>{
@@ -88,7 +87,7 @@ const SPAWN_BY_FACTION = Object.freeze({'Одиночки':'cordon','Долг':'
 app.use(express.json({limit:'64kb'}));
 app.use(express.static(path.join(__dirname, 'public')));
 app.get('/health', (_req,res) => { res.set('Access-Control-Allow-Origin','*'); res.set('Cache-Control','no-store'); res.status(200).json({ ok:true, service:'ZONE ONLINE', version:require('./package.json').version, database:dbReady?'postgres':'memory-fallback', databaseRequiredForAccounts:false, online:online.size, revision:world.revision||1, timestamp:Date.now() }); });
-app.get('/api/diagnostics', (_req,res) => { res.set('Access-Control-Allow-Origin','*'); res.set('Cache-Control','no-store'); res.json({ ok:true, version:require('./package.json').version, multiplayer:true, guestMode:true, database:dbReady?'postgres':'memory-fallback', online:online.size, socketPath:'/socket.io', transports:['polling'], transportMode:'polling-stable', timestamp:Date.now() }); });
+app.get('/api/diagnostics', (_req,res) => { res.set('Access-Control-Allow-Origin','*'); res.set('Cache-Control','no-store'); res.json({ ok:true, version:require('./package.json').version, multiplayer:true, guestMode:true, database:dbReady?'postgres':'memory-fallback', online:online.size, socketPath:'/socket.io', transports:['websocket'], transportMode:'websocket-only', timestamp:Date.now() }); });
 app.get('/api/status', (_req,res) => res.json({ ...publicWorldStatus(world, online.size), persistent:dbReady, service:`ZONE ONLINE ${require('./package.json').version} SURVIVAL & EXPEDITIONS` }));
 app.get('/api/world/snapshot', (_req,res) => res.json({ status:publicWorldStatus(world, online.size), world }));
 app.get('/api/world/events', (req,res) => { const since=Number(req.query.since||0); const sync=buildWorldSync(world, Number.isSafeInteger(since)?since:0); res.json(sync); });
@@ -185,8 +184,8 @@ io.on('connection', socket=>{
       socket.join('zone-world'); socket.join(id); socket.join(`location:${p.location}`); socket.join(`faction:${p.faction}`);
       world.onlineMetrics ||= { totalJoins:0, totalMoves:0, lastTickAt:0 }; world.onlineMetrics.totalJoins += 1;
       const joinEvent = appendWorldEvent(world, 'player_joined', { player:publicPlayer(p) });
-      // Acknowledge after registration but BEFORE the world snapshot, so long-polling
-      // clients receive the small acknowledgement without waiting for a large NPC payload.
+      // Acknowledge after registration but BEFORE the world snapshot, so clients
+      // receive the small acknowledgement without waiting for a large NPC payload.
       if(typeof ack==='function'){ack({ok:true,accepted:true,persistent:dbReady});console.info(`[socket] player:hello ack sent id=${socket.id}`);}
       socket.emit('player:ready',{id, savedState:s.state, guest:true, world:publicWorldSnapshot(), worldSync:buildWorldSync(world, Number(payload?.lastRevision)||0), status:publicWorldStatus(world,online.size), chat:recentChat.filter(m=>!m.location||m.location===p.location).slice(-60), players:onlineList(), position:{x:p.x,y:p.y}, persistent:dbReady});
       console.log(`player:hello completed for ${id} in ${Date.now()-helloStartedAt}ms (db=${dbReady?'postgres':'memory-fallback'})`);
@@ -567,6 +566,9 @@ io.on('connection', socket=>{
   socket.on('disconnect',(reason)=>{
     console.info(`[socket] disconnected id=${socket.id} player=${socket.data.playerId||'unidentified'} reason=${reason}${socket.data.supersededBy?` supersededBy=${socket.data.supersededBy}`:''}`);
     const id=socket.data.playerId,p=online.get(id);if(!p||p.socketId!==socket.id)return;
+    // Persist the last authoritative state on a real disconnect as well as on
+    // explicit client saves. Superseded sockets are filtered by the socketId guard above.
+    persistPlayer(id,p.state).catch(e=>console.error('disconnect player persistence:',e.message));
     online.delete(id);const ev=appendWorldEvent(world,'player_left',{playerId:id,name:p.name,faction:p.faction,location:p.location});io.to('zone-world').emit('world:event',ev);persistWorld().catch(e=>console.error('leave persistence:',e.message));systemMessage(`${p.name} покинул Зону.`);broadcastOnline();
   });
 });
@@ -629,4 +631,23 @@ setInterval(async()=>{
 },4*60*1000).unref();
 initDb().catch(e=>{console.error('Database bootstrap error:',e);}).finally(()=>server.listen(PORT,'0.0.0.0',()=>console.log(`ZONE ONLINE listening on ${PORT}`)));
 server.on('error',error=>{console.error('HTTP server failed to start:',error);process.exitCode=1;});
+let shutdownStarted=false;
+async function gracefulShutdown(signal){
+  if(shutdownStarted)return;
+  shutdownStarted=true;
+  console.info(`[shutdown] ${signal}: saving ${online.size} online player(s) and shared world`);
+  const forceExit=setTimeout(()=>{console.error('[shutdown] graceful shutdown timed out');process.exit(1);},25000);
+  forceExit.unref();
+  try{
+    await Promise.all([...online.values()].map(p=>persistPlayer(p.id,p.state).catch(e=>console.error(`[shutdown] player ${p.id} save failed:`,e.message))));
+    await persistWorld();
+    await new Promise(resolve=>io.close(()=>resolve()));
+    if(pool){try{await pool.end();}catch(e){console.error('[shutdown] database close failed:',e.message);}}
+    clearTimeout(forceExit);
+    console.info('[shutdown] state saved; server closed');
+    process.exit(0);
+  }catch(error){console.error('[shutdown] failed:',error);process.exit(1);}
+}
+process.on('SIGTERM',()=>gracefulShutdown('SIGTERM'));
+process.on('SIGINT',()=>gracefulShutdown('SIGINT'));
 process.on('unhandledRejection',error=>console.error('Unhandled promise rejection:',error));
