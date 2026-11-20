@@ -337,3 +337,27 @@ test('4.17 tactical map uses the developer-supplied labeled map, point markers a
   assert.match(client, /function npcHeading\(/);
   assert.match(client, /npc-route-line/);
 });
+
+
+test('4.18 NPCs receive distinct stable positions across the developer map and markers are compact', () => {
+  const { context } = bootClient();
+  const a = context.npcMapPosition({id:'map-test-a', loc:'cordon'});
+  const b = context.npcMapPosition({id:'map-test-b', loc:'cordon'});
+  const north = context.npcMapPosition({id:'map-test-c', loc:'chaes'});
+  assert.notDeepEqual(a, b);
+  assert.notDeepEqual(a, north);
+  assert.match(context.mapPoint(10, 20, 'marker-neutral', 'Сталкер'), /r="3\.2"/);
+  assert.match(context.mapPoint(10, 20, 'marker-neutral', 'Сталкер'), /marker-direction/);
+});
+
+test('4.18 inventory reference layout exposes backpack, mannequin, quick slots and item inspection', () => {
+  const html = fs.readFileSync(path.join(root, 'public/index.html'), 'utf8');
+  const client = fs.readFileSync(path.join(root, 'public/js/game.js'), 'utf8');
+  assert.match(html, /class="stalker-inventory"/);
+  assert.match(html, /class="backpack-grid"/);
+  assert.match(html, /class="gear-mannequin"/);
+  assert.match(html, /class="quick-gear"/);
+  assert.match(client, /function inspectInventoryItem\(/);
+  assert.match(client, /function npcMapPosition\(/);
+  assert.match(client, /setInterval\(driftNpcMapPositions,6500\)/);
+});

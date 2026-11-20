@@ -1,3 +1,11 @@
+## 4.18.0 — LIVING ZONE / INVENTORY REDESIGN
+- NPCs now occupy distinct positions around all assigned sectors instead of stacking around one anchor point.
+- Offline NPC map markers drift gradually; server coordinates override generated positions.
+- Reduced tactical map marker sizes for NPCs and the player.
+- Rebuilt the inventory screen in the visual direction of the supplied S.T.A.L.K.E.R. screenshot: equipment mannequin, weapon/tool slots, quick slots, backpack grid, portrait, currency, item weight and gear condition.
+- Added click-to-inspect item panel while preserving existing use/equip/sell actions.
+- Kept the user's 17-region map as the canonical world map.
+
 ## 4.17 — User map edition
 - Replaced the previous map with the developer-supplied labeled map.
 - Rebuilt the world around the 17 named sectors.

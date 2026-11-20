@@ -1,4 +1,4 @@
-// ZONE ONLINE 4.13 browser client. LIVING WORLD / PLAYER COMMS / STALKER NPCs.
+// ZONE ONLINE 4.18 browser client. LIVING WORLD / DISTRIBUTED NPC MAP / FIELD INVENTORY.
 const clone=o=>JSON.parse(JSON.stringify(o));
 const base={
  name:"Новичок",money:1450,hp:100,stamina:85,hunger:18,thirst:20,rep:10,day:1,hour:9,loc:"cordon",faction:"Одиночки",xp:0,meetings:0,completed:0,flags:{metSid:false,metWolf:false,heardBar:false,foundArtifact:false,helpedWolf:false},
@@ -246,7 +246,7 @@ function news(t,b){const c=realClock();g.news.unshift({day:c.day,hour:c.time,tit
 function addItem(id,name,type,desc,weight,value,qty=1){let x=g.items.find(i=>i.id===id);if(x)x.qty+=qty;else g.items.push({id,name,type,desc,weight,value,qty})}
 function count(id){return g.items.find(i=>i.id===id)?.qty||0}
 function take(id,n){let x=g.items.find(i=>i.id===id);if(!x||x.qty<n)return false;x.qty-=n;if(x.qty<=0)g.items=g.items.filter(i=>i.id!==id);return true}
-function view(id){document.querySelectorAll(".view").forEach(v=>v.classList.toggle("active",v.id===id));document.querySelectorAll("[data-v]").forEach(b=>b.classList.toggle("active",b.dataset.v===id));document.querySelector("main>aside.panel")?.classList.remove("mobile-open");if(id==="war")renderWar();if(id==="encyclopedia")renderEncyclopedia();if(id==="stories")renderStories();if(id==="people")renderPeople();if(id==="profile")renderProfile();if(id==="settings")applyGameOptions()}
+function view(id){document.querySelectorAll(".view").forEach(v=>v.classList.toggle("active",v.id===id));document.querySelectorAll("[data-v]").forEach(b=>b.classList.toggle("active",b.dataset.v===id));document.querySelector("main>aside.panel")?.classList.remove("mobile-open");if(id==="war")renderWar();if(id==="encyclopedia")renderEncyclopedia();if(id==="stories")renderStories();if(id==="people")renderPeople();if(id==="profile")renderProfile();if(id==="inventory")renderInventory();if(id==="settings")applyGameOptions()}
 function toggleMobileMenu(){document.querySelector("main>aside.panel")?.classList.toggle("mobile-open")}
 document.querySelectorAll("[data-v]").forEach(b=>b.onclick=()=>{view(b.dataset.v);if(b.dataset.v==="armory")renderArmory();if(b.dataset.v==="inventory")renderInventory()});
 
@@ -366,13 +366,25 @@ function renderInventory(){
  let items=g.items.filter(x=>(filter==="all"||x.type===filter)&&x.name.toLowerCase().includes(query));
  items.sort((a,b)=>sort==="value"?b.value-a.value:sort==="weight"?b.weight-a.weight:sort==="type"?a.type.localeCompare(b.type,"ru"):a.name.localeCompare(b.name,"ru"));
  const equipped=x=>Object.values(g.equipment||{}).includes(x.name);
- $("items").innerHTML=items.map(x=>`<div class="inv-slot ${equipped(x)?'is-equipped':''}"><span class="qty">×${x.qty}</span>${equipped(x)?'<span class="equipped-mark">ЭКИПИРОВАНО</span>':''}<div class="item-icon">${itemGlyph(x)}</div><b>${escapeHtml(x.name)}</b><small>${escapeHtml(x.type)} · ${(x.weight*x.qty).toFixed(1)} кг</small><strong class="inv-price">${x.value} ₽</strong>${x.condition!=null?`<div class="condition"><i style="width:${x.condition}%"></i></div><small>Состояние ${x.condition}% · защита ${x.defense||0}</small>`:""}<div class="rightbuttons">${["Медицина","Еда"].includes(x.type)?`<button onclick="useItem('${x.id}')">Применить</button>`:""}${["Оружие","Броня","Детектор"].includes(x.type)?`<button onclick="equipItem('${x.id}')">${equipped(x)?'Надето':'Надеть'}</button>`:""}<button class="quiet-action" onclick="sell('${x.id}')">Продать 1</button></div></div>`).join("")||'<div class="mutedbox">Предметы не найдены. Проверь фильтр или поисковый запрос.</div>';
- const weight=g.items.reduce((a,x)=>a+x.weight*x.qty,0);$("weight").textContent=weight.toFixed(1)+" кг";$("itemCount").textContent=g.items.reduce((a,x)=>a+x.qty,0);
- let eq=[["Костюм","suit","▤"],["Основное оружие","weapon","▰"],["Детектор","tool","⌁"]];
- $("equipment").innerHTML=eq.map(([n,k,ic])=>`<div class="equip-slot"><span class="eq-icon">${ic}</span><div><b>${n}</b><small>${escapeHtml(g.equipment[k]||"Не установлено")}</small></div></div>`).join("");
+ const itemCard=x=>`<button class="backpack-item ${equipped(x)?'is-equipped':''}" onclick="inspectInventoryItem('${x.id}')" title="${escapeHtml(x.name)} · ${escapeHtml(x.type)}"><span class="backpack-qty">${x.qty>1?'×'+x.qty:''}</span><span class="backpack-art">${itemGlyph(x)}</span><span class="backpack-name">${escapeHtml(x.name)}</span>${x.condition!=null?`<span class="backpack-condition"><i style="width:${x.condition}%"></i></span>`:''}</button>`;
+ const cells=items.map(itemCard);while(cells.length<48)cells.push('<div class="backpack-empty" aria-hidden="true"></div>');
+ $("items").innerHTML=cells.join("")||'<div class="mutedbox">Рюкзак пуст.</div>';
+ const weight=g.items.reduce((a,x)=>a+x.weight*x.qty,0),count=g.items.reduce((a,x)=>a+x.qty,0);
+ $("weight").textContent=weight.toFixed(1)+" кг";$("itemCount").textContent=count;
+ $("inventoryMoney").textContent=(g.money||0).toLocaleString('ru-RU')+' RU';
+ $("inventoryOwner").textContent=escapeHtml(g.name||'СТАЛКЕР');$("gearCallsign").textContent=escapeHtml((g.name||'СТАЛКЕР').toUpperCase());
+ $("gearWeapon").textContent=g.equipment.weapon||'НЕ УСТАНОВЛЕНО';$("gearTool").textContent=g.equipment.tool||'НЕТ';$("gearSuit").textContent=(g.equipment.suit||'КОСТЮМ НЕ УСТАНОВЛЕН').toUpperCase();
+ const sidearm=g.items.find(x=>x.type==='Оружие'&&x.name!==g.equipment.weapon);$("gearSidearm").textContent=sidearm?.name||'ПУСТО';
+ const artifact=g.items.find(x=>x.type==='Артефакт');$("gearArtifact").textContent=artifact?.name||'ПУСТО';
+ $("gearLoadMeter").style.width=Math.min(100,weight/50*100)+'%';$("gearWeight").textContent=weight.toFixed(1)+' / 50.0 KG';
  const suit=g.items.find(x=>x.name===g.equipment?.suit&&x.type==='Броня');
- $("gearStats").innerHTML=`<div class="gear-stat-row"><span>Вес рюкзака</span><b>${weight.toFixed(1)} / 35 кг</b></div><div class="bar"><i style="width:${Math.min(100,weight/35*100)}%"></i></div><div class="gear-stat-row"><span>Защита костюма</span><b>${suit?.defense||0}</b></div><div class="gear-stat-row"><span>Состояние костюма</span><b>${suit?.condition??'—'}${suit?'%':''}</b></div><div class="gear-stat-row"><span>Оружие</span><b>${escapeHtml(g.equipment.weapon||'—')}</b></div><div class="gear-stat-row"><span>Детектор</span><b>${escapeHtml(g.equipment.tool||'—')}</b></div>`;
+ const weapon=g.items.find(x=>x.name===g.equipment?.weapon&&x.type==='Оружие');
+ const stat=(label,value)=>`<div><span>${label}</span><b>${value}</b></div>`;
+ $("gearStats").innerHTML=stat('Защита костюма',suit?.defense||0)+stat('Состояние',suit?(suit.condition??100)+'%':'—')+stat('Урон оружия',weapon?.damage||'—')+stat('Вес комплекта',weight.toFixed(1)+' кг');
+ $("equipment").innerHTML=`<div>Костюм · ${escapeHtml(g.equipment.suit||"Не установлено")}</div><div>Оружие · ${escapeHtml(g.equipment.weapon||"Не установлено")}</div><div>Детектор · ${escapeHtml(g.equipment.tool||"Не установлено")}</div>`;
 }
+function inspectInventoryItem(id){const x=g.items.find(i=>i.id===id);if(!x)return;const actions=[];if(['Медицина','Еда'].includes(x.type))actions.push(`<button onclick="useItem('${x.id}')">Применить</button>`);if(['Оружие','Броня','Детектор'].includes(x.type))actions.push(`<button onclick="equipItem('${x.id}')">${Object.values(g.equipment||{}).includes(x.name)?'Экипировано':'Экипировать'}</button>`);actions.push(`<button class="quiet-action" onclick="sell('${x.id}')">Продать · ${Math.floor(x.value*.65)} ₽</button>`);const panel=document.createElement('div');panel.className='inventory-inspect';panel.innerHTML=`<div class="inventory-inspect-card"><button class="inspect-close" onclick="this.closest('.inventory-inspect').remove()">×</button><div class="inspect-art">${itemGlyph(x)}</div><b>${escapeHtml(x.name)}</b><small>${escapeHtml(x.type)} · ${x.weight} кг · ×${x.qty}</small><p>${escapeHtml(x.desc||'Полевой предмет.')}</p><strong>${x.value} ₽</strong><div class="rightbuttons">${actions.join('')}</div></div>`;panel.addEventListener('click',e=>{if(e.target===panel)panel.remove()});document.body.append(panel)}
+
 let tradeCategory='all';
 function setTradeCategory(category){tradeCategory=category;renderTrade()}
 function renderTrade(){
@@ -435,18 +447,32 @@ function mapZoom(step){zoneMapZoom=step===0?1:Math.max(.55,Math.min(4,zoneMapZoo
 function setMapMode(mode){zoneMapMode=mode==='local'?'local':'zone';$('mapModeZone')?.classList.toggle('active',zoneMapMode==='zone');$('mapModeLocal')?.classList.toggle('active',zoneMapMode==='local');$('mapHint').textContent=zoneMapMode==='local'?'Нажми на свободное место, чтобы пройти туда · WASD или кнопки на экране.':'Общая карта: выбери сектор, чтобы открыть его подробную карту.';renderZoneMap()}
 function sectorCenter(id){return zoneSectorCoords[id]||[500,1000]}
 function playerWorldPosition(){if(g.mapCoordinateVersion!==2||!g.worldPosition||!Number.isFinite(g.worldPosition.x)||!Number.isFinite(g.worldPosition.y)){const c=sectorCenter(g.loc);g.worldPosition={x:c[0],y:c[1]+24};g.mapCoordinateVersion=2;}return g.worldPosition}
-function playerDotMarkup(p){return `<g class="world-marker marker-self" transform="translate(${p.x} ${p.y})" aria-label="Твоё положение"><circle class="marker-pulse" r="23"/><circle class="marker-dot" r="8"/><circle class="marker-center" r="2.5"/></g>`}
+function playerDotMarkup(p){return `<g class="world-marker marker-self" transform="translate(${p.x} ${p.y})" aria-label="Твоё положение"><circle class="marker-pulse" r="9"/><circle class="marker-dot" r="4.5"/><circle class="marker-center" r="1.5"/></g>`}
 function npcHeading(n,index=0){const d=n.direction??n.facing??n.heading;const named={up:0,north:0,right:90,east:90,down:180,south:180,left:270,west:270};return Number.isFinite(Number(d))?Number(d):named[String(d||'').toLowerCase()]??((index*47)%360)}
-function mapPoint(x,y,cls,label,extra='',heading=0){const arrow=['marker-friendly','marker-neutral','marker-enemy'].includes(cls)?`<path class="marker-direction" transform="rotate(${heading})" d="M0 -18 L-5 -8 L0 -11 L5 -8 Z"/>`:'';return `<g class="world-marker ${cls||''}" transform="translate(${x} ${y})" ${extra}><circle class="marker-pulse" r="15"/>${arrow}<circle class="marker-dot" r="7"/><title>${escapeHtml(label||'Отметка')}${arrow?' · направление НПС':''}</title></g>`}
+function mapPoint(x,y,cls,label,extra='',heading=0){const arrow=['marker-friendly','marker-neutral','marker-enemy'].includes(cls)?`<path class="marker-direction" transform="rotate(${heading})" d="M0 -9 L-2.7 -4 L0 -5.5 L2.7 -4 Z"/>`:``;return `<g class="world-marker ${cls||''}" transform="translate(${x} ${y})" ${extra}><circle class="marker-pulse" r="7"/>${arrow}<circle class="marker-dot" r="3.2"/><title>${escapeHtml(label||'Отметка')}${arrow?' · направление НПС':''}</title></g>`}
 function npcMarkerClass(n){if(n.faction===g.faction)return 'marker-friendly';const f=(g.factions||[]).find(x=>x.name===n.faction);if(Number(n.relationship??0)<-10||Number(f?.relation??0)<-15)return 'marker-enemy';return 'marker-neutral'}
 function sectorMarkerPosition(id,index=0){const q=zoneSectorCoords[id];if(!q)return null;const angle=index*2.399963;const radius=18+((index%3)*9);return [q[0]+Math.cos(angle)*radius,q[1]+Math.sin(angle)*radius]}
+function hashMapSeed(value){let h=2166136261;for(const ch of String(value||'')){h^=ch.charCodeAt(0);h=Math.imul(h,16777619)}return h>>>0}
+const npcMapPositions=new Map();
+function npcMapPosition(n,index=0){
+ if(Number.isFinite(n.x)&&Number.isFinite(n.y))return [n.x,n.y];
+ const id=String(n.id||n.name||('npc_'+index)),loc=n.location||n.loc||'cordon',center=zoneSectorCoords[loc]||zoneSectorCoords.cordon;
+ let pos=npcMapPositions.get(id);
+ if(!pos||pos.loc!==loc){let seed=hashMapSeed(id+'|'+loc),rand=()=>{seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/4294967296};const angle=rand()*Math.PI*2,radius=28+rand()*112;pos={loc,x:center[0]+Math.cos(angle)*radius,y:center[1]+Math.sin(angle)*radius,phase:rand()*Math.PI*2};npcMapPositions.set(id,pos)}
+ return [pos.x,pos.y];
+}
+function driftNpcMapPositions(){
+ for(const n of (g.npcs||[])){if(n.alive===false||Number.isFinite(n.x)&&Number.isFinite(n.y))continue;const p=npcMapPosition(n);const state=npcMapPositions.get(String(n.id||n.name));if(!state)continue;state.phase+=.22;const c=zoneSectorCoords[state.loc]||zoneSectorCoords.cordon;const radius=Math.hypot(state.x-c[0],state.y-c[1]);const angle=Math.atan2(state.y-c[1],state.x-c[0])+.035;const r=Math.max(24,Math.min(145,radius+Math.sin(state.phase)*1.4));state.x=c[0]+Math.cos(angle)*r;state.y=c[1]+Math.sin(angle)*r;}
+ if($('world')?.classList.contains('active'))renderZoneMap();
+}
+setInterval(driftNpcMapPositions,6500);
 function renderZoneMap(){
  const esc=s=>escapeHtml(String(s??'')),centers=zoneSectorCoords;
  const edges=zoneLinks.map(([a,b])=>{const A=centers[a],B=centers[b];return `<path class="map-route-line" d="M${A[0]} ${A[1]} Q${(A[0]+B[0])/2+20} ${(A[1]+B[1])/2-15} ${B[0]} ${B[1]}"/>`}).join('');
  const regions=mapRegionMarkup();
  const me=playerWorldPosition();let overlays='';
  const allNpcs=zoneMapMode==='zone'?(serverWorld?.npcState?Object.values(serverWorld.npcState):g.npcs||[]):(g.npcs||[]).filter(n=>(n.loc||n.location)===g.loc);
- overlays+=allNpcs.filter(n=>n.alive!==false).slice(0,100).map((n,i)=>{const loc=n.location||n.loc;const p=Number.isFinite(n.x)&&Number.isFinite(n.y)?[n.x,n.y]:sectorMarkerPosition(loc,i);if(!p)return '';const cls=npcMarkerClass(n);return mapPoint(p[0],p[1],cls,`${n.name||'NPC'} · ${n.faction||'нейтрал'}`,`onclick="${zoneMapMode==='local'?`openTalk('${esc(n.id)}')`:''}"`,npcHeading(n,i))}).join('');
+ overlays+=allNpcs.filter(n=>n.alive!==false).slice(0,100).map((n,i)=>{const loc=n.location||n.loc;const p=npcMapPosition(n,i);if(!p)return '';const cls=npcMarkerClass(n);return mapPoint(p[0],p[1],cls,`${n.name||'NPC'} · ${n.faction||'нейтрал'}`,`onclick="${zoneMapMode==='local'?`openTalk('${esc(n.id)}')`:''}"`,npcHeading(n,i))}).join('');
  overlays+=(onlinePlayers||[]).filter(p=>p.id!==zonePlayerId).map((p,i)=>{const q=Number.isFinite(p.x)&&Number.isFinite(p.y)?[p.x,p.y]:sectorMarkerPosition(p.location,i+2);return q?mapPoint(q[0],q[1],'marker-player',p.name||'Игрок'):''}).join('');
  const caches=Object.entries(g.keyPoints||{}).flatMap(([loc,arr])=>(arr||[]).filter(p=>p.discovered).map((p,i)=>({loc,p,i}))); 
  overlays+=caches.map(({loc,i})=>{const q=sectorMarkerPosition(loc,i+4);return q?mapPoint(q[0]+12,q[1]-14,'marker-cache','Тайник'):''}).join('');

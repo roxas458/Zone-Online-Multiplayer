@@ -1,13 +1,14 @@
-# Stability report — 4.17.0
+# Stability report — 4.18.0
 
-- Canonical map asset replaced with the exact labeled image supplied by the project developer.
-- Global map and location anchors updated to 17 user-labeled regions.
-- Legacy location IDs are migrated in browser saves; the visible map and server validation use only the new canonical sector set.
-- NPC direction indicators, optional route overlays and mouse-wheel zoom added.
+- Retained the canonical developer-supplied map and its 17 labeled locations.
+- NPCs without server coordinates receive stable per-character positions around their assigned sector; offline map markers drift gradually rather than overlapping at the sector center.
+- Server-provided NPC coordinates take priority over client-generated map positions.
+- NPC/player map markers are now substantially smaller.
+- Rebuilt the inventory UI around the supplied S.T.A.L.K.E.R. reference while retaining item inspection, use, equip, sell, weight and equipment-state logic.
 - Validation: `npm run check` passes.
-- Automated tests: `npm test` passes (47/47).
+- Automated tests: `npm test` passes (49/49).
 
-Known limitation: NPC direction is currently an orientation hint unless the NPC has explicit direction/heading data. Route lines render only when route data is supplied by the world simulation. Detailed local sector maps and exact building collision meshes remain future work.
+Known limitations: client-generated NPC drift is a visual offline fallback, not authoritative multiplayer movement. For identical positions across clients, NPC movement must be published by the server simulation. The equipment mannequin is a stylized CSS illustration rather than original game artwork. Detailed per-location map tiles and exact building collision meshes remain future work.
 
 # ZONE ONLINE 4.7.1 — Stability audit report
 

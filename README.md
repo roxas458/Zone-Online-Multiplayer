@@ -1,7 +1,15 @@
-# ZONE ONLINE 4.17 — USER MAP EDITION
+# ZONE ONLINE 4.18 — LIVING ZONE / FIELD INVENTORY
+
+## 4.18 — Distributed NPCs and STALKER-style inventory
+- NPCs without authoritative coordinates receive stable, unique map positions around their own sector anchors instead of stacking on one shared point.
+- Offline map positions drift gradually so the global map shows a living distribution of stalkers; authoritative server positions remain preferred whenever available.
+- Tactical NPC and player map symbols are reduced substantially for a cleaner overview.
+- Rebuilt the inventory as a dark industrial equipment-and-backpack interface inspired by the supplied reference: equipment mannequin, gear slots, quick slots, portrait, currency, item grid, weight and condition indicators.
+- Backpack items can be inspected; use, equip and sell actions remain connected to existing game systems.
+- Kept the developer-supplied 17-location map and existing save data.
 
 ## 4.17 — Canonical developer map
-- Replaced the previous in-game map texture with the exact labeled map supplied in this conversation.
+- Replaced the previous in-game map texture with the exact labeled map supplied by the developer.
 - Rebuilt the global map around the 17 named locations on that image and removed legacy sectors from the selectable map.
 - Added migration aliases for older saves, keeping player progress while mapping obsolete sector IDs into the new geography.
 - Added directional NPC markers, optional NPC route polylines, and mouse-wheel map zoom.
