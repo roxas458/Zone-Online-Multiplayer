@@ -1,8 +1,8 @@
 {
   "name": "zone-online",
-  "version": "4.16.1",
+  "version": "4.17.0",
   "private": true,
-  "description": "Tactical free-roam map with reference-aligned territory overlays, faction-colored point markers, click-to-walk and collision bounds",
+  "description": "Browser-based STALKER-inspired living Zone with the developer-supplied 17-location map, NPC tracking and multiplayer",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",

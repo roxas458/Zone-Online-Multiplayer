@@ -1,7 +1,7 @@
 // Lightweight persistent simulation for mutant packs, faction bases, clans and local markets.
 const crypto=require('crypto');
 const SPECIES=['плоть','псевдособака','кабан','снорк','контролёр'];
-const ZONES=['cordon','dump','bar','agro','dark','yantar','army','red','pripyat','zaton','jupiter','yanov','kopachi','volkhov','iron','swamps'];
+const ZONES=['cordon','dump','bar','agro','dark','yantar','army','red','pripyat','zaton','jupiter','radar','wild','darkhollow','limansk','swamps'];
 function initEcosystem(world){
   world.ecosystem ||= {mutantPacks:[],bases:{},markets:{},clans:{},events:[],revision:1};
   const e=world.ecosystem;

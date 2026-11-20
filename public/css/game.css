@@ -220,3 +220,8 @@ body.reduce-motion *,body.reduce-motion *:before,body.reduce-motion *:after{anim
 .zone-map .map-route-line{stroke:#d9d0a5;stroke-width:2.5;stroke-dasharray:7 9;opacity:.36;fill:none;pointer-events:none}
 .map-legend i.legend-enemy{background:#e34e43}.map-legend i.legend-neutral{background:#e7c34f}.map-legend i.legend-friendly{background:#70c66b}.map-legend i.legend-cache{background:#55a9f4}
 .map-legend i.legend-current{background:#f4f1df}
+
+/* 4.17 directional NPC indicators and unobtrusive location hit zones */
+.zone-map .map-region rect{fill:transparent;stroke:transparent;stroke-width:1;stroke-dasharray:none;pointer-events:all}.zone-map .map-region:hover rect,.zone-map .map-region:focus rect{fill:#e5d79b;fill-opacity:.10;stroke:#e5d79b;stroke-opacity:.55}.marker-direction{fill:#f4e5a6;stroke:#172016;stroke-width:1.2;stroke-linejoin:round;filter:drop-shadow(0 0 2px #000)}
+
+.npc-route-line{fill:none;stroke:#e7d18a;stroke-width:3;stroke-dasharray:9 8;stroke-linecap:round;opacity:.8;filter:drop-shadow(0 1px 2px #000)}

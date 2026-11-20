@@ -1,3 +1,11 @@
+# ZONE ONLINE 4.17 — USER MAP EDITION
+
+## 4.17 — Canonical developer map
+- Replaced the previous in-game map texture with the exact labeled map supplied in this conversation.
+- Rebuilt the global map around the 17 named locations on that image and removed legacy sectors from the selectable map.
+- Added migration aliases for older saves, keeping player progress while mapping obsolete sector IDs into the new geography.
+- Added directional NPC markers, optional NPC route polylines, and mouse-wheel map zoom.
+
 # ZONE ONLINE 4.16.1 — TACTICAL FREE ROAM MAP
 
 A backward-compatible continuation of ZONE ONLINE 4.8.0.
@@ -5,11 +13,11 @@ A backward-compatible continuation of ZONE ONLINE 4.8.0.
 
 ## 4.16.1 — Reference-aligned tactical map
 
-- The original unlabeled satellite image remains the in-game background. The separately supplied labeled map is used only as a reference for region names and approximate border placement.
-- The map overlays the named territories: Generators, Stancia 2, Stancia, Pripyat (SoC), Pripyat (CoP), Limansk, Hospital, Red Forest, Radar, Dead City, Military Warehouses, Predbannik, Yantar, Rostok, Bar, Garbage, Agroprom, Dark Valley, Marsh, Escape, Darkscape, Jupiter and Zaton.
+- The developer-supplied labeled aerial map is now the canonical in-game background. All 17 playable locations and map hit areas are aligned to that exact image.
+- The canonical map contains: ЧАЭС, Затон, Припять, Юпитер, Лиманск, Рыжий лес, Радар, Военные склады, Дикие территории, Бар, Янтарь, Свалка, Агропром, Тёмная Долина, Кордон, Болота and Тёмная Лощина. Legacy sectors not present on this map are migrated to the closest supported new sector and removed from the selectable map.
 - The player is shown as a position dot rather than a walking sprite. NPC dots are red when hostile, yellow when neutral, and green when in the player's faction. Discovered stashes are blue; other online players are cyan.
 - Existing world-coordinate saves are migrated once to the revised map anchors; inventory, quests, factions and player identity are preserved.
-- Region borders are approximate overlays traced from the reference screenshot. NPCs without authoritative world coordinates are displayed near their sector anchor, not at a verified exact position. The Cordon exit is beyond the southern edge of the supplied reference fragment.
+- Region borders are approximate overlays traced from the reference screenshot. NPCs without authoritative world coordinates are displayed near their sector anchor, not at a verified exact position. Direction indicators are visual orientation hints; explicit NPC routes are drawn when route data is available. The Cordon exit is beyond the southern edge of the supplied reference fragment.
 
 ## 4.16 — Realistic free roam foundation
 

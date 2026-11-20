@@ -1,3 +1,14 @@
+# Stability report — 4.17.0
+
+- Canonical map asset replaced with the exact labeled image supplied by the project developer.
+- Global map and location anchors updated to 17 user-labeled regions.
+- Legacy location IDs are migrated in browser saves; the visible map and server validation use only the new canonical sector set.
+- NPC direction indicators, optional route overlays and mouse-wheel zoom added.
+- Validation: `npm run check` passes.
+- Automated tests: `npm test` passes (47/47).
+
+Known limitation: NPC direction is currently an orientation hint unless the NPC has explicit direction/heading data. Route lines render only when route data is supplied by the world simulation. Detailed local sector maps and exact building collision meshes remain future work.
+
 # ZONE ONLINE 4.7.1 — Stability audit report
 
 ## Critical defect found and fixed

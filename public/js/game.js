@@ -5,23 +5,23 @@ const base={
  items:[{id:"med",name:"Аптечка",type:"Медицина",desc:"Восстанавливает 35 здоровья.",weight:.4,qty:2,value:100},{id:"bread",name:"Хлеб",type:"Еда",desc:"Восстанавливает 20 выносливости.",weight:.3,qty:2,value:35},{id:"bolt",name:"Болт",type:"Инструмент",desc:"Обычный металлический болт.",weight:.1,qty:8,value:5},{id:"scrap",name:"Металлолом",type:"Материал",desc:"Материал для простого ремесла.",weight:.8,qty:2,value:30},{id:"bandage",name:"Бинт",type:"Медицина",desc:"Небольшая помощь в пути.",weight:.2,qty:2,value:45}],
  equipment:{suit:"Кожаная куртка",tool:"Простой детектор",weapon:"Старый ПМ"},
  locations:[
- {id:"cordon",name:"Кордон",icon:"🌾",owner:"Одиночки",control:55,risk:"Низкий",desc:"Южные ворота Зоны. Новички, торговцы и знакомые костры.",people:["sid","wolf","fanatic"],travel:0,loot:25},
- {id:"dump",name:"Свалка",icon:"⚙️",owner:"Бандиты",control:61,risk:"Средний",desc:"Горы металлолома, старые машины и спорные маршруты.",people:["scout","bandit"],travel:2,loot:45},
- {id:"bar",name:"Росток / Бар",icon:"🍺",owner:"Долг",control:78,risk:"Низкий",desc:"Место встреч, слухов, отдыха и обмена информацией.",people:["barman","seriy"],travel:2,loot:15},
- {id:"agro",name:"Агропром",icon:"🏭",owner:"Военные",control:72,risk:"Средний",desc:"Заброшенные корпуса и запутанные переходы.",people:["scientist"],travel:3,loot:50},
- {id:"dark",name:"Тёмная долина",icon:"🌘",owner:"Бандиты",control:63,risk:"Высокий",desc:"Старая промышленная зона с дурной славой.",people:["merc"],travel:3,loot:60},
- {id:"yantar",name:"Янтарь",icon:"🧪",owner:"Учёные",control:88,risk:"Высокий",desc:"Научный сектор, полевые исследования и аномальные явления.",people:["prof"],travel:4,loot:70},
- {id:"army",name:"Армейские склады",icon:"📦",owner:"Свобода",control:67,risk:"Средний",desc:"Северные склады и старые укрепления.",people:["freedom"],travel:4,loot:55},
+ {id:"chaes",name:"ЧАЭС",icon:"☢",owner:"Монолит",control:91,risk:"Критический",desc:"Северный промышленный комплекс и главный источник тайн Зоны.",people:["charon","archivist"],travel:8,loot:120},
+ {id:"zaton",name:"Затон",icon:"▧",owner:"Одиночки",control:52,risk:"Средний",desc:"Заболоченная низина, старые баржи и промышленные руины.",people:["beard","sultan"],travel:3,loot:65},
+ {id:"pripyat",name:"Припять",icon:"🏙️",owner:"Монолит",control:91,risk:"Критический",desc:"Город-призрак глубоко в Зоне.",people:["loner"],travel:6,loot:110},
+ {id:"jupiter",name:"Юпитер",icon:"▦",owner:"Свобода",control:58,risk:"Высокий",desc:"Промышленный район вокруг завода «Юпитер».",people:[],travel:4,loot:80},
+ {id:"limansk",name:"Лиманск",icon:"🏚",owner:"Наёмники",control:39,risk:"Очень высокий",desc:"Заброшенный город с узкими улицами и опасными проходами.",people:["wolfhound"],travel:6,loot:95},
  {id:"red",name:"Рыжий лес",icon:"🌲",owner:"Свобода",control:48,risk:"Очень высокий",desc:"Лесные тропы, странные сигналы и опасные находки.",people:["guide"],travel:5,loot:90},
- {id:"pripyat",name:"Припять",icon:"🏙️",owner:"Монолит",control:91,risk:"Критический",desc:"Город-призрак глубоко в Зоне.",people:["loner"],travel:6,loot:110}
- ,
- {id:"zaton",name:"Затон",icon:"▧",owner:"Одиночки",control:52,risk:"Средний",desc:"Заболоченная низина, старые баржи и промышленные руины. Здесь часто встречаются вольные сталкеры.",people:[],travel:3,loot:65},
- {id:"jupiter",name:"Юпитер",icon:"▦",owner:"Свобода",control:58,risk:"Высокий",desc:"Промышленный район вокруг завода «Юпитер», важные маршруты и исследовательские точки.",people:[],travel:4,loot:80},
- {id:"yanov",name:"Станция Янов",icon:"▤",owner:"Одиночки",control:64,risk:"Низкий",desc:"Железнодорожный узел и нейтральная территория для встреч сталкеров.",people:[],travel:3,loot:35},
- {id:"kopachi",name:"Копачи",icon:"⌂",owner:"Учёные",control:43,risk:"Высокий",desc:"Заброшенное село неподалёку от научных маршрутов.",people:[],travel:2,loot:75},
- {id:"volkhov",name:"Волхов АА",icon:"✣",owner:"Военные",control:71,risk:"Высокий",desc:"Старая площадка с техникой и опасными обходными тропами.",people:[],travel:3,loot:60},
- {id:"iron",name:"Железный лес",icon:"♧",owner:"Наёмники",control:39,risk:"Очень высокий",desc:"Мрачный участок с аномальными зонами и нестабильными маршрутами.",people:[],travel:3,loot:95},
- {id:"swamps",name:"Большие Болота",icon:"⌁",owner:"Чистое небо",control:58,risk:"Высокий",desc:"Скрытая база исследователей, топкие тропы и следы ранних экспедиций.",people:["lebedev","novikov","cold"],travel:4,loot:75}
+ {id:"radar",name:"Радар",icon:"📡",owner:"Монолит",control:84,risk:"Критический",desc:"Зона сильного пси-излучения вокруг антенного комплекса.",people:["monolith_scout"],travel:7,loot:105},
+ {id:"army",name:"Военные склады",icon:"📦",owner:"Свобода",control:67,risk:"Средний",desc:"Северные склады и старые укрепления.",people:["freedom"],travel:4,loot:55},
+ {id:"wild",name:"Дикие территории",icon:"☣",owner:"Наёмники",control:42,risk:"Высокий",desc:"Разрушенная городская промзона, где часто пересекаются отряды.",people:["merc"],travel:5,loot:85},
+ {id:"bar",name:"Бар",icon:"🍺",owner:"Долг",control:78,risk:"Низкий",desc:"Нейтральная точка отдыха, торговли, слухов и встреч сталкеров.",people:["barman","seriy","voronin"],travel:2,loot:15},
+ {id:"yantar",name:"Янтарь",icon:"🧪",owner:"Учёные",control:88,risk:"Высокий",desc:"Научный сектор, полевые исследования и аномальные явления.",people:["prof"],travel:4,loot:70},
+ {id:"dump",name:"Свалка",icon:"⚙️",owner:"Бандиты",control:61,risk:"Средний",desc:"Горы металлолома, старые машины и спорные маршруты.",people:["scout","bandit"],travel:2,loot:45},
+ {id:"agro",name:"Агропром",icon:"🏭",owner:"Военные",control:72,risk:"Средний",desc:"Заброшенные корпуса и запутанные переходы.",people:["scientist"],travel:3,loot:50},
+ {id:"dark",name:"Тёмная Долина",icon:"🌘",owner:"Бандиты",control:63,risk:"Высокий",desc:"Старая промышленная зона с дурной славой.",people:["merc"],travel:3,loot:60},
+ {id:"cordon",name:"Кордон",icon:"🌾",owner:"Одиночки",control:55,risk:"Низкий",desc:"Южные ворота Зоны. Новички, торговцы и знакомые костры.",people:["sid","wolf","fanatic"],travel:0,loot:25},
+ {id:"swamps",name:"Болота",icon:"⌁",owner:"Чистое небо",control:58,risk:"Высокий",desc:"Топкие тропы, скрытые стоянки и следы ранних экспедиций.",people:["lebedev","novikov","cold"],travel:4,loot:75},
+ {id:"darkhollow",name:"Тёмная Лощина",icon:"🌑",owner:"Бандиты",control:46,risk:"Очень высокий",desc:"Глухая низина с заброшенными объектами и обходными тропами.",people:[],travel:5,loot:88}
  ],
  factions:[
  {name:"Одиночки",icon:"◉",members:420,influence:48,territories:1,relation:15,style:"Нейтральная сеть сталкеров"},
@@ -68,7 +68,15 @@ const $=id=>document.getElementById(id);
 // Save migration: extend existing saves without resetting player progress.
 function migrateWorld(){
  g.locations ||= clone(base.locations); g.npcs ||= clone(base.npcs); g.factions ||= clone(base.factions); g.items ||= []; g.quests ||= clone(base.quests);
- for(const l of base.locations){if(!g.locations.some(x=>x.id===l.id))g.locations.push(clone(l));}
+ const locationAliases={yanov:"radar",kopachi:"wild",volkhov:"darkhollow",iron:"limansk"};
+ const canonicalIds=new Set(base.locations.map(l=>l.id));
+ const migrateLoc=id=>locationAliases[id]|| (canonicalIds.has(id)?id:"cordon");
+ g.loc=migrateLoc(g.loc||"cordon");
+ for(const n of g.npcs){n.loc=migrateLoc(n.loc||n.location||"cordon");if(n.location)n.location=migrateLoc(n.location);}
+ for(const [oldId,newId] of Object.entries(locationAliases)){if(g.keyPoints?.[oldId]&&!g.keyPoints[newId])g.keyPoints[newId]=g.keyPoints[oldId];}
+ if(g.keyPoints){for(const [oldId,newId] of Object.entries(locationAliases)){delete g.keyPoints[oldId];}}
+ g.visitedLocations=(g.visitedLocations||[]).map(migrateLoc);g.visitedLocations=[...new Set(g.visitedLocations)];
+ g.locations=base.locations.map(def=>{const oldLoc=(g.locations||[]).find(x=>migrateLoc(x.id)===def.id);return oldLoc?{...clone(def),owner:oldLoc.owner||def.owner,control:oldLoc.control??def.control}:clone(def)});
  for(const f of g.factions){const b=base.factions.find(x=>x.name===f.name);if(b&& !f.icon)f.icon=b.icon;}
  g.achievements ||= {}; g.diplomacy ||= {};
  const names=["Грач","Шрам","Крот","Туман","Рыжий","Седой","Карат","Муха","Яр","Филин","Кедр","Барс","Тихий","Медведь","Косой","Лисёнок","Беркут","Сом","Пепел","Мороз","Клык","Ворон","Сыч","Горец","Тополь","Гвоздь","Шило","Маяк","Кремень","Бурый","Радар","Север","Капрал","Кочевник","Пластун","Скат","Гриф","Тайга","Шорох","Фартовый"];
@@ -121,10 +129,10 @@ red:[["Лесная развилка","Переход","Переплетение
 pripyat:[["Площадь города","Ориентир","Центральная часть Припяти"],["Старая прачечная","Укрытие","Известная точка сбора"],["Культурный центр","Исследование","Заброшенное общественное здание"]],
 zaton:[["Скадовск","Безопасная зона","Плавучая база сталкеров"],["Сгоревший хутор","Тайник","Заброшенные постройки"],["Затонувшая баржа","Ресурсы","Старое судно и находки"],["Лесничество","Стоянка","Укрытие на окраине"]],
 jupiter:[["Завод Юпитер","Исследование","Промышленный комплекс"],["Цеха завода","Ресурсы","Старые производственные корпуса"],["Переход к Янову","Переход","Маршрут к железнодорожному узлу"]],
-yanov:[["Станция Янов","Безопасная зона","Главная точка встреч"],["Буфет","Торговля","Еда и разговоры"],["Пункт учёных","Исследование","Рабочая база исследователей"]],
-kopachi:[["Заброшенная школа","Ориентир","Пустующее здание села"],["Сельская улица","Тайник","Старые дворы"],["Окраина Копачей","Аномалия","Место полевых наблюдений"]],
-volkhov:[["Площадка техники","Ресурсы","Старая техника"],["Командный пункт","Пост","Заброшенный пункт управления"],["Северный проход","Переход","Тропа к соседним секторам"]],
-iron:[["Железная роща","Аномалия","Нестабильный участок"],["Старый мост","Переход","Узкий маршрут"],["Разрушенный цех","Тайник","Промышленные руины"]]
+radar:[["Станция Янов","Безопасная зона","Главная точка встреч"],["Буфет","Торговля","Еда и разговоры"],["Пункт учёных","Исследование","Рабочая база исследователей"]],
+wild:[["Заброшенная школа","Ориентир","Пустующее здание села"],["Сельская улица","Тайник","Старые дворы"],["Окраина Копачей","Аномалия","Место полевых наблюдений"]],
+darkhollow:[["Площадка техники","Ресурсы","Старая техника"],["Командный пункт","Пост","Заброшенный пункт управления"],["Северный проход","Переход","Тропа к соседним секторам"]],
+limansk:[["Железная роща","Аномалия","Нестабильный участок"],["Старый мост","Переход","Узкий маршрут"],["Разрушенный цех","Тайник","Промышленные руины"]]
 };
 const extraPoi48={
  cordon:[["Старая водокачка","Исследование","Заброшенный узел водоснабжения."],["Южный блокпост","Пост","Проверяй обстановку у периметра."],["Овраг у линии электропередачи","Тайник","Следы временной стоянки и старых припасов."]],
@@ -333,7 +341,7 @@ function turnIn(id){let q=g.quests.find(x=>x.id===id);if(!q||!q.accepted||q.done
  story_swamp_signal:()=>g.storyFlags.metLebedev&&found("swamps","swamps_extra_0"),
  story_swamp_relay:()=>g.storyFlags.metNovikov&&found("swamps","swamps_extra_3"),
  story_yantar_echo:()=>g.storyFlags.metSakharov&&found("yantar","yantar_extra_0"),
- story_north_route:()=>g.storyFlags.metBeard&&found("jupiter","jupiter_extra_3")&&found("yanov","yanov_extra_1"),
+ story_north_route:()=>g.storyFlags.metBeard&&found("jupiter","jupiter_extra_3")&&found("radar","radar_extra_1"),
  story_pripyat_archive:()=>g.storyFlags.metArchivist&&found("pripyat","pripyat_extra_3")
  };
  if(storyChecks[id])ok=storyChecks[id]();if(id==="intro")ok=g.flags.metWolf;if(id==="scrap")ok=count("scrap")>=3;if(id==="bread")ok=count("bread")>=2;if(id==="rumors")ok=g.flags.metWolf&&g.flags.heardBar&&g.flags.metScout&&g.flags.metProf;if(id==="research")ok=g.flags.foundArtifact;if(!ok){alert("Пока условия задания не выполнены. Проверь описание и поговори с нужными персонажами.");return}if(id==="scrap")take("scrap",3);if(id==="bread")take("bread",2);q.done=true;g.money+=q.reward;g.xp+=q.xp;g.rep+=q.rep;g.completed++;log("Задание выполнено: "+q.title+". Получено "+q.reward+" ₽.");news("Задание выполнено",q.title+" — награда начислена.");save()}
@@ -404,47 +412,32 @@ const WORLD_OBSTACLES=[
 ];
 // Coordinates are aligned to the ORIGINAL unlabeled satellite map (1000 x 2000).
 // The second, labeled screenshot is used only as a geographic naming/boundary reference.
+// Coordinates are aligned to the exact user-supplied labeled map (1000 x 2000).
 const zoneSectorCoords={
- cordon:[500,1980],dump:[468,1185],bar:[470,950],agro:[218,1195],dark:[810,1155],
- yantar:[180,1015],army:[470,790],red:[330,550],pripyat:[625,265],zaton:[455,1815],
- jupiter:[150,1805],yanov:[735,790],kopachi:[740,1070],volkhov:[870,1460],iron:[585,430],swamps:[160,1510]
+ chaes:[503,104],zaton:[561,405],pripyat:[676,649],jupiter:[391,703],limansk:[128,838],red:[311,903],radar:[675,897],army:[502,1046],wild:[347,1212],bar:[441,1215],yantar:[174,1302],dump:[466,1470],agro:[243,1528],dark:[787,1418],cordon:[463,1753],swamps:[185,1788],darkhollow:[793,1742]
 };
-const zoneLinks=[['dump','bar'],['bar','army'],['army','red'],['red','pripyat'],['bar','agro'],['agro','yantar'],['dump','dark'],['swamps','jupiter'],['jupiter','zaton']];
-// Region outlines traced approximately from the user's labeled reference image.
-// x/y/w/h are in reference-image pixels (620 x 1240), not a replacement map texture.
+const zoneLinks=[['chaes','zaton'],['zaton','pripyat'],['pripyat','jupiter'],['pripyat','radar'],['jupiter','red'],['red','limansk'],['red','army'],['army','wild'],['wild','bar'],['bar','dump'],['bar','yantar'],['dump','agro'],['dump','dark'],['agro','cordon'],['cordon','swamps'],['dark','darkhollow']];
+// Transparent hit areas let players select the printed labels without drawing over the supplied map.
 const MAP_REGIONS=[
- {name:'Генераторы',x:8,y:2,w:163,h:84},
- {name:'Станция-2',x:180,y:2,w:145,h:108},
- {name:'Станция',x:325,y:2,w:83,h:82},
- {name:'Припять (ТЧ)',x:300,y:68,w:155,h:210,id:'pripyat'},
- {name:'Припять (ЗП)',x:455,y:80,w:158,h:202},
- {name:'Лиманск',x:5,y:138,w:135,h:143},
- {name:'Больница',x:112,y:126,w:197,h:145},
- {name:'Рыжий лес',x:132,y:260,w:137,h:164,id:'red'},
- {name:'Радар',x:300,y:274,w:202,h:155},
- {name:'Мёртвый город',x:10,y:425,w:140,h:145},
- {name:'Военные склады',x:140,y:420,w:325,h:182,id:'army'},
- {name:'Предбанник',x:500,y:420,w:112,h:145},
- {name:'Янтарь',x:72,y:570,w:86,h:125,id:'yantar'},
- {name:'Росток',x:150,y:540,w:98,h:115},
- {name:'Бар',x:245,y:540,w:96,h:115,id:'bar'},
- {name:'Свалка',x:220,y:650,w:145,h:153,id:'dump'},
- {name:'Агропром',x:88,y:690,w:96,h:112,id:'agro'},
- {name:'Тёмная долина',x:400,y:630,w:210,h:180,id:'dark'},
- {name:'Болота',x:5,y:850,w:198,h:170,id:'swamps'},
- {name:'Побег',x:225,y:800,w:138,h:205},
- {name:'Тёмный край',x:405,y:815,w:204,h:170},
- {name:'Юпитер',x:10,y:1030,w:170,h:175,id:'jupiter'},
- {name:'Затон',x:202,y:1025,w:165,h:180,id:'zaton'}
+ {name:'ЧАЭС',id:'chaes',x:420,y:10,w:170,h:170},{name:'Затон',id:'zaton',x:400,y:300,w:230,h:190},
+ {name:'Припять',id:'pripyat',x:570,y:520,w:220,h:210},{name:'Юпитер',id:'jupiter',x:270,y:640,w:220,h:180},
+ {name:'Лиманск',id:'limansk',x:35,y:770,w:210,h:190},{name:'Рыжий лес',id:'red',x:210,y:830,w:220,h:180},
+ {name:'Радар',id:'radar',x:590,y:820,w:190,h:170},{name:'Военные склады',id:'army',x:370,y:990,w:230,h:150},
+ {name:'Дикие территории',id:'wild',x:260,y:1160,w:180,h:120},{name:'Бар',id:'bar',x:390,y:1160,w:130,h:130},
+ {name:'Янтарь',id:'yantar',x:80,y:1260,w:180,h:160},{name:'Свалка',id:'dump',x:330,y:1390,w:230,h:170},
+ {name:'Агропром',id:'agro',x:150,y:1460,w:190,h:150},{name:'Тёмная Долина',id:'dark',x:700,y:1320,w:220,h:190},
+ {name:'Кордон',id:'cordon',x:350,y:1650,w:220,h:160},{name:'Болота',id:'swamps',x:80,y:1690,w:220,h:190},
+ {name:'Тёмная Лощина',id:'darkhollow',x:700,y:1640,w:230,h:180}
 ];
-const MAP_SCALE=1000/620;
-function mapRegionMarkup(){return MAP_REGIONS.map((r,i)=>{const x=r.x*MAP_SCALE,y=r.y*MAP_SCALE,w=r.w*MAP_SCALE,h=r.h*MAP_SCALE;return `<g class="map-region ${r.id?'map-region-linked':''}" ${r.id?`data-location="${r.id}" role="button" tabindex="0" onclick="selectLocation('${r.id}')"`:''}><rect x="${x}" y="${y}" width="${w}" height="${h}" rx="5"/><text x="${x+w/2}" y="${y+Math.min(25,h/2)}" text-anchor="middle">${escapeHtml(r.name)}</text></g>`}).join('')}
-function mapZoom(step){zoneMapZoom=step===0?1:Math.max(.8,Math.min(2.4,zoneMapZoom+step*.2));renderZoneMap()}
+const MAP_SCALE=1;
+function mapRegionMarkup(){return MAP_REGIONS.map(r=>`<g class="map-region map-region-linked" data-location="${r.id}" role="button" tabindex="0" aria-label="${escapeHtml(r.name)}" onclick="selectLocation('${r.id}')"><rect x="${r.x}" y="${r.y}" width="${r.w}" height="${r.h}" rx="8"/></g>`).join('')}
+function mapZoom(step){zoneMapZoom=step===0?1:Math.max(.55,Math.min(4,zoneMapZoom+step*.25));renderZoneMap()}
 function setMapMode(mode){zoneMapMode=mode==='local'?'local':'zone';$('mapModeZone')?.classList.toggle('active',zoneMapMode==='zone');$('mapModeLocal')?.classList.toggle('active',zoneMapMode==='local');$('mapHint').textContent=zoneMapMode==='local'?'Нажми на свободное место, чтобы пройти туда · WASD или кнопки на экране.':'Общая карта: выбери сектор, чтобы открыть его подробную карту.';renderZoneMap()}
 function sectorCenter(id){return zoneSectorCoords[id]||[500,1000]}
 function playerWorldPosition(){if(g.mapCoordinateVersion!==2||!g.worldPosition||!Number.isFinite(g.worldPosition.x)||!Number.isFinite(g.worldPosition.y)){const c=sectorCenter(g.loc);g.worldPosition={x:c[0],y:c[1]+24};g.mapCoordinateVersion=2;}return g.worldPosition}
 function playerDotMarkup(p){return `<g class="world-marker marker-self" transform="translate(${p.x} ${p.y})" aria-label="Твоё положение"><circle class="marker-pulse" r="23"/><circle class="marker-dot" r="8"/><circle class="marker-center" r="2.5"/></g>`}
-function mapPoint(x,y,cls,label,extra=''){return `<g class="world-marker ${cls||''}" transform="translate(${x} ${y})" ${extra}><circle class="marker-pulse" r="15"/><circle class="marker-dot" r="7"/><title>${escapeHtml(label||'Отметка')}</title></g>`}
+function npcHeading(n,index=0){const d=n.direction??n.facing??n.heading;const named={up:0,north:0,right:90,east:90,down:180,south:180,left:270,west:270};return Number.isFinite(Number(d))?Number(d):named[String(d||'').toLowerCase()]??((index*47)%360)}
+function mapPoint(x,y,cls,label,extra='',heading=0){const arrow=['marker-friendly','marker-neutral','marker-enemy'].includes(cls)?`<path class="marker-direction" transform="rotate(${heading})" d="M0 -18 L-5 -8 L0 -11 L5 -8 Z"/>`:'';return `<g class="world-marker ${cls||''}" transform="translate(${x} ${y})" ${extra}><circle class="marker-pulse" r="15"/>${arrow}<circle class="marker-dot" r="7"/><title>${escapeHtml(label||'Отметка')}${arrow?' · направление НПС':''}</title></g>`}
 function npcMarkerClass(n){if(n.faction===g.faction)return 'marker-friendly';const f=(g.factions||[]).find(x=>x.name===n.faction);if(Number(n.relationship??0)<-10||Number(f?.relation??0)<-15)return 'marker-enemy';return 'marker-neutral'}
 function sectorMarkerPosition(id,index=0){const q=zoneSectorCoords[id];if(!q)return null;const angle=index*2.399963;const radius=18+((index%3)*9);return [q[0]+Math.cos(angle)*radius,q[1]+Math.sin(angle)*radius]}
 function renderZoneMap(){
@@ -453,13 +446,14 @@ function renderZoneMap(){
  const regions=mapRegionMarkup();
  const me=playerWorldPosition();let overlays='';
  const allNpcs=zoneMapMode==='zone'?(serverWorld?.npcState?Object.values(serverWorld.npcState):g.npcs||[]):(g.npcs||[]).filter(n=>(n.loc||n.location)===g.loc);
- overlays+=allNpcs.filter(n=>n.alive!==false).slice(0,80).map((n,i)=>{const loc=n.location||n.loc;const p=Number.isFinite(n.x)&&Number.isFinite(n.y)?[n.x,n.y]:sectorMarkerPosition(loc,i);if(!p)return '';const cls=npcMarkerClass(n);return mapPoint(p[0],p[1],cls,`${n.name||'NPC'} · ${n.faction||'нейтрал'}`,`onclick="${zoneMapMode==='local'?`openTalk('${esc(n.id)}')`:''}"`)}).join('');
+ overlays+=allNpcs.filter(n=>n.alive!==false).slice(0,100).map((n,i)=>{const loc=n.location||n.loc;const p=Number.isFinite(n.x)&&Number.isFinite(n.y)?[n.x,n.y]:sectorMarkerPosition(loc,i);if(!p)return '';const cls=npcMarkerClass(n);return mapPoint(p[0],p[1],cls,`${n.name||'NPC'} · ${n.faction||'нейтрал'}`,`onclick="${zoneMapMode==='local'?`openTalk('${esc(n.id)}')`:''}"`,npcHeading(n,i))}).join('');
  overlays+=(onlinePlayers||[]).filter(p=>p.id!==zonePlayerId).map((p,i)=>{const q=Number.isFinite(p.x)&&Number.isFinite(p.y)?[p.x,p.y]:sectorMarkerPosition(p.location,i+2);return q?mapPoint(q[0],q[1],'marker-player',p.name||'Игрок'):''}).join('');
  const caches=Object.entries(g.keyPoints||{}).flatMap(([loc,arr])=>(arr||[]).filter(p=>p.discovered).map((p,i)=>({loc,p,i}))); 
  overlays+=caches.map(({loc,i})=>{const q=sectorMarkerPosition(loc,i+4);return q?mapPoint(q[0]+12,q[1]-14,'marker-cache','Тайник'):''}).join('');
+ const npcRoutes=allNpcs.filter(n=>Array.isArray(n.route)&&n.route.length>1).map(n=>{const pts=n.route.map((v,i)=>Array.isArray(v)?v:(typeof v==='string'?zoneSectorCoords[v]:[v?.x,v?.y])).filter(v=>v&&Number.isFinite(v[0])&&Number.isFinite(v[1]));return pts.length>1?`<polyline class="npc-route-line" points="${pts.map(v=>v.join(',')).join(' ')}"><title>Маршрут: ${esc(n.name||'отряд')}</title></polyline>`:''}).join('');
  const meDot=playerDotMarkup(me);
  const view=zoneMapMode==='zone'?(()=>{const w=1000/zoneMapZoom,h=2000/zoneMapZoom;return `${Math.max(0,Math.min(1000-w,me.x-w/2))} ${Math.max(0,Math.min(2000-h,me.y-h/2))} ${w} ${h}`})():(()=>{const size=470/zoneMapZoom;return `${Math.max(0,Math.min(1000-size,me.x-size/2))} ${Math.max(0,Math.min(2000-size,me.y-size/2))} ${size} ${size}`})();
- $('zoneMap').innerHTML=`<svg id="zoneMapSvg" viewBox="${view}" preserveAspectRatio="none" aria-label="${zoneMapMode==='zone'?'Карта Зоны':'Карта '+(here()?.name||'локации')}" ${zoneMapMode==='local'?'onpointerdown="mapPointer(event)"':''}><image href="/assets/zone-master-map.jpg" x="0" y="0" width="1000" height="2000" preserveAspectRatio="none"/><rect x="0" y="0" width="1000" height="2000" fill="#10170f" opacity=".08"/><g class="map-region-layer">${regions}</g>${edges}<g class="map-marker-layer">${overlays}${meDot}</g><g class="map-compass" transform="translate(920 110)"><circle r="28"/><path d="M0 -20L7 7 0 2 -7 7Z"/><text y="-38" text-anchor="middle">N</text></g></svg>`;
+ $('zoneMap').innerHTML=`<svg id="zoneMapSvg" viewBox="${view}" preserveAspectRatio="none" onwheel="event.preventDefault();mapZoom(event.deltaY<0?1:-1)" aria-label="${zoneMapMode==='zone'?'Карта Зоны':'Карта '+(here()?.name||'локации')}" ${zoneMapMode==='local'?'onpointerdown="mapPointer(event)"':''}><image href="/assets/zone-master-map.jpg" x="0" y="0" width="1000" height="2000" preserveAspectRatio="none"/><rect x="0" y="0" width="1000" height="2000" fill="#10170f" opacity=".08"/><g class="map-region-layer">${regions}</g>${edges}${npcRoutes}<g class="map-marker-layer">${overlays}${meDot}</g><g class="map-compass" transform="translate(920 110)"><circle r="28"/><path d="M0 -20L7 7 0 2 -7 7Z"/><text y="-38" text-anchor="middle">N</text></g></svg>`;
  $('mapCoordinates').textContent=`${zoneMapMode==='zone'?'ВСЯ ЗОНА':'ЛОКАЦИЯ: '+(here()?.name||'—')} · ${Math.round(zoneMapZoom*100)}% · X ${Math.round(me.x)} / Y ${Math.round(me.y)}`;
 }
 function mapPointer(ev){if(zoneMapMode!=='local'||ev.target?.closest?.('.world-marker,.map-sector'))return;const svg=$('zoneMapSvg');if(!svg)return;const pt=svg.createSVGPoint();pt.x=ev.clientX;pt.y=ev.clientY;const p=pt.matrixTransform(svg.getScreenCTM().inverse());walkTarget={x:Math.max(8,Math.min(992,p.x)),y:Math.max(8,Math.min(1992,p.y))};pendingSectorExit=null;startWalking()}

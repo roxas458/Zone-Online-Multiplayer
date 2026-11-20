@@ -1,3 +1,9 @@
+## 4.17 — User map edition
+- Replaced the previous map with the developer-supplied labeled map.
+- Rebuilt the world around the 17 named sectors.
+- Migrated old sector references and removed obsolete selectable locations.
+- Added directional NPC markers, route overlays and wheel zoom.
+
 # Changelog
 
 ## 4.16.1 — Reference-aligned tactical map
