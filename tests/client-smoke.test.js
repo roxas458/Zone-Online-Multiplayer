@@ -58,7 +58,7 @@ test('browser client bootstraps without temporal-dead-zone errors', () => {
 
 test('all main browser-game views can be opened after bootstrap', () => {
   const { context } = bootClient();
-  for (const id of ['world','encyclopedia','stories','people','quests','inventory','armory','trade','factions','living','archive','war','diplomacy','achievements','journal','craft','profile','multiplayer','settings']) {
+  for (const id of ['world','encyclopedia','stories','people','squads','quests','inventory','armory','trade','factions','living','archive','war','diplomacy','achievements','journal','craft','profile','multiplayer','settings']) {
     assert.doesNotThrow(() => context.view(id), `view ${id}`);
   }
 });
@@ -369,4 +369,30 @@ test('4.18 inventory reference layout exposes backpack, mannequin, quick slots a
   assert.match(client, /zoneMapHasRendered/);
   assert.match(html, /inventoryRank/);
   assert.match(html, /inventoryFaction/);
+});
+
+
+test('4.24 NPC conversations use a full-screen modal with a close control and escape handling', () => {
+  const html = fs.readFileSync(path.join(root, 'public/index.html'), 'utf8');
+  const css = fs.readFileSync(path.join(root, 'public/css/game.css'), 'utf8');
+  const game = fs.readFileSync(path.join(root, 'public/js/game.js'), 'utf8');
+  assert.match(html, /id="npcDialogueOverlay"/);
+  assert.match(html, /aria-modal="true"/);
+  assert.match(css, /\.npc-dialogue-overlay\.open\{display:flex\}/);
+  assert.match(css, /height:min\(900px,94dvh\)/);
+  assert.match(game, /function showNpcDialogue\(/);
+  assert.match(game, /function closeTalk\(/);
+  assert.match(game, /e\.key==="Escape"/);
+});
+
+test('4.24 squads have a dedicated navigation view and are removed from the multiplayer page', () => {
+  const { context, elements } = bootClient();
+  const html = fs.readFileSync(path.join(root, 'public/index.html'), 'utf8');
+  assert.doesNotThrow(() => context.view('squads'));
+  assert.match(elements.get('squadOverview').innerHTML, /пока не состоишь в отряде/i);
+  assert.ok(elements.has('playerSquadPanel'));
+  assert.match(html, /data-v="squads"/);
+  const multiplayer = html.slice(html.indexOf('id="multiplayer"'), html.indexOf('id="settings"'));
+  assert.doesNotMatch(multiplayer, /playerSquadPanel/);
+  assert.match(html, /id="localNpcSquads"/);
 });

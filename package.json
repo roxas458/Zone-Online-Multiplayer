@@ -1,8 +1,8 @@
 {
   "name": "zone-online",
-  "version": "4.23.0",
+  "version": "4.24.0",
   "private": true,
-  "description": "Browser-based STALKER-inspired MMO with server-authoritative expeditions, route planning, squad travel and survival encounters",
+  "description": "Browser-based STALKER-inspired MMO with expedition survival, full-screen NPC dialogue and dedicated squad interface",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
