@@ -1,3 +1,12 @@
+# Changelog
+
+## 4.30.3 — Multiplayer connection compatibility
+- Restored the Socket.IO transport order and connection options from the known-working 4.20.0 release.
+- Removed `forceNew` and the newer `tryAllTransports` flag from the browser client.
+- Rejects stale custom server URLs that answer `/health` but do not report the current 4.30.x server build; falls back to the same-origin Render service.
+- Added Engine.IO handshake and connection-error diagnostics to Render logs.
+- Verified JavaScript syntax and all 78 automated tests.
+
 ## 4.29.1 — CALL OF PRIPYAT DIALOGUE & DEAL BASKET
 - Reworked NPC conversation into a two-character, metallic dialogue layout with portrait cards, large message panel, dialogue choices, and bottom trade/exit actions.
 - Added drag-and-drop and button-based trade basket for purchases and sales.

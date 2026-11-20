@@ -66,6 +66,8 @@ function recordNpcTrade(account, entry) {
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: true, methods: ['GET','POST'] }, pingInterval: 25000, pingTimeout: 60000, connectTimeout: 60000, maxHttpBufferSize: 1e6 });
+io.engine.on('connection', rawSocket=>console.info(`[engine] handshake id=${rawSocket.id} transport=${rawSocket.transport.name} origin=${clean(rawSocket.request.headers.origin||'unknown',180)}`));
+io.engine.on('connection_error', error=>console.error(`[engine] connection_error code=${error.code} message=${error.message} context=${JSON.stringify(error.context||{})}`));
 const PORT = process.env.PORT || 3000;
 const SECTOR_COORDS = Object.freeze({chaes:[503,104],zaton:[561,405],pripyat:[676,649],jupiter:[391,703],limansk:[128,838],red:[311,903],radar:[675,897],army:[502,1046],wild:[347,1212],bar:[441,1215],yantar:[174,1302],dump:[466,1470],agro:[243,1528],dark:[787,1418],cordon:[463,1753],swamps:[185,1788],darkhollow:[793,1742]});
 const SPAWN_BY_FACTION = Object.freeze({'Одиночки':'cordon','Долг':'bar','Свобода':'army','Бандиты':'dump','Военные':'agro','Учёные':'yantar','Наёмники':'limansk','Монолит':'radar','Чистое небо':'swamps'});
@@ -100,7 +102,7 @@ app.post('/api/auth/login', async (req,res)=>{
 app.get('/api/auth/me', async (req,res)=>{const a=await resolveSession(String(req.headers.authorization||'').replace(/^Bearer\s+/i,''));if(!a)return res.status(401).json({ok:false});res.json({ok:true,username:a.username,playerId:a.player_id});});
 app.post('/api/auth/logout', async (req,res)=>{const token=String(req.headers.authorization||'').replace(/^Bearer\s+/i,'');if(pool&&token)try{await pool.query('DELETE FROM zone_account_sessions WHERE token_hash=$1',[hashToken(token)]);}catch(e){await dbFallback(e,'logout');}res.json({ok:true});});
 app.get('/health', (_req,res) => { res.set('Access-Control-Allow-Origin','*'); res.set('Cache-Control','no-store'); res.status(200).json({ ok:true, service:'ZONE ONLINE', version:require('./package.json').version, database:dbReady?'postgres':'memory-fallback', databaseRequiredForAccounts:true, online:online.size, revision:world.revision||1, timestamp:Date.now() }); });
-app.get('/api/status', (_req,res) => res.json({ ...publicWorldStatus(world, online.size), persistent:dbReady, service:'ZONE ONLINE 4.30.2 MULTIPLAYER CONNECTION RECOVERY' }));
+app.get('/api/status', (_req,res) => res.json({ ...publicWorldStatus(world, online.size), persistent:dbReady, service:'ZONE ONLINE 4.30.3 MULTIPLAYER CONNECTION RECOVERY' }));
 app.get('/api/world/snapshot', (_req,res) => res.json({ status:publicWorldStatus(world, online.size), world }));
 app.get('/api/world/events', (req,res) => { const since=Number(req.query.since||0); const sync=buildWorldSync(world, Number.isSafeInteger(since)?since:0); res.json(sync); });
 
