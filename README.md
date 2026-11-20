@@ -151,3 +151,14 @@ The multiplayer squad system now supports synchronized leader-led travel, member
 2. Добавь переменную окружения `DATABASE_URL` в настройки Node-сервера.
 3. Перезапусти сервер и проверь `/health`: поле `database` должно быть `postgres`.
 4. На телефоне создай аккаунт; на ПК выбери «Аккаунт» → «Войти» с тем же логином и паролем.
+
+
+## Version 4.22 — COMMANDER'S PATH
+
+- Direct joystick, WASD and arrow-key movement controls are removed.
+- Players place a waypoint on the current-sector PDA map; online movement is advanced server-side at a slow walking pace.
+- Movement orders can be cancelled and server-side travel hazards pause the route for a continue/retreat decision.
+- Generated stalkers are regrouped into named 2–5 person squads and the tactical map renders one compact marker per squad with its member count.
+- Added `src/systems/player-orders.js` and movement-order tests.
+
+Online waypoint movement requires the game server. Offline preview mode keeps a local, non-authoritative walking preview.

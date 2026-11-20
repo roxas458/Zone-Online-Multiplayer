@@ -9,6 +9,7 @@ const {
 } = require('./src/shared/game-data');
 const { clean, validId, createSafeState } = require('./src/server/validation');
 const safeState = createSafeState(FACTIONS, LOCATIONS);
+const { createMoveOrder, advanceMoveOrder } = require('./src/systems/player-orders');
 const { initSharedWorld, initDiplomacy } = require('./src/server/world');
 const { WAR_CONFIG, createOperation, deploymentPower, addDeployment, resolveOperation } = require('./src/systems/war');
 const { tickNpcWorld, interactWithNpc, isHostileFaction } = require('./src/systems/npc-ai');
@@ -28,6 +29,7 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: true, methods: ['GET','POST'] }, pingInterval: 25000, pingTimeout: 20000, maxHttpBufferSize: 1e6 });
 const PORT = process.env.PORT || 3000;
+const SECTOR_COORDS = Object.freeze({chaes:[503,104],zaton:[561,405],pripyat:[676,649],jupiter:[391,703],limansk:[128,838],red:[311,903],radar:[675,897],army:[502,1046],wild:[347,1212],bar:[441,1215],yantar:[174,1302],dump:[466,1470],agro:[243,1528],dark:[787,1418],cordon:[463,1753],swamps:[185,1788],darkhollow:[793,1742]});
 const SPAWN_BY_FACTION = Object.freeze({'Одиночки':'cordon','Долг':'bar','Свобода':'army','Бандиты':'dump','Военные':'agro','Учёные':'yantar','Наёмники':'limansk','Монолит':'radar','Чистое небо':'swamps'});
 const hashToken = value => crypto.createHash('sha256').update(String(value)).digest('hex');
 const derivePassword = (password, salt) => new Promise((resolve,reject)=>crypto.scrypt(password,salt,64,(err,key)=>err?reject(err):resolve(key.toString('hex'))));
@@ -59,8 +61,8 @@ app.post('/api/auth/login', async (req,res)=>{
 });
 app.get('/api/auth/me', async (req,res)=>{const a=await resolveSession(String(req.headers.authorization||'').replace(/^Bearer\s+/i,''));if(!a)return res.status(401).json({ok:false});res.json({ok:true,username:a.username,playerId:a.player_id});});
 app.post('/api/auth/logout', async (req,res)=>{const token=String(req.headers.authorization||'').replace(/^Bearer\s+/i,'');if(pool&&token)try{await pool.query('DELETE FROM zone_account_sessions WHERE token_hash=$1',[hashToken(token)]);}catch(e){await dbFallback(e,'logout');}res.json({ok:true});});
-app.get('/health', (_req,res) => res.json({ ok:true, service:'ZONE ONLINE 4.21 ACCOUNT LINK', database:dbReady?'postgres':'memory-fallback', online:online.size, revision:world.revision||1 }));
-app.get('/api/status', (_req,res) => res.json({ ...publicWorldStatus(world, online.size), persistent:dbReady, service:'ZONE ONLINE 4.21 ACCOUNT LINK' }));
+app.get('/health', (_req,res) => res.json({ ok:true, service:'ZONE ONLINE 4.22 COMMANDERS PATH', database:dbReady?'postgres':'memory-fallback', online:online.size, revision:world.revision||1 }));
+app.get('/api/status', (_req,res) => res.json({ ...publicWorldStatus(world, online.size), persistent:dbReady, service:'ZONE ONLINE 4.22 COMMANDERS PATH' }));
 app.get('/api/world/snapshot', (_req,res) => res.json({ status:publicWorldStatus(world, online.size), world }));
 app.get('/api/world/events', (req,res) => { const since=Number(req.query.since||0); const sync=buildWorldSync(world, Number.isSafeInteger(since)?since:0); res.json(sync); });
 
@@ -135,12 +137,12 @@ io.on('connection', socket=>{
       const pendingNewCharacter=payload?.state?.characterCreated===true&&saved?.characterCreated!==true;
       if((!saved||pendingNewCharacter) && payload?.state) { saved=safeState(payload.state).state; await persistPlayer(id,saved); }
       const s=saved?safeState(saved):safeState(payload?.state);
-      const p={ id, name:s.name, faction:s.faction, location:s.loc, hp:s.hp, xp:s.xp, joinedAt:Date.now(), lastSeen:Date.now(), state:saved||s.state };
+      const spawnPoint=SECTOR_COORDS[s.loc]||SECTOR_COORDS.cordon;const savedPos=s.state?.worldPosition;const p={ id, name:s.name, faction:s.faction, location:s.loc, x:Number.isFinite(Number(savedPos?.x))?Math.max(0,Math.min(1000,Number(savedPos.x))):spawnPoint[0], y:Number.isFinite(Number(savedPos?.y))?Math.max(0,Math.min(2000,Number(savedPos.y))):spawnPoint[1], hp:s.hp, xp:s.xp, joinedAt:Date.now(), lastSeen:Date.now(), state:saved||s.state, moveOrder:null, travelEncounter:null };
       const previous=online.get(id); if(previous?.socketId&&previous.socketId!==socket.id){const oldSocket=io.sockets.sockets.get(previous.socketId);if(oldSocket)oldSocket.disconnect(true);}
       socket.data.playerId=id; socket.data.name=p.name; socket.data.accountId=auth?.account_id||null; p.socketId=socket.id; online.set(id,p); socket.join('zone-world'); socket.join(id); socket.join(`location:${p.location}`); socket.join(`faction:${p.faction}`);
       world.onlineMetrics ||= { totalJoins:0, totalMoves:0, lastTickAt:0 }; world.onlineMetrics.totalJoins += 1;
       const joinEvent = appendWorldEvent(world, 'player_joined', { player:publicPlayer(p) });
-      socket.emit('player:ready',{id, savedState:saved, account:auth?{username:auth.username}:null, world, worldSync:buildWorldSync(world, Number(payload?.lastRevision)||0), status:publicWorldStatus(world,online.size), chat:recentChat.filter(m=>!m.location||m.location===p.location).slice(-60), players:onlineList(), persistent:dbReady});
+      socket.emit('player:ready',{id, savedState:saved, account:auth?{username:auth.username}:null, world, worldSync:buildWorldSync(world, Number(payload?.lastRevision)||0), status:publicWorldStatus(world,online.size), chat:recentChat.filter(m=>!m.location||m.location===p.location).slice(-60), players:onlineList(), position:{x:p.x,y:p.y}, persistent:dbReady});
       if(typeof ack==='function')ack({ok:true,id,persistent:dbReady});
       socket.to('zone-world').emit('world:event',joinEvent);
       io.emit('world:npcs',world.npcPositions); io.emit('world:npc-state',{npcs:world.npcState,events:(world.npcEvents||[]).slice(-20),squads:world.npcSquads||[],memorial:world.npcMemorial||[],battlefronts:world.battlefronts||[],convoys:world.convoys||[],factionBases:world.factionBases||[],frontlineOrders:world.frontlineOrders||[]}); io.emit('world:ecosystem',world.ecosystem); io.emit('world:coop',world.coOpQuests); io.emit('war:state',{operations:world.warOperations||[],history:(world.warHistory||[]).slice(0,12)});
@@ -149,7 +151,7 @@ io.on('connection', socket=>{
   });
   socket.on('player:save', async input=>{
     const id=socket.data.playerId, p=online.get(id); if(!id||!p)return;
-    const s=safeState(input); const previousLocation=p.location, previousFaction=p.faction; const squad=squadOf(id); const firstCharacter=!p.state?.characterCreated&&s.state?.characterCreated===true; if(p.state?.characterCreated&&!firstCharacter){s.state.faction=p.faction;s.faction=p.faction;} if(firstCharacter){const spawn=SPAWN_BY_FACTION[s.faction]||'cordon';s.state.loc=spawn;s.state.visitedLocations=[...new Set([...(s.state.visitedLocations||[]),spawn])];s.loc=spawn;} if(squad&&squad.leader!==id&&s.loc!==squad.location)s.state.loc=squad.location; p.name=s.name;p.faction=s.faction;p.location=squad&&squad.leader!==id?squad.location:s.loc;p.x=Number.isFinite(Number(s.state?.worldPosition?.x))?Math.max(0,Math.min(1000,Math.round(Number(s.state.worldPosition.x)))):p.x;p.y=Number.isFinite(Number(s.state?.worldPosition?.y))?Math.max(0,Math.min(2000,Math.round(Number(s.state.worldPosition.y)))):p.y;p.hp=s.hp;p.xp=s.xp;p.lastSeen=Date.now();p.state=s.state;socket.data.name=s.name; if(previousLocation!==p.location){socket.leave(`location:${previousLocation}`);socket.join(`location:${p.location}`);socket.emit('world:chat:history',recentChat.filter(m=>!m.location||m.location===p.location).slice(-60));} if(previousFaction!==p.faction){socket.leave(`faction:${previousFaction}`);socket.join(`faction:${p.faction}`);}
+    const s=safeState(input); const previousLocation=p.location, previousFaction=p.faction; const squad=squadOf(id); const firstCharacter=!p.state?.characterCreated&&s.state?.characterCreated===true; if(p.state?.characterCreated&&!firstCharacter){s.state.faction=p.faction;s.faction=p.faction;} if(firstCharacter){const spawn=SPAWN_BY_FACTION[s.faction]||'cordon';s.state.loc=spawn;s.state.visitedLocations=[...new Set([...(s.state.visitedLocations||[]),spawn])];s.loc=spawn;const spawnPoint=SECTOR_COORDS[spawn]||SECTOR_COORDS.cordon;p.x=spawnPoint[0];p.y=spawnPoint[1];s.state.worldPosition={x:p.x,y:p.y};s.state.mapCoordinateVersion=2;} if(squad&&squad.leader!==id&&s.loc!==squad.location)s.state.loc=squad.location; p.name=s.name;p.faction=s.faction;p.location=squad&&squad.leader!==id?squad.location:s.loc;p.x=Number.isFinite(Number(s.state?.worldPosition?.x))?Math.max(0,Math.min(1000,Math.round(Number(s.state.worldPosition.x)))):p.x;p.y=Number.isFinite(Number(s.state?.worldPosition?.y))?Math.max(0,Math.min(2000,Math.round(Number(s.state.worldPosition.y)))):p.y;p.hp=s.hp;p.xp=s.xp;p.lastSeen=Date.now();p.state=s.state;socket.data.name=s.name; if(previousLocation!==p.location){socket.leave(`location:${previousLocation}`);socket.join(`location:${p.location}`);socket.emit('world:chat:history',recentChat.filter(m=>!m.location||m.location===p.location).slice(-60));} if(previousFaction!==p.faction){socket.leave(`faction:${previousFaction}`);socket.join(`faction:${p.faction}`);}
     try{ await persistPlayer(id,s.state); }catch(e){socket.emit('server:error',{message:'Не удалось сохранить профиль на сервере.'});console.error(e);}
     if(previousLocation!==p.location){ world.onlineMetrics ||= {totalJoins:0,totalMoves:0,lastTickAt:0}; world.onlineMetrics.totalMoves+=1; const ev=appendWorldEvent(world,'player_moved',{playerId:id,name:p.name,faction:p.faction,from:previousLocation,to:p.location}); io.to('zone-world').emit('world:event',ev); if(squad&&squad.leader===id)publishSquadMove(squad,previousLocation,p.location,p.name); await persistWorld(); }
     if(firstCharacter)socket.emit('player:spawned',{state:p.state,location:p.location});
@@ -171,7 +173,22 @@ io.on('connection', socket=>{
     }
     broadcastOnline();
   });
-  socket.on('player:position', input=>{const p=online.get(socket.data.playerId);if(!p||!Number.isFinite(Number(input?.x))||!Number.isFinite(Number(input?.y))||input?.location!==p.location)return;p.x=Math.max(0,Math.min(1000,Math.round(Number(input.x))));p.y=Math.max(0,Math.min(2000,Math.round(Number(input.y))));p.lastSeen=Date.now();broadcastOnline();});
+  socket.on('player:position', ()=>{ /* Position is server-authoritative in 4.22; legacy client writes are ignored. */ });
+  socket.on('player:move-order', input=>{
+    const p=online.get(socket.data.playerId);if(!p)return;
+    if(input?.location!==p.location){socket.emit('player:move-result',{ok:false,message:'Маршрут должен начинаться в текущем секторе.'});return;}
+    const center=SECTOR_COORDS[p.location]||SECTOR_COORDS.cordon;
+    const tx=Number(input?.x),ty=Number(input?.y);
+    if(!Number.isFinite(tx)||!Number.isFinite(ty)||Math.abs(tx-center[0])>255||Math.abs(ty-center[1])>255){socket.emit('player:move-result',{ok:false,message:'Точка находится за пределами доступной части сектора.'});return;}
+    const result=createMoveOrder(p,{x:tx,y:ty},Date.now(),7);
+    if(!result.ok){socket.emit('player:move-result',{ok:false,message:result.error});return;}
+    p.moveOrder=result.order;p.travelEncounter=null;p.lastSeen=Date.now();
+    const risk=({chaes:0.95,radar:0.85,pripyat:0.75,red:0.65,dark:0.6,dump:0.55,swamps:0.4,cordon:0.25,bar:0.2,yantar:0.3})[p.location]??0.35;
+    p.moveOrder.encounterAt=Math.random()<(.04+risk*.13)?(.25+Math.random()*.5):null;
+    socket.emit('player:move-result',{ok:true,message:'Приказ принят. Персонаж начал движение по маршруту.',order:{x:tx,y:ty,etaSeconds:Math.ceil(result.order.distance/result.order.speed)}});
+  });
+  socket.on('player:move-cancel',()=>{const p=online.get(socket.data.playerId);if(!p)return;p.moveOrder=null;p.travelEncounter=null;socket.emit('player:movement',{x:p.x,y:p.y,moving:false});socket.emit('player:move-result',{ok:true,message:'Приказ на движение отменён.'});});
+  socket.on('player:travel-response',input=>{const p=online.get(socket.data.playerId);if(!p||!p.travelEncounter)return;const action=['continue','fight'].includes(input?.action)?input.action:'retreat';p.travelEncounter=null;if(action!=='continue')p.moveOrder=null;else if(p.moveOrder)p.moveOrder.encounterChecked=true;socket.emit('player:move-result',{ok:true,message:action==='continue'?'Продолжаешь путь после опасной встречи.':action==='fight'?'Ты принимаешь бой. Маршрут приостановлен.':'Маршрут прерван. Персонаж отходит в безопасную точку.'});});
   socket.on('world:sync', input=>{
     if(!socket.data.playerId)return;
     socket.emit('world:sync',buildWorldSync(world,Number(input?.sinceRevision)||0));
@@ -404,6 +421,29 @@ io.on('connection', socket=>{
     online.delete(id);const ev=appendWorldEvent(world,'player_left',{playerId:id,name:p.name,faction:p.faction,location:p.location});io.to('zone-world').emit('world:event',ev);persistWorld().catch(e=>console.error('leave persistence:',e.message));systemMessage(`${p.name} покинул Зону.`);broadcastOnline();
   });
 });
+
+let playerMovementTickRunning=false;
+setInterval(async()=>{
+  if(playerMovementTickRunning)return;playerMovementTickRunning=true;
+  try{
+    let movedAny=false;
+    for(const p of online.values()){
+      if(!p.moveOrder||p.travelEncounter)continue;
+      const order=p.moveOrder;const before=Math.hypot(order.x-p.x,order.y-p.y);
+      const result=advanceMoveOrder(p,1);
+      if(result.moved){movedAny=true;p.lastSeen=Date.now();p.state ||= {};p.state.worldPosition={x:p.x,y:p.y};p.state.loc=p.location;if(Date.now()-(p.lastMovePersistAt||0)>10000){p.lastMovePersistAt=Date.now();persistPlayer(p.id,p.state).catch(e=>console.error('movement save:',e.message));}io.to(p.id).emit('player:movement',{x:p.x,y:p.y,moving:!result.arrived,remaining:Math.hypot(order.x-p.x,order.y-p.y)});}
+      if(order.encounterAt&&!order.encounterChecked&&before>0&&Math.hypot(order.x-p.x,order.y-p.y)<=order.distance*(1-order.encounterAt)){
+        order.encounterChecked=true;
+        const groups=(world.npcGroups||[]).filter(g=>g.location===p.location&&g.faction!==p.faction&&g.members?.length>=2);
+        const hostile=groups.find(g=>{const hostileMap={'Долг':['Свобода','Бандиты','Монолит'],'Свобода':['Долг','Бандиты','Монолит'],'Одиночки':['Бандиты','Монолит'],'Бандиты':['Одиночки','Долг','Свобода','Военные'],'Военные':['Бандиты','Монолит'],'Наёмники':['Монолит'],'Монолит':['Одиночки','Долг','Свобода','Военные','Наёмники']};return (hostileMap[p.faction]||[]).includes(g.faction);});
+        const type=hostile?'hostile_squad':'mutants';const label=hostile?`замечен отряд «${hostile.name}» (${hostile.faction})`:'обнаружены следы мутантов и движение в кустах';
+        p.travelEncounter={type,groupId:hostile?.id||null,at:Date.now()};io.to(p.id).emit('player:travel-event',{type,npcId:hostile?.members?.[0]||null,groupId:hostile?.id||null,message:`На маршруте: ${label}. Движение остановлено. Продолжить путь или отступить?`});
+      }
+      if(result.arrived){p.state.worldPosition={x:p.x,y:p.y};await persistPlayer(p.id,p.state);io.to(p.id).emit('player:move-result',{ok:true,message:'Ты достиг отмеченной точки.'});}
+    }
+    if(movedAny)broadcastOnline();
+  }catch(e){console.error('Player movement tick:',e.message);}finally{playerMovementTickRunning=false;}
+},1000).unref();
 
 setInterval(async()=>{
   if(npcTickRunning)return; npcTickRunning=true;

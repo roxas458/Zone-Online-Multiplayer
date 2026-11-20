@@ -295,3 +295,14 @@ body.reduce-motion *,body.reduce-motion *:before,body.reduce-motion *:after{anim
 .account-trigger{border:1px solid var(--line);background:#20251f;color:var(--text);border-radius:5px;padding:8px 11px;font:inherit;white-space:nowrap}.account-card{max-width:440px}.account-card .rightbuttons{display:flex;flex-wrap:wrap;gap:8px}.account-card .rightbuttons button{flex:1 1 130px}.account-card .quiet-action{background:transparent}
 
 @media(max-width:650px){.account-trigger{padding:7px 8px;font-size:11px}}
+
+/* 4.22 command movement and grouped stalker squads */
+.map-order-status{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:10px 12px;margin-top:8px;border:1px solid rgba(160,177,139,.2);border-radius:8px;background:rgba(12,17,13,.72);font-size:12px}
+.map-order-status>span{font-size:10px;letter-spacing:.12em;color:#9aa98b}
+.map-order-status>b{flex:1;min-width:180px;color:#d6ddc9;font-weight:600}
+.map-order-status button{padding:6px 10px;font-size:11px}
+.squad-count{font:700 6px/1 sans-serif;fill:#f5f4df;stroke:#11180f;stroke-width:1.2px;paint-order:stroke;pointer-events:none}
+.world-squad-marker{cursor:pointer}
+.player-waypoint-route{fill:none;stroke:#f0cf72;stroke-width:2.5;stroke-dasharray:8 6;opacity:.9;pointer-events:none}
+.player-waypoint circle{fill:rgba(235,194,91,.2);stroke:#f0cf72;stroke-width:2}
+.player-waypoint path{stroke:#f0cf72;stroke-width:1.5}

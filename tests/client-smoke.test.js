@@ -117,7 +117,7 @@ test('4.9 personal NPC stories persist progress and reward completion', () => {
 });
 
 
-test('4.15 map supports supplied Zone image, overview/local modes and free-walk controls', () => {
+test('4.22 map supports supplied Zone image, overview/local modes and click-to-move orders without direct controls', () => {
   const { context, elements } = bootClient();
   const svg = elements.get('zoneMap').innerHTML;
   assert.match(svg, /zone-master-map\.jpg/);
@@ -129,7 +129,9 @@ test('4.15 map supports supplied Zone image, overview/local modes and free-walk 
   assert.match(elements.get('mapCoordinates').textContent, /ВСЯ ЗОНА/);
   assert.match(fs.readFileSync(path.join(root, 'public/index.html'), 'utf8'), /mapModeLocal/);
   assert.match(fs.readFileSync(path.join(root, 'public/js/game.js'), 'utf8'), /function mapPointer/);
-  assert.match(fs.readFileSync(path.join(root, 'public/js/game.js'), 'utf8'), /function walkNudge/);
+  assert.match(fs.readFileSync(path.join(root, 'public/js/game.js'), 'utf8'), /player:move-order/);
+  assert.match(fs.readFileSync(path.join(root, 'public/index.html'), 'utf8'), /mapOrderStatus/);
+  assert.doesNotMatch(fs.readFileSync(path.join(root, 'public/index.html'), 'utf8'), /map-move-pad|walkHold/);
   assert.match(fs.readFileSync(path.join(root, 'public/js/game.js'), 'utf8'), /pendingSectorExit/);
   assert.doesNotThrow(() => context.setMapMode('local'));
   assert.match(elements.get('zoneMap').innerHTML, /onpointerdown=\"mapPointer/);
@@ -316,7 +318,7 @@ test('4.14 squads synchronize leader travel, field roles, journal and NPC escort
   assert.match(client, /Журнал отряда/);
 });
 
-test('4.17 tactical map uses the developer-supplied labeled map, point markers and world-space collision', () => {
+test('4.22 tactical map uses the developer-supplied labeled map, point markers and click-to-move routing', () => {
   const client = fs.readFileSync(path.join(root, 'public/js/game.js'), 'utf8');
   const html = fs.readFileSync(path.join(root, 'public/index.html'), 'utf8');
   const css = fs.readFileSync(path.join(root, 'public/css/game.css'), 'utf8');
@@ -327,10 +329,14 @@ test('4.17 tactical map uses the developer-supplied labeled map, point markers a
   assert.match(client, /marker-cache/);
   assert.match(client, /const WORLD_OBSTACLES=/);
   assert.match(client, /function blockedAt\(/);
-  assert.match(client, /function walkHold\(/);
+  assert.match(client, /function startWalking\(/);
+  assert.match(client, /function cancelMoveOrder\(/);
+  assert.match(client, /function mapSquadPoint\(/);
+  assert.match(client, /player:movement/);
   assert.match(client, /function mapPointer\(/);
-  assert.match(client, /player:position/);
-  assert.match(html, /onpointerdown="walkHold/);
+  assert.match(client, /player:move-order/);
+  assert.match(client, /onpointerdown="mapPointer/);
+  assert.doesNotMatch(html, /onpointerdown="walkHold/);
   assert.match(css, /\.marker-enemy/);
   assert.match(css, /\.marker-friendly/);
   assert.ok(fs.existsSync(path.join(root, 'public/assets/zone-master-map.jpg')));
