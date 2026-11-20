@@ -143,3 +143,9 @@
 - Linked an account to a persistent player record for cross-device progress.
 - Added faction-specific new-character spawn locations, validated server-side.
 - Changed PDA world chat to a location-scoped channel and load sector-specific chat history on movement.
+
+## 4.27.0 — LOGIN HANDSHAKE FIX
+- Login acknowledgement is sent before the large world snapshot to avoid client-side acknowledgement timeouts when the world state is large.
+- Socket.IO connection timeout increased to 60 seconds to tolerate Render free-instance cold starts.
+- PostgreSQL connection/query timeouts bounded to prevent a stalled database request from hanging the login handshake indefinitely.
+- Added regression tests for acknowledgement ordering and timeout configuration.

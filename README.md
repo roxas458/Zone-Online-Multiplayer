@@ -1,6 +1,6 @@
-# ZONE ONLINE 4.26 — CONNECTION & FIELD PDA
+# ZONE ONLINE 4.27 — CONNECTION & FIELD PDA
 
-## 4.26 — Connection diagnostics and illustrated PDA
+## 4.27 — Connection diagnostics and illustrated PDA
 
 - Added a versioned `/health` endpoint that reports service version, online count, database mode and timestamp.
 - Improved Socket.IO diagnostics, increased handshake timeout and forced a fresh connection after changing server settings.
@@ -12,7 +12,7 @@
 ## Fixing connection setup
 
 1. Deploy the complete project folder as a Node web service (not as a static-only site). The start command is `npm start`; the build command is `npm install`.
-2. Open `https://YOUR-NODE-SERVICE/health`. It must return JSON with `ok: true` and `version: "4.26.0"`.
+2. Open `https://YOUR-NODE-SERVICE/health`. It must return JSON with `ok: true` and `version: "4.27.0"`.
 3. If the game site is hosted at a different address, open it with `?server=https://YOUR-NODE-SERVICE` or enter that Node server URL in the Multiplayer page and press reconnect.
 4. For persistent accounts and cross-device saves, attach PostgreSQL and set `DATABASE_URL`. Without it, basic server connections work in memory mode, but server progress is lost on a server restart and account login/register is unavailable.
 5. If `/health` does not open, the issue is deployment/hosting rather than the browser client. Check the hosting service logs and confirm it is running `npm start` from the folder containing `server.js` and `package.json`.
