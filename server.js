@@ -336,8 +336,8 @@ io.on('connection', socket=>{
     if(!p||!npc||npc.alive===false||npc.location!==p.location||!inRange(p,npcWorldPosition(npc),INTERACTION_RADIUS)||!npc.dialogue||!goods){
       socket.emit('npc:trade:result',{ok:false,message:'Этот сталкер сейчас не может торговать или находится не рядом.'});return;
     }
-    const account=npcEconomyFor(npc);account.stock[itemId]??=goods.qty*3;account.maxStock[itemId]??=goods.qty*10;const available=Number.MAX_SAFE_INTEGER; // NPC traders have unlimited stock
-    account.stock[itemId]=available;
+    const account=npcEconomyFor(npc);account.stock[itemId]??=goods.qty*3;account.maxStock[itemId]??=goods.qty*10;const available=Math.max(0,Math.floor(Number(account.stock[itemId])||0));
+    if(available<goods.qty){socket.emit('npc:trade:result',{ok:false,message:'У сталкера временно закончился этот товар. Запасы пополняются автоматически.',economy:{balance:account.balance,stock:account.stock}});return;}
     if(st.money<goods.price){socket.emit('npc:trade:result',{ok:false,message:'Недостаточно рублей.'});return;}
     // Buying transfers player money out of the player's wallet only.
     // The NPC's independent balance is intentionally not debited.
@@ -346,7 +346,7 @@ io.on('connection', socket=>{
     const existing=st.state.items.find(x=>x.id===itemId);
     if(existing)existing.qty+=goods.qty;
     else st.state.items.push({id:itemId,name:goods.name,type:goods.type,desc:goods.desc,weight:goods.weight,qty:goods.qty,value:goods.value});
-    account.stock[itemId]=Number.MAX_SAFE_INTEGER;
+    account.stock[itemId]=available-goods.qty;
     recordNpcTrade(account,{playerId:p.id,playerName:p.name,type:'buy_from_npc',item:itemId,qty:goods.qty,price:goods.price});
     p.state=st.state;await persistPlayer(p.id,p.state);await persistWorld();
     socket.emit('npc:trade:result',{ok:true,message:`${npc.name}: сделка состоялась. ${goods.name} передан тебе.`,state:p.state,economy:{balance:account.balance,stock:account.stock}});
@@ -358,10 +358,9 @@ io.on('connection', socket=>{
     st.state.items ||= [];const item=st.state.items.find(x=>x.id===itemId);
     if(!item||item.qty<qty){socket.emit('npc:trade:result',{ok:false,message:'Недостаточно предметов для продажи.'});return;}
     const account=npcEconomyFor(npc),payout=Math.floor(base*.5)*qty;
-    // NPC traders have unlimited funds; selling never depends on their stored balance.
-    account.balance=Number.MAX_SAFE_INTEGER;
+    if(account.balance<payout){socket.emit('npc:trade:result',{ok:false,message:`У ${npc.name} недостаточно денег для этой покупки.`,economy:{balance:account.balance}});return;}
     item.qty-=qty;if(item.qty<=0)st.state.items=st.state.items.filter(x=>x.id!==itemId);
-    account.balance=Number.MAX_SAFE_INTEGER;
+    account.balance=Math.max(0,account.balance-payout);
     st.state.money=Math.min(99999999,st.money+payout);
     recordNpcTrade(account,{playerId:p.id,playerName:p.name,type:'sell_to_npc',item:itemId,qty,price:payout});
     p.state=st.state;await persistPlayer(p.id,p.state);await persistWorld();
