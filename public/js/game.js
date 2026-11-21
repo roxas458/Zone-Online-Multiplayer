@@ -1,4 +1,4 @@
-// ZONE ONLINE 4.33.22 browser client. IMMERSIVE TITLE SCREEN / SURVIVAL / MULTIPLAYER.
+// ZONE ONLINE 4.33.23 browser client. IMMERSIVE TITLE SCREEN / SURVIVAL / MULTIPLAYER.
 const clone=o=>JSON.parse(JSON.stringify(o));
 const base={
  name:"Новичок",money:1450,hp:100,radiation:0,radiationProtectionUntil:0,stamina:85,hunger:18,thirst:20,rep:10,day:1,hour:9,loc:"cordon",faction:"Одиночки",xp:0,meetings:0,completed:0,flags:{metSid:false,metWolf:false,heardBar:false,foundArtifact:false,helpedWolf:false},
@@ -856,7 +856,7 @@ $("nearby").innerHTML=nearbyNpcs().slice(0,3).map(n=>`<div class="item"><div><b>
 $("homeNews").textContent=g.news[0]?g.news[0].title+": "+g.news[0].body:"Пока без новостей.";
 $("miniStatus").innerHTML=`<div class="item"><span>Локация</span><b>${l.name}</b></div><div class="item"><span>Выносливость</span><b>${g.stamina}%</b></div><div class="bar"><i style="width:${g.stamina}%"></i></div><div class="item"><span>Голод</span><b>${needPercent(g.hunger)}%</b></div><div class="bar"><i style="width:${needPercent(g.hunger)}%;background:#c6a16c"></i></div><div class="item"><span>Жажда</span><b>${needPercent(g.thirst)}%</b></div><div class="bar"><i style="width:${needPercent(g.thirst)}%;background:#8ab5c7"></i></div><div class="item"><span>Радиация</span><b>${Math.round(radiationLevel())}%</b></div><div class="bar"><i style="width:${radiationLevel()}%;background:#a5b66d"></i></div><div class="item"><span>Погода</span><b>${g.world.weather}</b></div><div class="item"><span>Фракция</span><b>${g.faction}</b></div>`;
 $("worldState").innerHTML=`<div class="item"><span>Аномальная активность</span><b>${g.world.emission}</b></div><div class="item"><span>Мутанты</span><b>${g.world.mutants}</b></div><div class="item"><span>Напряжённость</span><b>${g.world.tension}%</b></div>`;
-applyGameOptions();renderAtmosphere();renderOverviewFactionFront();renderMap();renderKeyPoints();renderStories();renderArmory();renderEncyclopedia();renderPeople();renderQuests();renderInventory();renderTrade();renderFactions();renderArchive();renderDiplomacy();renderAchievements();renderNews();renderCraft();renderProfile();renderQuick();renderLivingZone();renderFieldwork();renderSurvival();$("log").innerHTML=g.log.map((x,i)=>`<div><time>${String(i+1).padStart(2,"0")}</time>${x}</div>`).join("")}
+applyGameOptions();renderAtmosphere();renderOverviewFactionFront();renderMap();renderKeyPoints();renderStories();renderArmory();renderEncyclopedia();renderPeople();renderQuests();renderInventory();renderTrade();renderFactions();renderArchive();renderDiplomacy();renderAchievements();renderNews();renderCraft();renderProfile();renderQuick();renderLivingZone();renderFieldwork();renderSurvival();renderSurvivalHud();$("log").innerHTML=g.log.map((x,i)=>`<div><time>${String(i+1).padStart(2,"0")}</time>${x}</div>`).join("")}
 function exportSave(){let blob=new Blob([JSON.stringify(g,null,2)],{type:"application/json"}),a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="zone-online-save.json";a.click();URL.revokeObjectURL(a.href)}
 function importSave(e){let f=e.target.files[0];if(!f)return;let r=new FileReader();r.onload=()=>{try{let d=JSON.parse(r.result);if(!d.locations||!d.npcs||!d.items)throw Error();g=d;save();alert("Сохранение загружено.")}catch(err){alert("Файл сохранения не распознан.")}};r.readAsText(f)}
 function manualSave(){save();alert("Игра сохранена в этом браузере.")}
@@ -964,6 +964,21 @@ const enemyTemplates=[
  {name:'Снорк',icon:'☢',hp:66,power:11,desc:'Непредсказуемый противник из заражённого сектора.'}
 ];
 function equippedWeapon(){return g.items.find(x=>x.name===g.equipment?.weapon&&x.type==='Оружие')||g.items.find(x=>x.type==='Оружие')||null;}
+function renderSurvivalHud(){
+ const hud=$('survivalHud');if(!hud)return;
+ const hp=Math.max(0,Math.min(100,Number(g.hp)||0)),st=Math.max(0,Math.min(100,Number(g.stamina)||0));
+ const health=$('hudHealthTicks'),stamina=$('hudStaminaTicks');
+ const ticks=(value,kind)=>Array.from({length:28},(_,i)=>`<i class="${i<Math.ceil(value/100*28)?'is-on':''}"></i>`).join('');
+ if(health)health.innerHTML=ticks(hp,'health');if(stamina)stamina.innerHTML=ticks(st,'stamina');
+ $('hudHealthValue').textContent=Math.round(hp)+'%';$('hudStaminaValue').textContent=Math.round(st)+'%';
+ const weapon=equippedWeapon(),name=weapon?.name||'Оружие не выбрано',condition=Math.max(0,Math.min(100,Number(weapon?.condition??0)));
+ $('hudWeaponName').textContent=name;$('hudWeaponCondition').textContent=weapon?'Состояние оружия':'Подготовь снаряжение';
+ $('hudWeaponConditionValue').textContent=weapon?Math.round(condition)+'%':'—';
+ $('hudWeaponConditionFill').style.width=weapon?condition+'%':'0%';
+ $('hudWeaponSymbol').textContent=weapon?'▰':'—';
+ hud.classList.toggle('hud-no-weapon',!weapon);
+}
+
 function weaponPower(item){if(!item)return 8;const n=item.name.toLowerCase();let power=12;if(/гаусс/.test(n))power=27;else if(/свд|сву|винтарь|вс/.test(n))power=22;else if(/гроза|бульдог|рп-74|гп37|ас-96|обокан|трс|ил86|акм/.test(n))power=19;else if(/спса|chaser|protecta|обрез/.test(n))power=20;else if(/форт|кора|удп|пмм|мартышка/.test(n))power=13;return Math.round(power*(Math.max(25,Number(item.condition??75))/100));}
 function startRandomEncounter(force=false){
  if(battle)return;
@@ -1298,6 +1313,12 @@ sell=function(id,amount=1){const x=g.items.find(i=>i.id===id);if(!x)return;amoun
 adjustDiplomacy=function(name,action){if(!zoneSocket?.connected)return alert('Подключись к общей Зоне, чтобы вести переговоры.');zoneSocket.emit('diplomacy:action',{target:name,action});};
 if($('mpMessage'))$('mpMessage').addEventListener('keydown',e=>{if(e.key==='Enter')mpSend();});
 connectZone();
+async function toggleGameFullscreen(){
+ try{
+  if(!document.fullscreenElement){await document.documentElement.requestFullscreen?.();}
+  else{await document.exitFullscreen?.();}
+ }catch(error){console.warn('Fullscreen mode is unavailable in this browser:',error);}
+}
 function openTitleScreen(){
  document.body.classList.add('title-screen-active');
  if($('titleScreen'))$('titleScreen').hidden=false;
