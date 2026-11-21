@@ -1,8 +1,8 @@
 {
   "name": "zone-online",
-  "version": "4.33.20",
+  "version": "4.33.21",
   "private": true,
-  "description": "ZONE ONLINE — PDA, living rankings, faction relations and full-screen technician repair PDA",
+  "description": "ZONE ONLINE — immersive S.T.A.L.K.E.R.-inspired title screen, PDA, living factions and multiplayer Zone",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",

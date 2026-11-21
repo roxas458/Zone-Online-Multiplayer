@@ -1,4 +1,4 @@
-// ZONE ONLINE 4.33.17 browser client. SURVIVAL / EXPEDITIONS / REPAIR WORKSHOP / DYNAMIC ECOLOGY.
+// ZONE ONLINE 4.33.21 browser client. IMMERSIVE TITLE SCREEN / SURVIVAL / MULTIPLAYER.
 const clone=o=>JSON.parse(JSON.stringify(o));
 const base={
  name:"Новичок",money:1450,hp:100,radiation:0,radiationProtectionUntil:0,stamina:85,hunger:18,thirst:20,rep:10,day:1,hour:9,loc:"cordon",faction:"Одиночки",xp:0,meetings:0,completed:0,flags:{metSid:false,metWolf:false,heardBar:false,foundArtifact:false,helpedWolf:false},
@@ -946,7 +946,7 @@ function confirmCharacter(){
  g.name=name;g.faction=setupFaction;g.characterCreated=true;const spawn=factionSpawn[setupFaction]||'cordon';g.loc=spawn;g.visitedLocations=[...new Set([...(g.visitedLocations||[]),spawn])];g.worldPosition=null;
  g.news.unshift({day:realClock().day,hour:realClock().time,title:'Регистрация завершена',body:`Сталкер ${name} зарегистрирован в КПК. Группировка: ${setupFaction}.`});
  g.log.unshift(`Позывной: ${name}. Группировка: ${setupFaction}. Начальная база: ${spawnNames[spawn]||spawn}.`);
- $('characterSetup').classList.remove('show');save();mpSyncLocation();
+ $('characterSetup').classList.remove('show');document.body.classList.remove('title-screen-active');save();mpSyncLocation();
 }
 
 // Turn-based fictional combat. It uses abstract game stats, not real-world tactics.
@@ -1293,4 +1293,29 @@ sell=function(id,amount=1){const x=g.items.find(i=>i.id===id);if(!x)return;amoun
 adjustDiplomacy=function(name,action){if(!zoneSocket?.connected)return alert('Подключись к общей Зоне, чтобы вести переговоры.');zoneSocket.emit('diplomacy:action',{target:name,action});};
 if($('mpMessage'))$('mpMessage').addEventListener('keydown',e=>{if(e.key==='Enter')mpSend();});
 connectZone();
-if(!g.characterCreated)openCharacterSetup();
+function openTitleScreen(){
+ document.body.classList.add('title-screen-active');
+ const hasSave=!!localStorage.getItem('zoneExpandedSave')&&!!g.characterCreated;
+ const resume=$('titleContinue'),load=$('titleLoad');
+ if(resume){resume.disabled=!hasSave;resume.querySelector('small').textContent=hasSave?`${g.name} · ${g.faction} · ${here()?.name||'Зона'}`:'Сохранение не найдено';}
+ if(load)load.disabled=!hasSave;
+}
+function continueZoneGame(){
+ $('titleCredits')?.setAttribute('hidden','');
+ document.body.classList.remove('title-screen-active');
+ if(!g.characterCreated){openCharacterSetup();return;}
+ $('characterSetup')?.classList.remove('show');render();renderOnlineWorldStatus?.();
+}
+function beginNewZoneGame(){
+ if(g.characterCreated&&!confirm('Начать новую игру? Текущее локальное сохранение будет заменено.'))return;
+ localStorage.removeItem('zoneExpandedSave');
+ g=clone(base);g.characterCreated=false;setupFaction='Одиночки';
+ document.body.classList.remove('title-screen-active');
+ $('titleScreen')?.setAttribute('hidden','');
+ openCharacterSetup();
+}
+function enterZoneOnline(){continueZoneGame();if(typeof menuGo==='function')menuGo('multiplayer');}
+function openTitleOptions(){continueZoneGame();if(typeof menuGo==='function')menuGo('settings');}
+function showTitleCredits(){$('titleCredits')?.removeAttribute('hidden');}
+function hideTitleCredits(){$('titleCredits')?.setAttribute('hidden','');}
+if(!g.characterCreated)openTitleScreen();else openTitleScreen();
