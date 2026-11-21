@@ -20,7 +20,7 @@ test('online and offline walking use a slower movement speed', () => {
   assert.match(server, /createMoveOrder\(p,\{x:tx,y:ty\},Date\.now\(\),2\.5\)/);
 });
 
-test('4.33.27 confirms sector travel, routes sector clicks, and opens the whole-Zone map fullscreen', () => {
+test('4.33.28 confirms sector travel, routes sector clicks, and opens the whole-Zone map fullscreen', () => {
   assert.match(client, /function handleMapSectorSelect\(id\)/);
   assert.match(client, /confirm\(`Начать переход в сектор/);
   assert.match(client, /onclick=\"handleMapSectorSelect/);
