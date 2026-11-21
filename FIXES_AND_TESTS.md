@@ -21,3 +21,10 @@
 - Added disconnect and graceful-shutdown persistence.
 - Bumped browser cache keys to avoid stale polling JavaScript.
 - Automated tests: 100/100 pass; syntax checks pass.
+
+
+## 4.33.9
+- Default multiplayer server URL set to the known Render service.
+- WebSocket-first transport with polling fallback.
+- Added runtime Node version diagnostics.
+- Replaced procedural NPC nickname pools with curated stalker callsigns.

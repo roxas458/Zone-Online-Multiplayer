@@ -249,13 +249,13 @@ test('ONLINE WORLD exposes compact operational status', () => {
 const { ensureRandomNpcs } = require('../src/systems/npc-roster');
 const { buildDialogue } = require('../src/systems/npc-dialogue');
 const { initEcosystem, tickEcosystem, upgradeBase, createClan, joinClan } = require('../src/systems/ecosystem');
-test('ECOSYSTEM creates a persistent roster of oddly nicknamed supporting stalkers', () => {
+test('ECOSYSTEM creates a persistent roster of generated stalkers with Zone callsigns', () => {
   const world = { npcState: {}, npcPositions: {} };
   ensureRandomNpcs(world, 60);
   const generated = Object.values(world.npcState).filter(n => n.generated);
   assert.equal(generated.length, 60);
-  assert.ok(generated.some(n => /Спагетти|Табак|Пельмень|Болт|Чебурек|Бензин|Глобус|Бумага/.test(n.name)));
-  assert.ok(generated.some(n => n.name === 'Толик Бензин' || n.name === 'Кирюха Предатель' || n.name === 'Толя Факел'));
+  assert.ok(generated.some(n => /Глюк|Дворецкий|Скелет|Болт|Кабан|Беркут/.test(n.name)));
+  assert.ok(generated.some(n => n.name === 'Васян Глюк' || n.name === 'Лёша Дворецкий' || n.name === 'Максим Скелет'));
   const firstName = generated[0].name;
   ensureRandomNpcs(world, 60);
   assert.equal(world.npcState.wanderer_001.name, firstName);

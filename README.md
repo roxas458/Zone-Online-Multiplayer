@@ -54,3 +54,7 @@ All non-story NPC records are migrated to humorous two-part stalker callsigns on
 
 
 Version 4.33.4 additionally migrates NPC names stored in old browser saves, including locally-created `wander_*` NPCs. Only canonical story NPC IDs retain their authored names.
+
+
+### Version 4.33.9 — Multiplayer target and stalker callsigns
+The browser now connects to the configured Render multiplayer service by default, with WebSocket-first and polling fallback. Diagnostics expose the server Node.js version. Generated NPCs use a curated two-part stalker callsign generator; old generated names migrate deterministically while canonical story characters remain unchanged.

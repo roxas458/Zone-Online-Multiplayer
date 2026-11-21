@@ -1,5 +1,11 @@
 # Changelog
 
+## 4.33.9 — Multiplayer target and stalker callsigns
+- Defaulted the browser client to the known Render multiplayer server, fixing same-origin targeting when the frontend is hosted separately.
+- Added WebSocket-first Socket.IO fallback to polling and surfaced the runtime Node version in diagnostics.
+- Replaced procedural NPC name pools with deterministic, two-part stalker callsigns.
+
+
 ## 4.33.8 — Restore stable WebSocket multiplayer
 - Restored the original WebSocket-only transport on both browser and server; removed the polling-only workaround.
 - Added randomized reconnect backoff while retaining automatic reconnection.
@@ -8,6 +14,12 @@
 - Bumped static asset cache keys to 4.33.8 so browsers do not keep the old polling client.
 
 # Changelog
+
+## 4.33.9 — Multiplayer target and stalker callsigns
+- Defaulted the browser client to the known Render multiplayer server, fixing same-origin targeting when the frontend is hosted separately.
+- Added WebSocket-first Socket.IO fallback to polling and surfaced the runtime Node version in diagnostics.
+- Replaced procedural NPC name pools with deterministic, two-part stalker callsigns.
+
 
 ## 4.33.4 — Stability and validation fixes
 - Persisted player-state canonical fields are now clamped in the actual saved state, not only in the validation summary; zero HP remains zero.

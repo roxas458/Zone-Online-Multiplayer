@@ -69,7 +69,8 @@ const io = new Server(server, {
   cors: { origin: true, methods: ['GET','POST'] },
   // Keep the original single-connection transport. Render supports WebSockets;
   // polling can fail when successive requests are routed to different instances.
-  transports: ['websocket'],
+  transports: ['websocket','polling'],
+  allowUpgrades: true,
   pingInterval: 20000,
   pingTimeout: 45000,
   connectTimeout: 30000,
@@ -87,7 +88,7 @@ const SPAWN_BY_FACTION = Object.freeze({'Одиночки':'cordon','Долг':'
 app.use(express.json({limit:'64kb'}));
 app.use(express.static(path.join(__dirname, 'public')));
 app.get('/health', (_req,res) => { res.set('Access-Control-Allow-Origin','*'); res.set('Cache-Control','no-store'); res.status(200).json({ ok:true, service:'ZONE ONLINE', version:require('./package.json').version, database:dbReady?'postgres':'memory-fallback', databaseRequiredForAccounts:false, online:online.size, revision:world.revision||1, timestamp:Date.now() }); });
-app.get('/api/diagnostics', (_req,res) => { res.set('Access-Control-Allow-Origin','*'); res.set('Cache-Control','no-store'); res.json({ ok:true, version:require('./package.json').version, multiplayer:true, guestMode:true, database:dbReady?'postgres':'memory-fallback', online:online.size, socketPath:'/socket.io', transports:['websocket'], transportMode:'websocket-only', timestamp:Date.now() }); });
+app.get('/api/diagnostics', (_req,res) => { res.set('Access-Control-Allow-Origin','*'); res.set('Cache-Control','no-store'); res.json({ ok:true, version:require('./package.json').version, multiplayer:true, guestMode:true, database:dbReady?'postgres':'memory-fallback', online:online.size, socketPath:'/socket.io', transports:['websocket','polling'], transportMode:'websocket-first-with-polling-fallback', node:process.version, nodeMajor:Number(process.versions.node.split('.')[0]), timestamp:Date.now() }); });
 app.get('/api/status', (_req,res) => res.json({ ...publicWorldStatus(world, online.size), persistent:dbReady, service:`ZONE ONLINE ${require('./package.json').version} SURVIVAL & EXPEDITIONS` }));
 app.get('/api/world/snapshot', (_req,res) => res.json({ status:publicWorldStatus(world, online.size), world }));
 app.get('/api/world/events', (req,res) => { const since=Number(req.query.since||0); const sync=buildWorldSync(world, Number.isSafeInteger(since)?since:0); res.json(sync); });
@@ -629,7 +630,7 @@ setInterval(async()=>{
   world.zoneEvents ||= [];world.zoneEvents.push(event);world.zoneEvents=world.zoneEvents.slice(-30);const syncEvent=appendWorldEvent(world,'zone_event',event,event.at);
   try{await persistWorld();io.emit('world:zoneEvent',event);io.emit('world:event',syncEvent);io.emit('world:status',publicWorldStatus(world,online.size));}catch(e){console.error('Zone event:',e.message);}
 },4*60*1000).unref();
-initDb().catch(e=>{console.error('Database bootstrap error:',e);}).finally(()=>server.listen(PORT,'0.0.0.0',()=>console.log(`ZONE ONLINE listening on ${PORT}`)));
+initDb().catch(e=>{console.error('Database bootstrap error:',e);}).finally(()=>server.listen(PORT,'0.0.0.0',()=>console.log(`ZONE ONLINE listening on ${PORT} node=${process.version} socketTransports=websocket,polling`)));
 server.on('error',error=>{console.error('HTTP server failed to start:',error);process.exitCode=1;});
 let shutdownStarted=false;
 async function gracefulShutdown(signal){

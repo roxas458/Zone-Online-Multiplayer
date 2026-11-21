@@ -68,13 +68,13 @@ let chosenLoc=null,activeNpc=null,questFilter="all";
 const $=id=>document.getElementById(id);
 // Convert legacy locally-saved random NPCs as well as server NPCs to Zone callsigns.
 const STORY_NPC_IDS=new Set(['sid','wolf','fanatic','scout','bandit','barman','seriy','scientist','merc','prof','freedom','guide','loner','lebedev','novikov','cold','renegade_leader','renegade_scout','lukash','voronin','sultan','beard','charon','wolfhound','archivist','kravtsov','monolith_scout']);
-const CALLSIGN_FIRST=['Толик','Кирюха','Васько','Колян','Данёк','Влад','Серёга','Ростик','Вася','Геныч','Мишаня','Лёха','Костян','Жека','Федя','Тимоха','Ярик','Гриша','Славик','Ромыч','Паштет','Егорка','Борька','Стасон','Санёк','Петруха','Вован','Гоша','Тарас','Сёма','Фома','Кэп','Док','Шило','Крот','Грач','Филин','Бублик','Шрам','Кабан'];
-const CALLSIGN_LAST=['Бензин','Предатель','Безумный','Факел','Бумага','Крыса','Гимназист','Хранитель','Шутник','Адвокат','Глобус','Умный','Спагетти','Пельмень','Шуруп','Кефир','Бублик','Картридж','Сухарь','Болт','Кирпич','Шпрот','Самовар','Квас','Чебурек','Комар','Фонарик','Пончик','Гвоздь','Радар','Антенна','Дизель','Провод','Термос','Карась','Ёрш','Трактор','Пылесос','Утюг','Карандаш','КомпАс','Барометр','Изолента','Таракан','Будильник','Домкрат','Холодец','Мухомор','Пугливый','Тихоня','Шальной','Хитрый','Копчёный','Молчун','Рыбак','Глухарь','Жмур','Боцман','Шаман','Крендель','Бродяга','Тормоз','Скрипач','Кочан','Тюбик','Батон','Кекс','Косарь','Шашлык','Патефон','Рупор','Штопор','Мотор','Поршень','Кувалда','Кирзач','Валенок','Камыш','Пень','Борщ','Рассол','Салага','Космонавт','Пилот','Штурман','Картограф','Сапёр','Слесарь','Электрик','Связист','Радист','Одеколон','Мармелад','Бурундук','Хомяк','Барсук','Енот','Суслик','Порох','Рикошет','Гильза','Обойма','Ржавый','Сонный','Голодный','Шустрый','Зоркий','Угрюмый','Фартовый','Невезучий','Одноглазый','Кривой','Ловкач','Ворчун','Добряк','Злюка','Тихий','Громкий','Мокрый','Пыльный','Чумазый','Скиталец','Потеряшка','Фокусник','Зевака','Нытик','Балагур','Молчун','Врун','Правдоруб','Хвастун','Лентяй','Дозорный','Часовой','Патрульный','Салага','Старшой','Новобранец','Прапор','Дезертир','Беглец','Пришлый','Залётный','Призрак','Тень','Пепел','Искра','Фитиль','Фонарь','Светляк','Болотник','Лесник','Степняк','Шахтёр','Механик','Водила','Шофёр','Тракторист','Монтёр','Ремонтник','Жестянщик','Гайковёрт','Шуруповёрт','Молоток','Ломик','Монтировка','Шиномонтажник','Сухпай','Чайник','Кружка','Котелок','Рукав','Карман','Очкарик','Монокль','Бинокль','КПК','Пейджер','Магнитола','Шумодав','Маяк','Помеха','Скрежет','Треск','Шорох','Завхоз','Кладовщик','Самогон','Кисель','Компот','Вареник','Галушка','Пирожок','Беляш','Чебур','Шаурма','Кабачок','Огурчик','Помидор','Укроп','Вафля','Пряник','Сухарик','Козинак','Ириска','Шоколад','Сахар','Соль','Корица','Доцент','Лектор','Дипломат','Прокурор','Судья','Нотариус','Фотограф','Художник','Баянист','Гитарист','Комик','Знахарь','Лекарь','Доктор','Фельдшер','Санитар','Костоправ','Псих','Чудак','Философ','Мечтатель','Паникёр','Зануда','Весельчак','Сплетник','Сказочник','Растяпа','Раззява','Неряха','Педант','Трудяга','Грубиян','Задира','Забияка','Миротворец','Посредник','Смотрящий','Сторож','Разведчик','Штурмовик','Снайпер','Стрелок','Минёр','Подрывник','Диверсант','Партизан','Ветеран','Рядовой','Курсант','Уставник','Странник','Пилигрим','Кочевник','Бездомный','Невезунчик','Счастливчик','Роковой','Последний','Лишний','Запасной','Дублёр','Эхо','Шёпот','Мрак','Туман','Дым','Уголь','Огонёк','Костёр','Спичка','Зажигалка','Прожектор','Лампочка','Речник','Озерник','Путеец','Металлист','Сварщик','Токарь','Фрезеровщик','Моторист','Дальнобой','Энергетик','Электронщик','Жесть','Ржавчина','Коррозия','Окисел','Накипь','Гарь','Сажа','Копоть','Пыль','Песок','Глина','Щебень','Бетонщик','Каменщик','Плотник','Столяр','Сантехник','Трубочист','Отвёртка','Напильник','Рубанок','Ножовка','Колун','Топорик','МокрыйНос','РадиоГолова','МастерКостра','ПыльныйШлем','РжавыйКлюч','ДикийГусь','ГолодныйЁж','УставшийВолк','КосмическийГриб','БатарейкаСела','СвязиНет','ВнеЗоны','НеВолнуйся','ВсёПутём','НеСегодня','ТутНедалеко','НеТудаСвернул','ЧерезБолото','БезДетектора','НаПоследнемПатроне','ГдеМойРюкзак','НеТрогайАртефакт','НашёлИПотерял','ТретийЛишний','ПятыйЭлемент','ДваПроцента','НольПатронов','ПоследняяБанка','КрайнийПаёк','ЗапаснойМагазин','СоседПоКостру','ДежурныйПоЧаю','МастерЧая','ЧайныйГриб'];
+const CALLSIGN_FIRST=['Васян','Лёша','Максим','Серый','Костя','Жека','Димон','Рома','Саня','Федя','Гриша','Вован','Тоха','Илюха','Мишаня','Егор','Борис','Тимур','Кир','Паша','Витёк','Глеб','Антон','Ярик','Стас','Даня','Аркадий','Захар','Игнат','Сева','Клим','Ратибор','Фома','Гена','Лёня','Трофим','Матвей','Славик','Кабан','Крот','Шрам','Грач','Филин','Боцман','Док','Шило','Клык','Седой','Батя','Малой'];
+const CALLSIGN_LAST=['Глюк','Дворецкий','Скелет','Бес','Шрам','Клык','Крот','Грач','Филин','Болт','Шуруп','Кабан','Беркут','Сыч','Глухарь','Рысь','Ворон','Барс','Боцман','Прапор','Дизель','Факел','Ржавый','Сухарь','Патрон','Гильза','Рикошет','Затвор','Приклад','Калибр','Сапёр','Механик','Связист','Радист','Сталкер','Бродяга','Скиталец','Фартовый','Тихий','Хмурый','Лютый','Шальной','Косой','Седой','Рыжий','Мрачный','Зоркий','Бывалый','Старый','Лесник','Болотник','Туман','Пепел','Дым','Уголь','Мотор','Порох','Гвоздь','Лом','Топор','Медведь','Вепрь','Ястреб','Сокол','Барсук','Ёрш','Карась','Шершень','Комар','Пиявка','Мухомор','Камень','Бетон','Кирпич','Рубеж','Периметр','Дозор','Следопыт','Проводник','Торговец','Доктор','Лекарь','Капкан','Мародёр','Зверь','Пёс','Волк','Зубр','Танк','Кремень','Пузырь','Хмель','Кочегар','Монтёр','Слесарь','Трактор','Домкрат','Картечь','Дробь','Магнит','Радар','Маяк','Шторм','Гром','Вихрь','Север','Южак','Батон','Кекс','Пломбир','Кефир','Бублик','Шпрот','Пончик','Ирис','Самовар','Квас','Чебур'];
 function migrateLocalNpcCallsigns(){
  const used=new Set((g.npcs||[]).filter(n=>STORY_NPC_IDS.has(n.id)).map(n=>String(n.name||'').trim()));
  for(const npc of (g.npcs||[])){
   if(!npc||STORY_NPC_IDS.has(npc.id))continue;
-  const id=String(npc.id||'unknown-npc');let h=2166136261;
+  const id=String(npc.id||'unknown-npc');const featured=({'wander_cordon_0':'Васян Глюк','wander_cordon_1':'Лёша Дворецкий','wander_cordon_2':'Максим Скелет'}[id]);if(featured&&!used.has(featured)){npc.name=featured;used.add(featured);npc.generated=true;continue;}let h=2166136261;
   for(let i=0;i<id.length;i++){h^=id.charCodeAt(i);h=Math.imul(h,16777619);}
   h>>>=0;let name='';
   for(let step=0;step<CALLSIGN_FIRST.length*CALLSIGN_LAST.length;step++){
@@ -99,7 +99,7 @@ function migrateWorld(){
  g.locations=base.locations.map(def=>{const oldLoc=(g.locations||[]).find(x=>migrateLoc(x.id)===def.id);return oldLoc?{...clone(def),owner:oldLoc.owner||def.owner,control:oldLoc.control??def.control}:clone(def)});
  for(const f of g.factions){const b=base.factions.find(x=>x.name===f.name);if(b&& !f.icon)f.icon=b.icon;}
  g.achievements ||= {}; g.diplomacy ||= {};
- const names=["Толик Бензин","Кирюха Предатель","Васько Безумный","Толя Факел","Колян Бумага","Данёк Крыса","Влад Гимназист","Серёга Хранитель","Колян Шутник","Влад Адвокат","Ростик Глобус","Вася Умный","Геныч Спагетти","Мишаня Пельмень","Лёха Шуруп","Костян Кефир","Жека Бублик","Федя Картридж","Тимоха Сухарь","Ярик Болт","Гриша Кирпич","Славик Шпрот","Ромыч Самовар","Паштет Квас","Егорка Чебурек","Борька Комар","Стасон Фонарик","Санёк Пончик","Петруха Гвоздь","Вован Радар","Гоша Антенна","Тарас Дизель","Сёма Провод","Фома Термос","Рыжий Карась","Хмурый Ёрш","Шустрый Трактор","Тихон Пылесос","Батя Утюг","Малой Карандаш","Кэп Компас","Док Барометр","Шило Изолента","Грач Таракан","Филин Будильник","Кабан Домкрат","Пузырь Холодец","Сухарь Мухомор"];
+ const names=['Васян Глюк','Лёша Дворецкий','Максим Скелет','Серый Шрам','Костя Клык','Жека Крот','Димон Грач','Рома Филин','Саня Болт','Федя Кабан','Гриша Беркут','Вован Сыч'];
  const roles=["Одиночка","Разведчик","Торговец","Проводник","Охотник за артефактами","Научный помощник"];
  const icons=["◉","♟","⌖","▣","⚑","◈","✚","☼"];
  const factions=g.factions.map(x=>x.name);
@@ -944,7 +944,7 @@ function setOnlineConnectionState(state,message){
 async function runNetworkCheck(){
  const output=$('mpDiagnosticsResult');if(output)output.textContent='Проверяем сервер и Socket.IO…';
  const saved=(localStorage.getItem('zoneServerUrl')||'').trim();
- const target=saved||window.location.origin;
+ const target=saved||DEFAULT_ZONE_SERVER_URL;
  const checks=[];
  try{
   const healthResponse=await fetch(target.replace(/\/$/,'')+'/health',{cache:'no-store'});
@@ -954,14 +954,16 @@ async function runNetworkCheck(){
   const diag=await diagResponse.json();
   checks.push(`Мультиплеер: ${diag.multiplayer?'включён':'не подтверждён'} · игроков онлайн: ${diag.online??'—'}`);
   checks.push('Режим: гостевой вход без регистрации и пароля');
-  checks.push(`Socket.IO: ${diag.socketPath||'/socket.io'} · ${Array.isArray(diag.transports)?diag.transports.join(' → '):'неизвестно'}`);
+  checks.push(`Socket.IO: ${diag.socketPath||'/socket.io'} · ${Array.isArray(diag.transports)?diag.transports.join(' → '):'неизвестно'} · Node ${diag.node||'неизвестно'}`);
  }catch(error){checks.push(`HTTP /health: ОШИБКА · ${error.message||'сеть недоступна'}`);}
  checks.push(`Браузерный Socket.IO: ${typeof io==='function'?'загружен':'не загружен'}`);
+ checks.push(`Адрес подключения: ${target}`);
  checks.push(`Текущее соединение: ${zoneSocket?.connected?'подключено':'не подключено'}`);
  if(output)output.textContent=checks.join(' | ');
  return checks;
 }
 
+const DEFAULT_ZONE_SERVER_URL='https://zone-online-multiplayer.onrender.com';
 async function connectZone(){
  const connectAttempt=++zoneConnectAttempt;
  const queryMatch=String(window.location.search||'').match(/[?&]server=([^&]+)/);let queryServer=null;try{queryServer=queryMatch?decodeURIComponent(queryMatch[1].replace(/\+/g,' ')):null;}catch(error){console.warn('Invalid server URL query parameter:',error.message);}if(queryServer&&!localStorage.getItem('zoneServerUrl')){try{const u=new URL(queryServer);if(['http:','https:'].includes(u.protocol))localStorage.setItem('zoneServerUrl',u.origin);}catch{}}
@@ -972,10 +974,11 @@ async function connectZone(){
   return;
  }
  const sameOrigin=window.location.origin;
- let serverUrl=(localStorage.getItem('zoneServerUrl')||'').trim();
+ let serverUrl=(localStorage.getItem('zoneServerUrl')||DEFAULT_ZONE_SERVER_URL).trim();
+ if(!localStorage.getItem('zoneServerUrl'))localStorage.setItem('zoneServerUrl',serverUrl);
  if(serverUrl){
   try{const parsed=new URL(serverUrl);if(!['http:','https:'].includes(parsed.protocol))throw new Error('Неподдерживаемый протокол');serverUrl=parsed.origin;}
-  catch(error){console.warn('Discarding invalid saved multiplayer server URL:',error.message);serverUrl='';localStorage.removeItem('zoneServerUrl');}
+  catch(error){console.warn('Discarding invalid saved multiplayer server URL:',error.message);serverUrl=DEFAULT_ZONE_SERVER_URL;localStorage.setItem('zoneServerUrl',serverUrl);}
  }
  // Do not gate Socket.IO on an HTTP health preflight. Render free instances may
  // be asleep; a slow /health response must never erase the user's configured URL
@@ -995,10 +998,11 @@ async function connectZone(){
  }
  if($('mpServerUrl') && $('mpServerUrl').value!==serverUrl)$('mpServerUrl').value=serverUrl;
  try{
-  // Use the original WebSocket-only transport. It avoids Engine.IO polling
-  // session affinity issues and is natively supported by Render Web Services.
+  // Prefer WebSocket, but allow Socket.IO to fall back to HTTP polling when a
+  // proxy or client network blocks WebSocket upgrades.
   zoneSocket=io(serverUrl||undefined,{
-   transports:['websocket'],
+   transports:['websocket','polling'],
+   tryAllTransports:true,
    timeout:30000,
    reconnection:true,
    reconnectionAttempts:Infinity,

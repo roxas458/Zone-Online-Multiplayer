@@ -42,3 +42,10 @@ All NPCs outside the explicit story-character whitelist are converted to unique 
 - Added last-state persistence on real disconnect and graceful state flush on SIGTERM/SIGINT.
 - Bumped script query versions to 4.33.8 to force clients off cached polling code.
 - Local checks: 100/100 automated tests pass; all JavaScript syntax checks pass. Live Render validation is still required.
+
+
+## 4.33.9 follow-up
+- The client now targets the previously configured Render multiplayer service by default; the prior build could incorrectly target the static frontend origin when no URL had been saved in browser storage.
+- Socket.IO now prefers WebSocket and permits polling fallback rather than hard-failing on a network that blocks WebSocket.
+- Runtime Node version is included in diagnostics; Render Blueprint pins Node 22.16.0.
+- Generated NPC names now use a curated two-part stalker callsign pool and are deterministically migrated; named story NPCs are preserved.
