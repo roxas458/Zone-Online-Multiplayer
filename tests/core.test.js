@@ -231,7 +231,9 @@ test('anti-radiation consumable is available in the shared server market', () =>
 test('NPC interaction requires same location and builds personal trust', () => {
   const npc = createNpcRoster({ sid:'cordon' }, 100).sid;
   assert.equal(interactWithNpc(npc,{id:'p1',location:'dump'},'greet').ok,false);
-  const result = interactWithNpc(npc,{id:'p1',location:'cordon'},'help',200);
+  const { npcWorldPosition } = require('../src/systems/proximity');
+  const pos = npcWorldPosition(npc);
+  const result = interactWithNpc(npc,{id:'p1',location:'cordon',position:pos},'help',200);
   assert.equal(result.ok,true);
   assert.equal(result.relationship,5);
   assert.match(result.reply,/помощь/);

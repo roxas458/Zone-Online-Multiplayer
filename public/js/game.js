@@ -1,4 +1,4 @@
-// ZONE ONLINE 4.33.25 browser client. IMMERSIVE TITLE SCREEN / SURVIVAL / MULTIPLAYER.
+// ZONE ONLINE 4.33.26 browser client. IMMERSIVE TITLE SCREEN / SURVIVAL / MULTIPLAYER.
 const clone=o=>JSON.parse(JSON.stringify(o));
 const base={
  name:"Новичок",money:1450,hp:100,radiation:0,radiationProtectionUntil:0,stamina:85,hunger:18,thirst:20,rep:10,day:1,hour:9,loc:"cordon",faction:"Одиночки",xp:0,meetings:0,completed:0,flags:{metSid:false,metWolf:false,heardBar:false,foundArtifact:false,helpedWolf:false},
@@ -389,7 +389,7 @@ function nearbyNpcs(){syncNpcRosterToClient();return here().people.map(npcBy).fi
 function addQuest(id){let q=g.quests.find(q=>q.id===id);if(q&&!q.accepted&&!q.done){q.accepted=true;log("Получено задание: "+q.title);news("Новое задание",q.title+" — "+q.desc)}}
 function showNpcDialogue(){const overlay=$('npcDialogueOverlay');if(overlay){overlay.classList.add('open');overlay.setAttribute('aria-hidden','false');document.body.classList.add('dialogue-open');}}
 function dialogueTarget(){return $('dialogueBox')}
-function meet(id){let n=npcBy(id);if(!n||n.loc!==g.loc)return;activeNpc=id;g.meetings++;
+function meet(id){let n=npcBy(id);if(!n||n.loc!==g.loc)return;if(!npcInInteractionRange(n))return alert('Подойди ближе к NPC. Радиус взаимодействия — 52 м.');activeNpc=id;g.meetings++;
 log("Встреча: "+n.name+".");view("people");renderPeople();startTalk(id);save()}
 
 function renderCopDialogue(n, message, choices){
@@ -406,7 +406,7 @@ function renderCopDialogue(n, message, choices){
  choiceBox.innerHTML=(choices||[]).map((t,i)=>`<button type="button" onclick="topic('${escapeHtml(n.id)}',${i})">${escapeHtml(t[0])}</button>`).join('')+(n.role==='техник'?`<button type="button" class="dialogue-trade-action" onclick="openRepairWorkshop('${escapeHtml(n.id)}')">⚙ Мастерская: ремонт оружия и брони</button>`:'')+`<button type="button" class="dialogue-trade-action" onclick="closeTalk();openNpcTrade('${escapeHtml(n.id)}')">Торговать</button>`;
 }
 function startTalk(id){
- let n=npcBy(id);if(!n)return;
+ let n=npcBy(id);if(!n)return;if(!npcInInteractionRange(n))return alert('Ты слишком далеко. Чтобы поговорить, подойди на расстояние 52 м.');
  const live=serverWorld?.npcState?.[id];
  if(live?.dialogue){
   if(live.generated){n.greeting=live.dialogue.greeting;n.topics=live.dialogue.topics;}
@@ -420,6 +420,7 @@ function startTalk(id){
  renderQuick();
 }
 function topic(id,i){
+ const npc=npcBy(id);if(npc&&!npcInInteractionRange(npc))return alert('Ты отошёл слишком далеко от сталкера. Подойди ближе (52 м).');
  if(zoneSocket?.connected){zoneSocket.emit("npc:interact",{npcId:id,action:"topic",topicIndex:i});return;}
  let n=npcBy(id),t=n?.topics?.[i];if(!n||!t)return;
  let result=t[1];
@@ -479,7 +480,7 @@ function setGameOption(key,value){
 }
 function applyGameOptions(){for(const [key,value] of Object.entries(g.options||{})){document.body.classList.toggle(key==='largeText'?'large-text':key==='reduceMotion'?'reduce-motion':'compact-ui',!!value);}}
 function npcServerAction(npcId,action){
- const npc=npcBy(npcId);if(!npc)return;
+ const npc=npcBy(npcId);if(!npc)return;if(!npcInInteractionRange(npc))return alert('Подойди ближе к сталкеру. Радиус взаимодействия — 52 м.');
  if(zoneSocket?.connected&&zonePlayerReady){zoneSocket.emit('npc:interact',{npcId,action});return;}
  // Offline fallback keeps NPC rumor interaction playable even when the online world is unavailable.
  const rumors=['На старой дороге заметили свежий патруль. Не суйся туда без разведки.','Торговцы ждут караван с медикаментами. Говорят, он задержался у Свалки.','На Янтаре вырос фон. Учёные просят не приближаться к старому корпусу.','На севере ищут проводника, который знает обход вокруг блокпоста.','У костра шепчутся, что один из тайников недавно вскрыли.'];
@@ -512,7 +513,7 @@ function repairWorkshopItemCard(item,npc,selectedId){
 }
 let repairSelectedItemId=null;
 function openRepairWorkshop(npcId){
- const npc=npcBy(npcId);if(!npc||npc.role!=='техник')return alert('Здесь нет техника, который может выполнить ремонт.');
+ const npc=npcBy(npcId);if(npc&&!npcInInteractionRange(npc))return alert('Подойди к технику ближе. Радиус обслуживания — 52 м.');if(!npc||npc.role!=='техник')return alert('Здесь нет техника, который может выполнить ремонт.');
  if(npc.loc!==g.loc)return alert('Техник должен находиться в текущей локации.');
  if(npc.id.startsWith('faction-tech-')&&npc.faction!==g.faction)return alert(`Этот техник служит группировке «${npc.faction}». Ремонт у него доступен только своим.`);
  const gear=repairableGear();const selected=gear.find(x=>x.id===repairSelectedItemId)||gear.find(x=>x.name===g.equipment?.weapon)||gear.find(x=>x.name===g.equipment?.suit)||gear[0]||null;repairSelectedItemId=selected?.id||null;
@@ -705,7 +706,7 @@ function renderArchive(){
  $("storyCampaign").innerHTML=qs.map(q=>{const state=g.quests.find(x=>x.id===q.id);return `<div class="item block"><div class="eyebrow">${escapeHtml(q.chapter)}</div><b>${escapeHtml(q.title)}</b><div class="desc">Выдал: ${escapeHtml(q.giver)} · ${q.reward} ₽ · ${q.xp} опыта</div><p class="small">${escapeHtml(q.desc)}</p><span class="tag">${state?.done?'Завершено':state?.accepted?'Активно':'Ожидает контакта'}</span></div>`}).join("");
 }
 let zoneMapZoom=1,zoneMapMode='zone',walkTimer=null,walkTarget=null,lastPositionSync=0,pendingSectorExit=null,zoneMapHasRendered=false,zoneMapDirty=true;
-let zoneMapCenter=null,zoneMapPointer=null,zoneMapSuppressClick=false;
+let zoneMapCenter=null,zoneMapPointer=null,zoneMapSuppressClick=false,mapRadiusTarget=null;
 let playerFacing='down',playerMoving=false,playerFrame=0,playerMoveTarget=null;
 // Collision rectangles are editable world-space bounds (1000 x 2000). These first-pass
 // blockers cover the clearest large structures visible on the supplied satellite map.
@@ -766,6 +767,11 @@ function npcMapPosition(n,index=0){
  if(!pos||pos.loc!==loc){let seed=hashMapSeed(id+'|'+loc),rand=()=>{seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/4294967296};const angle=rand()*Math.PI*2,radius=28+rand()*112;pos={loc,x:center[0]+Math.cos(angle)*radius,y:center[1]+Math.sin(angle)*radius,phase:rand()*Math.PI*2};npcMapPositions.set(id,pos)}
  return [pos.x,pos.y];
 }
+function npcInteractionPosition(n){const p=npcMapPosition(n);return {x:p[0],y:p[1]};}
+function npcDistance(n){const p=playerWorldPosition(),q=npcInteractionPosition(n);return Math.hypot(p.x-q.x,p.y-q.y);}
+function npcInInteractionRange(n){return !!n&&(n.loc||n.location)===g.loc&&npcDistance(n)<=52;}
+function npcInCombatRange(n){return !!n&&(n.loc||n.location)===g.loc&&npcDistance(n)<=112;}
+function showMapNpcRadius(id){const n=npcBy(id);if(!n)return;mapRadiusTarget=id;zoneMapMode=(n.loc||n.location)===g.loc?'local':'zone';const p=npcMapPosition(n);zoneMapCenter={x:p[0],y:p[1]};zoneMapDirty=true;renderZoneMap();}
 function driftNpcMapPositions(){
  for(const n of (g.npcs||[])){if(n.alive===false||Number.isFinite(n.x)&&Number.isFinite(n.y))continue;const p=npcMapPosition(n);const state=npcMapPositions.get(String(n.id||n.name));if(!state)continue;state.phase+=.22;const c=zoneSectorCoords[state.loc]||zoneSectorCoords.cordon;const radius=Math.hypot(state.x-c[0],state.y-c[1]);const angle=Math.atan2(state.y-c[1],state.x-c[0])+.035;const r=Math.max(24,Math.min(145,radius+Math.sin(state.phase)*1.4));state.x=c[0]+Math.cos(angle)*r;state.y=c[1]+Math.sin(angle)*r;}
  if($('world')?.classList.contains('active'))renderZoneMap();
@@ -780,7 +786,7 @@ function renderZoneMap(){
  const allNpcs=zoneMapMode==='zone'?(serverWorld?.npcState?Object.values(serverWorld.npcState):g.npcs||[]):(g.npcs||[]).filter(n=>(n.loc||n.location)===g.loc);
  const living=allNpcs.filter(n=>n.alive!==false).slice(0,400),squadBuckets=new Map();
  for(const n of living){const key=n.squadId||`solo_${n.id}`;if(!squadBuckets.has(key))squadBuckets.set(key,[]);squadBuckets.get(key).push(n);}
- overlays+=[...squadBuckets.values()].map((members,i)=>{const lead=members[0],loc=lead.location||lead.loc,pts=members.map(n=>npcMapPosition(n,i)).filter(Boolean);if(!pts.length)return '';const x=pts.reduce((a,p)=>a+p[0],0)/pts.length,y=pts.reduce((a,p)=>a+p[1],0)/pts.length,cls=npcMarkerClass(lead),activity=({campfire:'у костра',guard:'на посту',patrol:'патруль',rest:'отдыхает',travel:'в пути',assault:'выдвигается',mission:'выполняет приказ',combat:'в бою',retreat:'отступает'})[lead.behavior||lead.action]||'на базе',names=members.map(n=>n.name).join(', '),label=`Отряд «${lead.squadName||lead.squadId||'сталкеры'}» · ${members.length} бойца(ов) · ${lead.faction||'нейтралы'} · ${locationName(loc)} · ${activity}`,key=lead.squadId||lead.id;return mapSquadPoint(x,y,cls,label,members.length,`onclick="showMapSquad('${esc(key)}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();showMapSquad('${esc(key)}')}"`,npcHeading(lead,i),names)}).join('');
+ overlays+=[...squadBuckets.values()].map((members,i)=>{const lead=members[0],loc=lead.location||lead.loc,pts=members.map(n=>npcMapPosition(n,i)).filter(Boolean);if(!pts.length)return '';const x=pts.reduce((a,p)=>a+p[0],0)/pts.length,y=pts.reduce((a,p)=>a+p[1],0)/pts.length,cls=npcMarkerClass(lead),activity=({campfire:'у костра',guard:'на посту',patrol:'патруль',rest:'отдыхает',travel:'в пути',assault:'выдвигается',mission:'выполняет приказ',combat:'в бою',retreat:'отступает'})[lead.behavior||lead.action]||'на базе',names=members.map(n=>n.name).join(', '),label=`Отряд «${lead.squadName||lead.squadId||'сталкеры'}» · ${members.length} бойца(ов) · ${lead.faction||'нейтралы'} · ${locationName(loc)} · ${activity}`,key=lead.squadId||lead.id;return mapSquadPoint(x,y,cls,label,members.length,`onclick="showMapNpcRadius('${esc(lead.id)}');showMapSquad('${esc(key)}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();showMapNpcRadius('${esc(lead.id)}');showMapSquad('${esc(key)}')}"`,npcHeading(lead,i),names)}).join('');
  for(const c of (serverWorld?.convoys||[]).filter(x=>x.status==='moving'||x.status==='ambushed')){const q=sectorMarkerPosition(c.location,12);if(q)overlays+=mapPoint(q[0]+7,q[1]+7,'marker-convoy',`Караван ${c.faction} · ${c.status}`);}
  const eco=ecologyData();
  for(const [i,pack] of (eco.mutantPacks||[]).entries()){if(zoneMapMode==='local'&&pack.location!==g.loc)continue;const q=sectorMarkerPosition(pack.location,20+i);if(q)overlays+=`<g class="world-marker marker-mutant" role="button" tabindex="0" aria-label="Мутанты: ${esc(pack.species)}, ${Number(pack.count)||0}" onclick="showMapMutants('${esc(pack.id)}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();showMapMutants('${esc(pack.id)}')} " transform="translate(${q[0]-10} ${q[1]+9})"><circle class="marker-pulse" r="9"/><circle class="marker-dot" r="5"/><text text-anchor="middle" y="3">☣</text><title>${esc(pack.species)} ×${pack.count} · ${locationName(pack.location)} · агрессия ${pack.aggression}%</title></g>`;}
@@ -792,7 +798,7 @@ function renderZoneMap(){
  const moveRoute=playerMoveTarget?`<path class="player-waypoint-route" d="M${me.x} ${me.y} L${playerMoveTarget.x} ${playerMoveTarget.y}"/><g class="player-waypoint" transform="translate(${playerMoveTarget.x} ${playerMoveTarget.y})"><circle r="8"/><path d="M-4 0H4M0 -4V4"/></g>`:'';
  const meDot=playerDotMarkup(me);
  const v=currentMapView(),view=`${v.x} ${v.y} ${v.w} ${v.h}`;
- $('zoneMap').innerHTML=`<svg id="zoneMapSvg" viewBox="${view}" preserveAspectRatio="xMidYMid meet" onwheel="event.preventDefault();mapZoom(event.deltaY<0?1:-1)" onpointerdown="mapPointerDown(event)" onpointermove="mapPointerMove(event)" onpointerup="mapPointerUp(event)" onpointercancel="mapPointerUp(event)" aria-label="${zoneMapMode==='zone'?'Карта Зоны':'Карта '+(here()?.name||'локации')}"><image href="/assets/zone-master-map.jpg" x="0" y="0" width="1000" height="2000" preserveAspectRatio="none"/><rect x="0" y="0" width="1000" height="2000" fill="#10170f" opacity=".08"/><g class="map-region-layer">${regions}</g>${edges}${npcRoutes}${moveRoute}<g class="map-marker-layer">${overlays}${meDot}</g><g class="map-compass" transform="translate(920 110)"><circle r="28"/><path d="M0 -20L7 7 0 2 -7 7Z"/><text y="-38" text-anchor="middle">N</text></g></svg><div id="mapEntityCard" class="map-entity-card" hidden></div>`;
+ $('zoneMap').innerHTML=`<svg id="zoneMapSvg" viewBox="${view}" preserveAspectRatio="xMidYMid meet" onwheel="event.preventDefault();mapZoom(event.deltaY<0?1:-1)" onpointerdown="mapPointerDown(event)" onpointermove="mapPointerMove(event)" onpointerup="mapPointerUp(event)" onpointercancel="mapPointerUp(event)" aria-label="${zoneMapMode==='zone'?'Карта Зоны':'Карта '+(here()?.name||'локации')}"><image href="/assets/zone-master-map.jpg" x="0" y="0" width="1000" height="2000" preserveAspectRatio="none"/><rect x="0" y="0" width="1000" height="2000" fill="#10170f" opacity=".08"/><g class="map-region-layer">${regions}</g>${edges}${npcRoutes}${moveRoute}<g class="map-marker-layer">${mapRadiusTarget&&npcBy(mapRadiusTarget)?(()=>{const q=npcMapPosition(npcBy(mapRadiusTarget));return `<circle class="npc-range-combat" cx="${q[0]}" cy="${q[1]}" r="112"/><circle class="npc-range-talk" cx="${q[0]}" cy="${q[1]}" r="52"/>`;})():''}${overlays}${meDot}</g><g class="map-compass" transform="translate(920 110)"><circle r="28"/><path d="M0 -20L7 7 0 2 -7 7Z"/><text y="-38" text-anchor="middle">N</text></g></svg><div id="mapEntityCard" class="map-entity-card" hidden></div>${mapRadiusTarget?'<div class="map-range-legend"><span>52 м · разговор</span><span>112 м · бой</span><button onclick="mapRadiusTarget=null;renderZoneMap()">Скрыть радиус</button></div>':''}`;
  $('mapCoordinates').textContent=`${zoneMapMode==='zone'?'ВСЯ ЗОНА':'ЛОКАЦИЯ: '+(here()?.name||'—')} · ${Math.round(zoneMapZoom*100)}% · X ${Math.round(me.x)} / Y ${Math.round(me.y)}`;zoneMapHasRendered=true;zoneMapDirty=false;
 }
 function showMapSquad(squadId){
@@ -1016,19 +1022,19 @@ function startNpcEncounter(id){
  if((n.loc||n.location)!==g.loc)return alert('Противник должен находиться в текущем секторе.');
  if(!isHostileNpcFaction(n.faction))return alert('Этот сталкер не является твоим врагом.');
  const hp=Math.max(35,Math.round(Number(n.health)||80));
- battle={npcId:id,enemy:{name:n.name,icon:n.icon||'♟',hp,maxHp:hp,power:8+Math.floor(Math.random()*6),desc:`Враждебный сталкер группировки «${n.faction}» вступил в бой.`},guard:false,log:[],turn:1};
+ const squadMembers=(activePlayerSquad?.members||[]).filter(m=>m.id!==zonePlayerId);const enemySquad=Object.values(serverWorld?.npcState||{}).filter(x=>x.alive&&x.location===n.location&&x.squadId&&x.squadId===n.squadId&&x.id!==n.id);battle={npcId:id,allies:squadMembers.map(m=>({...m,hp:100})),enemySupport:enemySquad,enemy:{name:n.name,icon:n.icon||'♟',hp,maxHp:hp,power:8+Math.floor(Math.random()*6),desc:`Враждебный сталкер группировки «${n.faction}» вступил в бой. ${squadMembers.length?`Твой отряд поддерживает тебя: ${squadMembers.length} бойца.`:''} ${enemySquad.length?`Рядом поддержка противника: ${enemySquad.length} бойца.`:''}`},guard:false,log:[],turn:1};
  $('combatTitle').textContent='Бой со сталкером · '+here().name;$('combatRisk').textContent=n.faction;$('combatOverlay').classList.add('show');combatLog(`${n.name} (${n.faction}) открыл огонь. Контакт подтверждён.`);renderCombat();
 }
 function combatLog(text){if(!battle)return;battle.log.unshift(text);battle.log=battle.log.slice(0,12);$('combatLog').innerHTML=battle.log.map(x=>`<div>${escapeHtml(x)}</div>`).join('');}
 function renderCombat(){if(!battle)return;const e=battle.enemy;$('enemyName').textContent=e.name;$('enemyIcon').textContent=e.icon;$('enemyDesc').textContent=e.desc;$('enemyHpText').textContent=Math.max(0,e.hp)+' / '+e.maxHp;$('enemyHpBar').style.width=Math.max(0,e.hp/e.maxHp*100)+'%';$('playerHpText').textContent=g.hp+'%';$('playerHpBar').style.width=g.hp+'%';const w=equippedWeapon();$('combatWeapon').textContent=w?`${w.name} · сила ${weaponPower(w)} · состояние ${w.condition??'—'}%`:'Нет оружия · сила 8';}
 function finishCombat(result){if(!battle)return;const name=battle.enemy.name;if(result==='win'&&battle.npcId){const target=npcBy(battle.npcId);if(target){target.alive=false;target.health=0;target.action='dead';target.deathCause=`погиб в столкновении со сталкером ${g.name}`;}if(zoneSocket?.connected)zoneSocket.emit('npc:combat:kill',{npcId:battle.npcId});serverWorld?.npcState?.[battle.npcId]&&(serverWorld.npcState[battle.npcId].alive=false,serverWorld.npcState[battle.npcId].health=0,serverWorld.npcState[battle.npcId].action='dead');}if(result==='win'){ const reward=60+Math.floor(Math.random()*100),xp=18+Math.floor(Math.random()*16);g.money+=reward;g.xp+=xp;log(`Столкновение завершено: ${name}. Награда ${reward} ₽ и ${xp} опыта.`);news('Сводка столкновения',`${g.name} пережил встречу с угрозой в районе «${here().name}».`);}else if(result==='escape'){log('Ты отступил и избежал дальнейшего столкновения.');g.stamina=Math.max(0,g.stamina-8);}else{g.hp=15;log('Столкновение завершилось неудачно. Ты смог отойти, но потерял часть здоровья.');}
  battle=null;$('combatOverlay').classList.remove('show');save();}
-function enemyTurn(){if(!battle)return;const baseDamage=battle.enemy.power+Math.floor(Math.random()*5);const armor=g.items.find(x=>x.name===g.equipment?.suit&&x.type==='Броня');const defense=armor?Math.round((Number(armor.condition??70)/100)*(Number(armor.defense)||4)):0;const damage=Math.max(2,baseDamage-defense-(battle.guard?Math.round(baseDamage*.65):0));battle.guard=false;g.hp=Math.max(0,g.hp-damage);if(armor&&damage>0)armor.condition=Math.max(0,Number(armor.condition??100)-Math.max(1,Math.ceil(damage/12)));combatLog(`${battle.enemy.name} наносит условный урон: −${damage} здоровья. Броня: ${armor?Math.round(armor.condition)+'%':'не надета'}.`);if(g.hp<=0){g.hp=15;finishCombat('loss');return;}renderCombat();}
+function enemyTurn(){if(!battle)return;const baseDamage=battle.enemy.power+Math.floor(Math.random()*5);const armor=g.items.find(x=>x.name===g.equipment?.suit&&x.type==='Броня');const defense=armor?Math.round((Number(armor.condition??70)/100)*(Number(armor.defense)||4)):0;const squadPressure=Math.min(8,(battle.enemySupport||[]).length*2);const damage=Math.max(2,baseDamage+squadPressure-defense-(battle.guard?Math.round(baseDamage*.65):0));battle.guard=false;g.hp=Math.max(0,g.hp-damage);if(armor&&damage>0)armor.condition=Math.max(0,Number(armor.condition??100)-Math.max(1,Math.ceil(damage/12)));combatLog(`${battle.enemy.name} наносит условный урон: −${damage} здоровья. Броня: ${armor?Math.round(armor.condition)+'%':'не надета'}.`);if(g.hp<=0){g.hp=15;finishCombat('loss');return;}renderCombat();}
 function combatAction(action){if(!battle)return;
  if(action==='retreat'){if(Math.random()<.68){finishCombat('escape');return;}combatLog('Отступление не удалось: противник не даёт пройти.');enemyTurn();return;}
  if(action==='guard'){battle.guard=true;combatLog('Ты занял защитную позицию. Следующий ответный урон будет снижен.');enemyTurn();return;}
  if(action==='med'){const med=g.items.find(x=>x.id==='med'&&x.qty>0)||g.items.find(x=>x.type==='Медицина'&&x.qty>0);if(!med)return alert('В рюкзаке нет аптечки.');med.qty--;g.hp=Math.min(100,g.hp+32);combatLog('Использована аптечка: здоровье восстановлено.');enemyTurn();save();return;}
- const w=equippedWeapon(),power=weaponPower(w),damage=Math.max(4,power+Math.floor(Math.random()*9)-3);battle.enemy.hp=Math.max(0,battle.enemy.hp-damage);if(w&&w.condition!=null)w.condition=Math.max(0,w.condition-1);combatLog(`Ты провёл игровую атаку. Противник потерял ${damage} очков здоровья.`);
+ const w=equippedWeapon(),power=weaponPower(w),damage=Math.max(4,power+Math.floor(Math.random()*9)-3);battle.enemy.hp=Math.max(0,battle.enemy.hp-damage);if(w&&w.condition!=null)w.condition=Math.max(0,w.condition-1);combatLog(`Ты провёл игровую атаку. Противник потерял ${damage} очков здоровья.`);const allies=(battle.allies||[]).filter(a=>a.hp>0);if(allies.length&&battle.enemy.hp>0){const support=allies.reduce((sum,a)=>sum+6+Math.floor(Math.random()*5),0);battle.enemy.hp=Math.max(0,battle.enemy.hp-support);combatLog(`Твой отряд поддержал огнём: ещё −${support} здоровья противнику.`);}
  if(battle.enemy.hp<=0){renderCombat();finishCombat('win');return;}enemyTurn();save();
 }
 
@@ -1261,6 +1267,7 @@ async function connectZone(){
  zoneSocket.on('player:move-result',data=>{updateMoveOrderStatus(data?.order?.etaSeconds?`${data.message} · примерно ${data.order.etaSeconds} сек.`:(data?.message||'Обновление приказа'));if(data?.ok===false)alert(data.message||'Не удалось построить маршрут.');else if(data?.message)log(data.message);});
  zoneSocket.on('player:travel-event',data=>{updateMoveOrderStatus('Маршрут остановлен: опасность впереди');news('Опасность на маршруте',data?.message||'Обнаружена угроза.');log(data?.message||'На маршруте обнаружена опасность.');const choice=prompt((data?.message||'На маршруте обнаружена опасность.')+'\n\n1 — вступить в бой\n2 — продолжить скрытно\n3 — отступить','2');const action=choice==='1'?'fight':choice==='3'?'retreat':'continue';zoneSocket.emit('player:travel-response',{action});if(action!=='continue'){playerMoveTarget=null;walkTarget=null;}if(action==='fight'){if(data?.type==='hostile_squad'&&data?.npcId)startNpcEncounter(data.npcId);else startRandomEncounter(true);}});
  zoneSocket.on('npc:approach',data=>{showNpcApproach(data);news('Сталкер вышел на контакт',data.text||'Сталкер подошёл поговорить.');});
+ zoneSocket.on('npc:threat',data=>{const n=npcBy(data?.npcId);if(!n||battle)return;log(`Внимание: ${data.name||n.name} (${data.faction||n.faction}) вошёл в радиус боя. Расстояние: ${data.distance||'—'} м.`);if(npcInCombatRange(n)&&isHostileNpcFaction(n.faction))startNpcEncounter(n.id);});
  zoneSocket.on('friend:invite',data=>{if(confirm(`${data.name} предлагает добавить тебя в друзья. Принять?`))zoneSocket.emit('friend:respond',{fromId:data.fromId,accept:true});else zoneSocket.emit('friend:respond',{fromId:data.fromId,accept:false});});
  zoneSocket.on('friend:state',data=>renderPlayerFriends(data?.friends||[]));
  zoneSocket.on('friend:result',data=>{if(data?.message)alert(data.message);});

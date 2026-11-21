@@ -14,6 +14,7 @@ const { createExpedition, advanceExpedition, findRoute } = require('./src/system
 const { initSharedWorld, initDiplomacy } = require('./src/server/world');
 const { WAR_CONFIG, createOperation, deploymentPower, addDeployment, resolveOperation } = require('./src/systems/war');
 const { tickNpcWorld, interactWithNpc, isHostileFaction } = require('./src/systems/npc-ai');
+const { npcWorldPosition, inRange, INTERACTION_RADIUS, COMBAT_RADIUS } = require('./src/systems/proximity');
 const { ensureOnlineWorld, appendWorldEvent, buildWorldSync, publicWorldStatus } = require('./src/systems/online-world');
 const { initEcosystem, tickEcosystem, upgradeBase, createClan, joinClan, addEcoEvent } = require('./src/systems/ecosystem');
 const { initSouls, tickSouls } = require('./src/systems/souls');
@@ -332,7 +333,7 @@ io.on('connection', socket=>{
   socket.on('npc:trade:buy', async input=>{
     const p=online.get(socket.data.playerId), npcId=String(input?.npcId||'').slice(0,48), itemId=String(input?.item||''), goods=SHOP[itemId];
     const npc=world.npcState?.[npcId], st=p?safeState(p.state):null;
-    if(!p||!npc||npc.alive===false||npc.location!==p.location||!npc.dialogue||!goods){
+    if(!p||!npc||npc.alive===false||npc.location!==p.location||!inRange(p,npcWorldPosition(npc),INTERACTION_RADIUS)||!npc.dialogue||!goods){
       socket.emit('npc:trade:result',{ok:false,message:'Этот сталкер сейчас не может торговать или находится не рядом.'});return;
     }
     const account=npcEconomyFor(npc);account.stock[itemId]??=goods.qty*3;account.maxStock[itemId]??=goods.qty*10;const available=Math.max(0,Math.floor(Number(account.stock[itemId])||0));
@@ -353,7 +354,7 @@ io.on('connection', socket=>{
   socket.on('npc:trade:sell', async input=>{
     const p=online.get(socket.data.playerId),npcId=String(input?.npcId||'').slice(0,48),itemId=String(input?.item||''),qty=Math.max(1,Math.min(10,Math.floor(Number(input?.qty)||1)));
     const npc=world.npcState?.[npcId],st=p?safeState(p.state):null,base=SELL_VALUES[itemId];
-    if(!p||!npc||npc.alive===false||npc.location!==p.location||!npc.dialogue||!base){socket.emit('npc:trade:result',{ok:false,message:'Этот сталкер не принимает такой предмет.'});return;}
+    if(!p||!npc||npc.alive===false||npc.location!==p.location||!inRange(p,npcWorldPosition(npc),INTERACTION_RADIUS)||!npc.dialogue||!base){socket.emit('npc:trade:result',{ok:false,message:'Этот сталкер не принимает такой предмет.'});return;}
     st.state.items ||= [];const item=st.state.items.find(x=>x.id===itemId);
     if(!item||item.qty<qty){socket.emit('npc:trade:result',{ok:false,message:'Недостаточно предметов для продажи.'});return;}
     const account=npcEconomyFor(npc),payout=Math.floor(base*.5)*qty;
@@ -545,8 +546,8 @@ io.on('connection', socket=>{
   socket.on('npc:combat:kill', async input=>{
     const p=online.get(socket.data.playerId);if(!p)return;
     const npcId=String(input?.npcId||'').slice(0,48),npc=world.npcState?.[npcId];
-    if(!npc||npc.alive===false||npc.location!==p.location||!isHostileFaction(p.faction,npc.faction,world.diplomacy)){
-      socket.emit('npc:combat:result',{ok:false,message:'Цель недоступна или не является противником.'});return;
+    if(!npc||npc.alive===false||npc.location!==p.location||!isHostileFaction(p.faction,npc.faction,world.diplomacy)||!inRange(p,npcWorldPosition(npc),COMBAT_RADIUS)){
+      socket.emit('npc:combat:result',{ok:false,message:'Цель вне радиуса боя (112 м), недоступна или не является противником.'});return;
     }
     npc.alive=false;npc.health=0;npc.action='dead';npc.deathCause=`погиб в столкновении со сталкером ${p.name}`;npc.diedAt=Date.now();
     world.npcMemorial||=[];world.npcMemorial.unshift({id:`mem_${npc.id}_${npc.diedAt}`,name:npc.name,faction:npc.faction,role:npc.role,location:npc.location,cause:npc.deathCause,diedAt:npc.diedAt});world.npcMemorial=world.npcMemorial.slice(0,100);
@@ -559,7 +560,7 @@ io.on('connection', socket=>{
   socket.on('npc:specialist', async input=>{
     const p=online.get(socket.data.playerId);if(!p)return;
     const npc=world.npcState?.[String(input?.npcId||'').slice(0,48)];
-    if(!npc||npc.alive===false||npc.location!==p.location||!npc.supportSpecialist){socket.emit('npc:specialist:result',{ok:false,message:'Специалист должен быть жив и находиться рядом.'});return;}
+    if(!npc||npc.alive===false||npc.location!==p.location||!inRange(p,npcWorldPosition(npc),INTERACTION_RADIUS)||!npc.supportSpecialist){socket.emit('npc:specialist:result',{ok:false,message:'Специалист должен быть жив и находиться рядом.'});return;}
     const state=safeState(p.state),medic=npc.role==='медик',technician=npc.role==='техник';
     if(!medic&&!technician){socket.emit('npc:specialist:result',{ok:false,message:'Этот сталкер не оказывает такую услугу.'});return;}
     const cost=medic?75:100;
@@ -579,7 +580,7 @@ io.on('connection', socket=>{
     const p=online.get(socket.data.playerId); if(!p)return;
     const npcId=String(input?.npcId||'').slice(0,48), action=String(input?.action||'');
     const npc=world.npcState?.[npcId];
-    const result=interactWithNpc(npc,{id:p.id,location:p.location},action,Date.now(),{recentWorldEvent:world.zoneEvents?.at(-1)?.title||'',locationName:npc?.location,topicIndex:input?.topicIndex,friendName:world.npcState?.[npc?.friends?.[0]]?.name||'',rivalName:world.npcState?.[npc?.rivals?.[0]]?.name||''});
+    const result=interactWithNpc(npc,{id:p.id,location:p.location,x:p.x,y:p.y,position:{x:p.x,y:p.y}},action,Date.now(),{recentWorldEvent:world.zoneEvents?.at(-1)?.title||'',locationName:npc?.location,topicIndex:input?.topicIndex,friendName:world.npcState?.[npc?.friends?.[0]]?.name||'',rivalName:world.npcState?.[npc?.rivals?.[0]]?.name||''});
     socket.emit('npc:interaction-result',result);
     if(result.ok){ const syncEvent=appendWorldEvent(world,'npc_interaction',{npcId,playerId:p.id,action,relationship:result.relationship}); await persistWorld(); io.emit('world:event',syncEvent); emitNpcState(); }
   });
@@ -672,7 +673,7 @@ setInterval(async()=>{
     const now=Date.now(), events=tickNpcWorld(world,LOCATIONS,Math.random,now);
     const leaderboard=buildStalkerLeaderboard();
     if(leaderboard.length&&now-(world.stalkerRumorAt||0)>30*60*1000){const star=leaderboard[0];addStalkerNews(`По стоянкам расходится слух: ${star.name} (${star.faction}) сейчас возглавляет рейтинг Зоны с ${star.score} очками.`,star.name);world.stalkerRumorAt=now;}
-    for(const p of online.values()){for(const npc of Object.values(world.npcState||{})){if(!npc.alive||npc.location!==p.location)continue;npc.lastApproachAt ||= 0;if(now-npc.lastApproachAt<8*60*1000||Math.random()>.12)continue;npc.lastApproachAt=now;io.to(p.id).emit('npc:approach',{npcId:npc.id,text:`${npc.name} замечает тебя и подходит поговорить. «Эй, сталкер. Есть минутка?»`});break;}}
+    for(const p of online.values()){for(const npc of Object.values(world.npcState||{})){if(!npc.alive||npc.location!==p.location)continue;const near=inRange(p,npcWorldPosition(npc),COMBAT_RADIUS),hostile=isHostileFaction(p.faction,npc.faction,world.diplomacy);if(near&&hostile){npc.playerThreatAt ||= {};if(now-(npc.playerThreatAt[p.id]||0)>45000){npc.playerThreatAt[p.id]=now;io.to(p.id).emit('npc:threat',{npcId:npc.id,name:npc.name,faction:npc.faction,distance:Math.round(Math.hypot(p.x-npcWorldPosition(npc).x,p.y-npcWorldPosition(npc).y))});}}else if(!hostile&&near){npc.lastApproachAt ||= 0;if(now-npc.lastApproachAt>8*60*1000&&Math.random()<.12){npc.lastApproachAt=now;io.to(p.id).emit('npc:approach',{npcId:npc.id,text:`${npc.name} замечает тебя и подходит поговорить. «Эй, сталкер. Есть минутка?»`});}}}}
     const ecoEvents=tickEcosystem(world,Math.random,now);
     const soulEvents=tickSouls(world,LOCATIONS,Math.random,now);
     world.onlineMetrics ||= {totalJoins:0,totalMoves:0,lastTickAt:0}; world.onlineMetrics.lastTickAt=now;

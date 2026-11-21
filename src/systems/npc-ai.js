@@ -12,6 +12,7 @@ const { TERRITORY_ADJACENCY, homeForFaction, nearestFriendlyLocation, canEnterTe
 const { buildDialogue, interactDialogue } = require('./npc-dialogue');
 const { createFactionDiplomacy, FACTIONS } = require('../shared/game-data');
 const DEFAULT_DIPLOMACY = createFactionDiplomacy([...FACTIONS]);
+const { npcWorldPosition, inRange, NPC_SKIRMISH_RADIUS } = require('./proximity');
 function isHostileFaction(a,b,diplomacy={}) {
   if (!a || !b || a === b) return false;
   if (a === 'Монолит' || b === 'Монолит') return true;
@@ -151,6 +152,10 @@ function tickNpcWorld(world, locations, random = Math.random, now = Date.now()) 
     if(enemies.length&&random()<.25){convoy.status='ambushed';events.push({type:'convoy_ambush',location:convoy.location,text:`Засада на караван ${convoy.faction} в секторе ${convoy.location}!`,at:now});}
   }
   world.convoys=world.convoys.filter(x=>now-x.createdAt<24*60*60*1000).slice(-20);
+  // Local skirmishes: hostile NPCs only engage when their map-space positions overlap.
+  const combatants=Object.values(world.npcState).filter(n=>n.alive&&n.location&&!n.missionOrder&&n.action!=='dead');
+  for(let i=0;i<combatants.length;i++){const a=combatants[i];if(a.action==='combat'||a.lastSkirmishAt&&now-a.lastSkirmishAt<45000)continue;const pa=npcWorldPosition(a);const b=combatants.slice(i+1).find(other=>other.alive&&other.location===a.location&&other.faction!==a.faction&&isHostileFaction(a.faction,other.faction,world.diplomacy)&&other.action!=='combat'&&(!other.lastSkirmishAt||now-other.lastSkirmishAt>=45000)&&inRange(pa,npcWorldPosition(other),NPC_SKIRMISH_RADIUS));if(!b||random()>.22)continue;const damageA=5+Math.floor(random()*9),damageB=5+Math.floor(random()*9);a.health=clamp(a.health-damageA,0,100);b.health=clamp(b.health-damageB,0,100);a.action=b.action='combat';a.behavior=b.behavior='combat';a.mood=b.mood='в бою';a.lastSkirmishAt=b.lastSkirmishAt=now;a.combatEngagementId=b.combatEngagementId=`local_${a.id}_${b.id}_${Math.floor(now/30000)}`;events.push({type:'npc_skirmish',location:a.location,npcIds:[a.id,b.id],text:`Перестрелка между ${a.name} («${a.faction}») и ${b.name} («${b.faction}») в секторе ${a.location}.`,at:now});for(const [victim,killer] of [[a,b],[b,a]])if(victim.health<=0&&victim.alive){victim.alive=false;victim.action='dead';victim.deathCause=`погиб в перестрелке с группировкой «${killer.faction}»`;victim.diedAt=now;victim.combatDeaths=(Number(victim.combatDeaths)||0)+1;killer.combatKills=(Number(killer.combatKills)||0)+1;killer.lastCombatKillAt=now;killer.lastVictim=victim.name;}
+  }
   world.npcPositions=Object.fromEntries(Object.values(world.npcState).filter(n=>n.alive).map(n=>[n.id,n.location]));
   world.factionBases=Object.entries(owners).map(([location,faction])=>{
     const stationed=Object.values(world.npcState).filter(n=>n.alive&&n.location===location&&n.faction===faction);
@@ -162,6 +167,8 @@ function tickNpcWorld(world, locations, random = Math.random, now = Date.now()) 
 function interactWithNpc(npc, player, action, now = Date.now(), context = {}) {
   if (!npc || !npc.alive) return { ok:false, reason:'Этот сталкер больше не может ответить.' };
   if (!player || player.location !== npc.location) return { ok:false, reason:'Нужно находиться в одном секторе со сталкером.' };
+  const playerPosition=player.position||player;
+  if(!inRange(playerPosition,npcWorldPosition(npc),52)) return {ok:false,reason:'Ты слишком далеко. Подойди ближе к сталкеру (радиус разговора — 52 м).'};
   if (!['greet','ask','trade','help','topic'].includes(action)) return { ok:false, reason:'Неизвестное действие.' };
   npc.relationships ||= {}; const current = Number(npc.relationships[player.id]) || 0;
   const delta = action === 'help' ? 5 : action === 'greet' ? 2 : action === 'trade' ? 1 : 0;
