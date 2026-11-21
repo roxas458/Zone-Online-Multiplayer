@@ -33,3 +33,30 @@ test('client renders server leaderboard and has a local fallback', () => {
   assert.match(game, /function renderStalkerLeaderboard\(\)/);
   assert.match(game, /world:leaderboard/);
 });
+
+
+test('fallen NPC stalkers are archived and removed from the live Top 20', () => {
+  assert.match(server, /function archiveFallenStalkers\(\)/);
+  assert.match(server, /world\.stalkerHallOfFame\.unshift/);
+  assert.match(server, /row\.alive=false/);
+  assert.match(server, /leaderboardArchived=true/);
+});
+
+test('leaderboard includes achievements, exploration, reputation, and news', () => {
+  assert.match(server, /function stalkerAchievements\(row\)/);
+  assert.match(server, /row\.discoveries\*18/);
+  assert.match(server, /row\.mutantHunts\*20/);
+  assert.match(server, /Охотник на мутантов/);
+  assert.match(server, /stalkerRumorAt/);
+  assert.match(server, /row\.quests\*25/);
+  assert.match(server, /row\.reputation/);
+  assert.match(server, /function addStalkerNews\(/);
+  assert.match(server, /hallOfFame:/);
+  assert.match(html, /id="rankHallOfFame"/);
+  assert.match(html, /id="rankAchievements"/);
+  assert.match(html, /id="rankNews"/);
+});
+
+test('NPC skirmish deaths increment career death statistics', () => {
+  assert.match(npcAI, /victim\.combatDeaths=\(Number\(victim\.combatDeaths\)\|\|0\)\+1/);
+});

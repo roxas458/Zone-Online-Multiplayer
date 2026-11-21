@@ -91,36 +91,60 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.get('/health', (_req,res) => { res.set('Access-Control-Allow-Origin','*'); res.set('Cache-Control','no-store'); res.status(200).json({ ok:true, service:'ZONE ONLINE', version:require('./package.json').version, database:dbReady?'postgres':'memory-fallback', databaseRequiredForAccounts:false, online:online.size, revision:world.revision||1, timestamp:Date.now() }); });
 app.get('/api/diagnostics', (_req,res) => { res.set('Access-Control-Allow-Origin','*'); res.set('Cache-Control','no-store'); res.json({ ok:true, version:require('./package.json').version, multiplayer:true, guestMode:true, database:dbReady?'postgres':'memory-fallback', online:online.size, socketPath:'/socket.io', transports:['websocket','polling'], transportMode:'websocket-first-with-polling-fallback', node:process.version, nodeMajor:Number(process.versions.node.split('.')[0]), timestamp:Date.now() }); });
 app.get('/api/status', (_req,res) => res.json({ ...publicWorldStatus(world, online.size), persistent:dbReady, service:`ZONE ONLINE ${require('./package.json').version} SURVIVAL & EXPEDITIONS` }));
-app.get('/api/leaderboard', (_req,res) => { res.set('Cache-Control','no-store'); res.json({ok:true,updatedAt:Date.now(),entries:buildStalkerLeaderboard()}); });
+app.get('/api/leaderboard', (_req,res) => { res.set('Cache-Control','no-store'); res.json({ok:true,updatedAt:Date.now(),entries:buildStalkerLeaderboard(),hallOfFame:(world.stalkerHallOfFame||[]).slice(0,100),news:(world.stalkerNews||[]).slice(0,40)}); });
 app.get('/api/world/snapshot', (_req,res) => res.json({ status:publicWorldStatus(world, online.size), world }));
 app.get('/api/world/events', (req,res) => { const since=Number(req.query.since||0); const sync=buildWorldSync(world, Number.isSafeInteger(since)?since:0); res.json(sync); });
 
 function publicPlayer(p){ return { id:p.id, name:p.name, faction:p.faction, location:p.location, x:p.x, y:p.y, hp:p.hp, xp:p.xp, joinedAt:p.joinedAt, lastSeen:p.lastSeen }; }
 function onlineList(){ return [...online.values()].map(publicPlayer).sort((a,b)=>a.name.localeCompare(b.name,'ru')); }
-function buildStalkerLeaderboard(){
-  world.stalkerLeaderboard ||= {};
+function stalkerAchievements(row){
+  const out=[];const kills=Number(row.kills)||0,xp=Number(row.xp)||0,discoveries=Number(row.discoveries)||0,quests=Number(row.quests)||0,travelled=Number(row.travelled)||0,mutantHunts=Number(row.mutantHunts)||0,artifacts=Number(row.artifacts)||0;
+  if(kills>=1)out.push('Первая победа');if(kills>=10)out.push('Охотник');if(kills>=50)out.push('Гроза Зоны');if(kills>=100)out.push('Легендарный боец');
+  if(discoveries>=5)out.push('Следопыт');if(discoveries>=25)out.push('Исследователь');if(quests>=10)out.push('Надёжный исполнитель');if(travelled>=10)out.push('Странник');if(mutantHunts>=5)out.push('Охотник на мутантов');if(artifacts>=10)out.push('Искатель артефактов');if(xp>=1000)out.push('Закалённый');
+  return out;
+}
+function addStalkerNews(text, name='Зона'){
+  world.stalkerNews ||= [];world.stalkerNews.unshift({id:crypto.randomUUID(),text:clean(text,240),name,at:Date.now()});world.stalkerNews=world.stalkerNews.slice(0,40);
+}
+function archiveFallenStalkers(){
+  world.stalkerLeaderboard ||= {};world.stalkerHallOfFame ||= [];
   for(const npc of Object.values(world.npcState||{})){
+    if(npc.alive!==false||npc.leaderboardArchived)continue;
+    const id=`npc:${npc.id}`,row=world.stalkerLeaderboard[id];
+    const entry={id,name:npc.name||row?.name||'Неизвестный сталкер',faction:npc.faction||row?.faction||'Неизвестно',role:npc.role||'сталкер',kills:Number(npc.combatKills)||Number(row?.kills)||0,deaths:(Number(npc.combatDeaths)||0)+1,score:Number(row?.score)||100,location:npc.location||'Неизвестно',cause:npc.deathCause||'погиб в Зоне',diedAt:Number(npc.diedAt)||Date.now(),lastVictim:npc.lastVictim||null};
+    world.stalkerHallOfFame.unshift(entry);world.stalkerHallOfFame=world.stalkerHallOfFame.slice(0,100);npc.leaderboardArchived=true;
+    if(row){row.alive=false;row.deaths=entry.deaths;row.diedAt=entry.diedAt;row.deathCause=entry.cause;}
+    addStalkerNews(`${entry.name} выбыл из рейтинга. ${entry.cause}.`,entry.name);
+  }
+}
+function buildStalkerLeaderboard(){
+  world.stalkerLeaderboard ||= {};archiveFallenStalkers();
+  for(const npc of Object.values(world.npcState||{})){
+    if(npc.alive===false)continue;
     const id=`npc:${npc.id}`;
-    const row=world.stalkerLeaderboard[id] ||= {id,type:'npc',name:npc.name,faction:npc.faction||'Одиночки',role:npc.role||'сталкер',kills:0,deaths:0,score:0,location:npc.location||'Неизвестно',updatedAt:Date.now()};
-    row.name=npc.name||row.name;row.faction=npc.faction||row.faction;row.role=npc.role||row.role;row.location=npc.location||row.location;
-    row.kills=Math.max(Number(row.kills)||0,Number(npc.combatKills)||0);
-    row.deaths=Number(row.deaths)||0;row.score=Math.max(Number(row.score)||0,100+(row.kills*125));
+    const row=world.stalkerLeaderboard[id] ||= {id,type:'npc',name:npc.name,faction:npc.faction||'Одиночки',role:npc.role||'сталкер',kills:0,deaths:0,score:100,location:npc.location||'Неизвестно',updatedAt:Date.now()};
+    row.name=npc.name||row.name;row.faction=npc.faction||row.faction;row.role=npc.role||row.role;row.location=npc.location||row.location;row.alive=true;
+    row.kills=Math.max(Number(row.kills)||0,Number(npc.combatKills)||0);row.deaths=Number(npc.combatDeaths)||Number(row.deaths)||0;
+    row.score=Math.max(100,100+row.kills*125+Math.max(0,Number(npc.reputation)||0)*2);row.achievements=stalkerAchievements(row);row.updatedAt=Date.now();
   }
   for(const p of online.values()){
-    const id=`player:${p.id}`;
+    const id=`player:${p.id}`,st=safeState(p.state).state,career=st.careerStats||{};
     const row=world.stalkerLeaderboard[id] ||= {id,type:'player',playerId:p.id,name:p.name,faction:p.faction||'Одиночки',role:'сталкер',kills:0,deaths:0,score:100,location:p.location||'Неизвестно',updatedAt:Date.now()};
-    row.name=p.name||row.name;row.faction=p.faction||row.faction;row.location=p.location||row.location;
-    row.score=100+(Number(row.kills)||0)*150+Math.min(500,Math.floor((Number(p.xp)||0)/10));row.updatedAt=Date.now();
+    row.name=p.name||row.name;row.faction=p.faction||row.faction;row.location=p.location||row.location;row.alive=true;
+    row.kills=Math.max(Number(row.kills)||0,Number(career.kills)||0);row.xp=Number(p.xp)||0;row.discoveries=Number(career.discoveries)||0;row.travelled=Number(career.travelled)||0;row.quests=(st.quests||[]).filter(q=>q.done).length;
+    row.reputation=Number(st.rep)||0;row.mutantHunts=Number(career.mutantHunts)||0;row.artifacts=(st.items||[]).filter(x=>x.type==='Артефакт').reduce((sum,x)=>sum+(Number(x.qty)||0),0);row.score=100+row.kills*150+Math.min(800,Math.floor(row.xp/10))+row.discoveries*18+row.quests*25+row.travelled*8+row.mutantHunts*20+row.artifacts*12+Math.max(-100,Math.min(100,row.reputation));row.achievements=stalkerAchievements(row);row.updatedAt=Date.now();
   }
-  const rows=Object.values(world.stalkerLeaderboard).map(row=>({...row,score:Math.max(0,Math.floor(Number(row.score)||0)),kills:Math.max(0,Math.floor(Number(row.kills)||0)),deaths:Math.max(0,Math.floor(Number(row.deaths)||0))}));
+  const rows=Object.values(world.stalkerLeaderboard).filter(row=>row.alive!==false).map(row=>({...row,score:Math.max(0,Math.floor(Number(row.score)||0)),kills:Math.max(0,Math.floor(Number(row.kills)||0)),deaths:Math.max(0,Math.floor(Number(row.deaths)||0))}));
   return rows.sort((a,b)=>b.score-a.score||b.kills-a.kills||a.name.localeCompare(b.name,'ru')).slice(0,20).map((row,index)=>({...row,place:index+1}));
 }
+function leaderboardPayload(){return {updatedAt:Date.now(),entries:buildStalkerLeaderboard(),hallOfFame:(world.stalkerHallOfFame||[]).slice(0,100),news:(world.stalkerNews||[]).slice(0,40)};}
 function recordStalkerKill(player,npc){
-  world.stalkerLeaderboard ||= {};
-  const id=`player:${player.id}`;
+  world.stalkerLeaderboard ||= {};const id=`player:${player.id}`;
   const row=world.stalkerLeaderboard[id] ||= {id,type:'player',playerId:player.id,name:player.name,faction:player.faction,role:'сталкер',kills:0,deaths:0,score:100,location:player.location};
-  row.name=player.name;row.faction=player.faction;row.location=player.location;row.kills=(Number(row.kills)||0)+1;row.score=100+row.kills*150+Math.min(500,Math.floor((Number(player.xp)||0)/10));row.lastKillAt=Date.now();row.lastVictim=npc.name;row.updatedAt=Date.now();
+  row.name=player.name;row.faction=player.faction;row.location=player.location;row.kills=(Number(row.kills)||0)+1;row.score=100+row.kills*150+Math.min(800,Math.floor((Number(player.xp)||0)/10));row.lastKillAt=Date.now();row.lastVictim=npc.name;row.updatedAt=Date.now();
+  addStalkerNews(`${player.name} одержал победу над ${npc.name}.`,player.name);
 }
+
 function publicNpcRoster(){
   const fields=['id','name','faction','role','location','alive','generated','supportSpecialist','icon','personality','mood','action','behavior','duty','guardPost','homeLocation','health','morale','supplies','biography','friends','rivals','squadId','squadName','dialogueVersion','dialogue','relationships','equipment'];
   return Object.fromEntries(Object.entries(world.npcState||{}).map(([id,n])=>[id,Object.fromEntries(fields.filter(k=>n[k]!==undefined).map(k=>[k,n[k]]))]));
@@ -217,7 +241,7 @@ io.on('connection', socket=>{
       // Acknowledge after registration but BEFORE the world snapshot, so clients
       // receive the small acknowledgement without waiting for a large NPC payload.
       if(typeof ack==='function'){ack({ok:true,accepted:true,persistent:dbReady});console.info(`[socket] player:hello ack sent id=${socket.id}`);}
-      socket.emit('player:ready',{id, savedState:s.state, guest:true, world:publicWorldSnapshot(), worldSync:buildWorldSync(world, Number(payload?.lastRevision)||0), status:publicWorldStatus(world,online.size), chat:recentChat.filter(m=>!m.location||m.location===p.location).slice(-60), players:onlineList(), leaderboard:buildStalkerLeaderboard(), position:{x:p.x,y:p.y}, persistent:dbReady});
+      socket.emit('player:ready',{id, savedState:s.state, guest:true, world:publicWorldSnapshot(), worldSync:buildWorldSync(world, Number(payload?.lastRevision)||0), status:publicWorldStatus(world,online.size), chat:recentChat.filter(m=>!m.location||m.location===p.location).slice(-60), players:onlineList(), leaderboard:leaderboardPayload(), position:{x:p.x,y:p.y}, persistent:dbReady});
       console.log(`player:hello completed for ${id} in ${Date.now()-helloStartedAt}ms (db=${dbReady?'postgres':'memory-fallback'})`);
       socket.to('zone-world').emit('world:event',joinEvent);
       io.emit('world:npcs',world.npcPositions); emitNpcState(); io.emit('world:ecosystem',world.ecosystem); io.emit('world:coop',world.coOpQuests); io.emit('war:state',{operations:world.warOperations||[],history:(world.warHistory||[]).slice(0,12)});
@@ -529,8 +553,8 @@ io.on('connection', socket=>{
     world.npcPositions[npc.id]=npc.location;
     const ev=appendWorldEvent(world,'npc_killed',{npcId:npc.id,name:npc.name,faction:npc.faction,playerId:p.id,playerName:p.name,location:p.location});
     recordStalkerKill(p,npc);
-    const leaderboard=buildStalkerLeaderboard();
-    await persistWorld();io.emit('world:event',ev);io.emit('world:leaderboard',{updatedAt:Date.now(),entries:leaderboard});emitNpcState();socket.emit('npc:combat:result',{ok:true,npcId:npc.id,leaderboard});
+    const leaderboard=leaderboardPayload();
+    await persistWorld();io.emit('world:event',ev);io.emit('world:leaderboard',leaderboard);emitNpcState();socket.emit('npc:combat:result',{ok:true,npcId:npc.id,leaderboard});
   });
   socket.on('npc:specialist', async input=>{
     const p=online.get(socket.data.playerId);if(!p)return;
@@ -568,7 +592,7 @@ io.on('connection', socket=>{
     const weapon=String(st.state.equipment?.weapon||'');if(!weapon){socket.emit('survival:hunt:result',{ok:false,message:'Нет экипированного оружия.'});return;}
     const quality=/АК|винтов|руж|СВД|Гроза/i.test(weapon)?75:45;const chance=Math.max(.18,Math.min(.82,.72-(Number(pack.aggression)||50)*.003+quality*.001-Math.max(0,100-Number(st.state.stamina||0))*.002));
     st.state.stamina=Math.max(0,Number(st.state.stamina||0)-18);st.state.survival.lastHuntAt=now;const success=Math.random()<chance;let message;
-    if(success){pack.count=Math.max(0,pack.count-1);const trophy=st.state.items.find(x=>x.id==='mutant_trophy');if(trophy)trophy.qty=(Number(trophy.qty)||0)+1;else st.state.items.push({id:'mutant_trophy',name:'Трофей мутанта',type:'Материал',desc:'Добыча после охоты на мутанта.',weight:.8,qty:1,value:110});st.state.xp=Math.min(1e7,(Number(st.state.xp)||0)+18);st.state.money=Math.min(99999999,(Number(st.state.money)||0)+35);message=`Охота успешна: ${pack.species}. Получен трофей, +18 опыта и 35 ₽.`;}
+    if(success){pack.count=Math.max(0,pack.count-1);st.state.careerStats ||= {};st.state.careerStats.mutantHunts=(Number(st.state.careerStats.mutantHunts)||0)+1;const trophy=st.state.items.find(x=>x.id==='mutant_trophy');if(trophy)trophy.qty=(Number(trophy.qty)||0)+1;else st.state.items.push({id:'mutant_trophy',name:'Трофей мутанта',type:'Материал',desc:'Добыча после охоты на мутанта.',weight:.8,qty:1,value:110});st.state.xp=Math.min(1e7,(Number(st.state.xp)||0)+18);st.state.money=Math.min(99999999,(Number(st.state.money)||0)+35);message=`Охота успешна: ${pack.species}. Получен трофей, +18 опыта и 35 ₽.`;}
     else{const damage=Math.max(2,Math.round((Number(pack.aggression)||40)/12));st.state.hp=Math.max(1,(Number(st.state.hp)||100)-damage);message=`Мутанты контратаковали. Потеряно ${damage} здоровья. Следует отступить и перевязаться.`;}
     p.state=st.state;p.hp=st.state.hp;p.xp=st.state.xp;await persistPlayer(p.id,p.state);eco.revision=(eco.revision||0)+1;addEcoEvent(world,success?'mutant_hunt':'mutant_attack',`${p.name}: ${message}`,now);await persistWorld();io.emit('world:ecosystem',eco);socket.emit('survival:hunt:result',{ok:success,message,state:p.state,ecosystem:eco});
   });
@@ -645,6 +669,7 @@ setInterval(async()=>{
     initSharedWorld(world, NPC_HOME, LOCATIONS, COOP_TEMPLATES);
     const now=Date.now(), events=tickNpcWorld(world,LOCATIONS,Math.random,now);
     const leaderboard=buildStalkerLeaderboard();
+    if(leaderboard.length&&now-(world.stalkerRumorAt||0)>30*60*1000){const star=leaderboard[0];addStalkerNews(`По стоянкам расходится слух: ${star.name} (${star.faction}) сейчас возглавляет рейтинг Зоны с ${star.score} очками.`,star.name);world.stalkerRumorAt=now;}
     for(const p of online.values()){for(const npc of Object.values(world.npcState||{})){if(!npc.alive||npc.location!==p.location)continue;npc.lastApproachAt ||= 0;if(now-npc.lastApproachAt<8*60*1000||Math.random()>.12)continue;npc.lastApproachAt=now;io.to(p.id).emit('npc:approach',{npcId:npc.id,text:`${npc.name} замечает тебя и подходит поговорить. «Эй, сталкер. Есть минутка?»`});break;}}
     const ecoEvents=tickEcosystem(world,Math.random,now);
     const soulEvents=tickSouls(world,LOCATIONS,Math.random,now);
@@ -653,7 +678,7 @@ setInterval(async()=>{
     io.emit('world:event',tickEvent);
     for(const event of [...events,...ecoEvents,...soulEvents]){const ev=appendWorldEvent(world,event.type,{...event},now);io.emit('world:event',ev);io.emit('world:npc-event',event);if(['npc_skirmish','mutant_migration','anomaly_migration','convoy_ambush','convoy_started'].includes(event.type))systemMessage(event.text);}
     await persistWorld(); io.emit('world:npcs',world.npcPositions);
-    emitNpcState();io.emit('world:leaderboard',{updatedAt:now,entries:leaderboard});io.emit('world:ecosystem',world.ecosystem);
+    emitNpcState();io.emit('world:leaderboard',leaderboardPayload());io.emit('world:ecosystem',world.ecosystem);
     io.emit('world:status',publicWorldStatus(world,online.size));
   }catch(e){console.error('NPC AI schedule:',e.message);} finally {npcTickRunning=false;}
 },60*1000).unref();
