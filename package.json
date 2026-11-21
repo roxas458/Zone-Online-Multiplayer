@@ -1,6 +1,6 @@
 {
   "name": "zone-online",
-  "version": "4.33.17",
+  "version": "4.33.20",
   "private": true,
   "description": "ZONE ONLINE — PDA, living rankings, faction relations and full-screen technician repair PDA",
   "main": "server.js",

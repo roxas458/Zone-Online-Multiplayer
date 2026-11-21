@@ -435,8 +435,8 @@ test('4.25 field PDA keeps long-page filters and map controls reachable', () => 
 test('4.33 build labels are consistent', () => {
   const html = fs.readFileSync(path.join(root, 'public/index.html'), 'utf8');
   const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
-  assert.equal(pkg.version, '4.33.17');
-  assert.match(html, /BUILD 4\.33\.17/);
+  assert.equal(pkg.version, '4.33.20');
+  assert.match(html, /BUILD 4\.33\.20/);
   assert.match(html, /ZONE ONLINE 4\.33/);
 });
 
