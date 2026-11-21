@@ -58,3 +58,11 @@ Version 4.33.4 additionally migrates NPC names stored in old browser saves, incl
 
 ### Version 4.33.9 — Multiplayer target and stalker callsigns
 The browser now connects to the configured Render multiplayer service by default, with WebSocket-first and polling fallback. Diagnostics expose the server Node.js version. Generated NPCs use a curated two-part stalker callsign generator; old generated names migrate deterministically while canonical story characters remain unchanged.
+
+### 4.33.11 — Multiplayer connection reliability patch
+- Socket.IO browser loading now has bounded timeouts for the local server endpoint and CDN fallback, and exposes a reusable loader for automatic retries.
+- Local development on `localhost`, `127.0.0.1`, `0.0.0.0` or `::1` defaults to the current origin instead of the public Render URL; stale Render URLs are cleared from local storage in local development.
+- A failed Socket.IO script load triggers a fresh load attempt automatically rather than leaving the client offline indefinitely.
+- The HTTP server starts listening immediately while PostgreSQL initializes in the background. Player profile handshakes wait for that initialization to finish (or enter the existing memory fallback), avoiding a race with database restoration.
+- Render explicitly sets `NODE_ENV=production`.
+- Added regression tests for the connection loader, local URL selection, server startup ordering and Render environment.

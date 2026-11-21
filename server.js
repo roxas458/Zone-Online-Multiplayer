@@ -165,7 +165,8 @@ io.on('connection', socket=>{
     const helloStartedAt=Date.now();
     console.info(`[socket] player:hello received id=${socket.id} transport=${socket.conn.transport.name}`);
     try {
-      // Wait for the one-time database bootstrap before loading a profile or publishing world state.
+      // The HTTP health endpoint is available immediately, but player profile
+      // loading waits for the one-time DB bootstrap to finish (or fall back).
       await dbInitialization;
       // guest identity mode: account registration/login has been removed. Every connection is a guest
       // identified by a browser-generated UUID; no token or database lookup is required.
@@ -633,10 +634,8 @@ setInterval(async()=>{
   world.zoneEvents ||= [];world.zoneEvents.push(event);world.zoneEvents=world.zoneEvents.slice(-30);const syncEvent=appendWorldEvent(world,'zone_event',event,event.at);
   try{await persistWorld();io.emit('world:zoneEvent',event);io.emit('world:event',syncEvent);io.emit('world:status',publicWorldStatus(world,online.size));}catch(e){console.error('Zone event:',e.message);}
 },4*60*1000).unref();
-server.listen(PORT,'0.0.0.0',()=>{
-  console.log(`ZONE ONLINE listening on ${PORT} node=${process.version} socketTransports=websocket,polling`);
-  dbInitialization=initDb().catch(e=>{console.error('Database bootstrap error:',e);});
-});
+dbInitialization = initDb().catch(e=>{console.error('Database bootstrap error:',e);});
+server.listen(PORT,'0.0.0.0',()=>console.log(`ZONE ONLINE listening on ${PORT} node=${process.version} socketTransports=websocket,polling`));
 server.on('error',error=>{console.error('HTTP server failed to start:',error);process.exitCode=1;});
 let shutdownStarted=false;
 async function gracefulShutdown(signal){

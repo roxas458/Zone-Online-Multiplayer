@@ -1,4 +1,4 @@
-// ZONE ONLINE 4.33.10 browser client. SURVIVAL / EXPEDITIONS / DYNAMIC ECOLOGY.
+// ZONE ONLINE 4.33.11 browser client. SURVIVAL / EXPEDITIONS / DYNAMIC ECOLOGY.
 const clone=o=>JSON.parse(JSON.stringify(o));
 const base={
  name:"Новичок",money:1450,hp:100,radiation:0,radiationProtectionUntil:0,stamina:85,hunger:18,thirst:20,rep:10,day:1,hour:9,loc:"cordon",faction:"Одиночки",xp:0,meetings:0,completed:0,flags:{metSid:false,metWolf:false,heardBar:false,foundArtifact:false,helpedWolf:false},
@@ -944,9 +944,10 @@ function setOnlineConnectionState(state,message){
 }
 async function runNetworkCheck(){
  const output=$('mpDiagnosticsResult');if(output)output.textContent='Проверяем сервер и Socket.IO…';
- const saved=(localStorage.getItem('zoneServerUrl')||'').trim();
- const isLocal=/^(localhost|127\.0\.0\.1)$/.test(window.location.hostname);
-  const target=(isLocal && /onrender\.com/i.test(saved)) ? window.location.origin : (saved||DEFAULT_ZONE_SERVER_URL);
+ const isLocal=/^(localhost|127\.0\.0\.1|0\.0\.0\.0|\[?::1\]?)$/.test(String(window.location.hostname||''));
+ let saved=(localStorage.getItem('zoneServerUrl')||'').trim();
+ if(isLocal && /onrender\.com/i.test(saved)){localStorage.removeItem('zoneServerUrl');saved='';}
+ const target=saved||(isLocal?window.location.origin:DEFAULT_ZONE_SERVER_URL);
  const checks=[];
  try{
   const healthResponse=await fetch(target.replace(/\/$/,'')+'/health',{cache:'no-store'});
@@ -965,32 +966,30 @@ async function runNetworkCheck(){
  return checks;
 }
 
-const DEFAULT_ZONE_SERVER_URL =
-  /^(localhost|127\\.0\\.0\\.1)$/.test(window.location.hostname)
-    ? window.location.origin
-    : 'https://zone-online-multiplayer.onrender.com';
+const IS_LOCAL_ZONE_HOST=/^(localhost|127\.0\.0\.1|0\.0\.0\.0|\[?::1\]?)$/.test(String(window.location.hostname||''));
+const DEFAULT_ZONE_SERVER_URL=IS_LOCAL_ZONE_HOST?window.location.origin:'https://zone-online-multiplayer.onrender.com';
 async function connectZone(){
  const connectAttempt=++zoneConnectAttempt;
- const isLocal=/^(localhost|127\\.0\\.0\\.1)$/.test(window.location.hostname);
- if(isLocal){
-  const saved=(localStorage.getItem('zoneServerUrl')||'').trim();
-  if(/onrender\\.com/i.test(saved))localStorage.removeItem('zoneServerUrl');
- }
+ if(IS_LOCAL_ZONE_HOST){const saved=(localStorage.getItem('zoneServerUrl')||'').trim();if(/onrender\.com/i.test(saved))localStorage.removeItem('zoneServerUrl');}
  const queryMatch=String(window.location.search||'').match(/[?&]server=([^&]+)/);let queryServer=null;try{queryServer=queryMatch?decodeURIComponent(queryMatch[1].replace(/\+/g,' ')):null;}catch(error){console.warn('Invalid server URL query parameter:',error.message);}if(queryServer&&!localStorage.getItem('zoneServerUrl')){try{const u=new URL(queryServer);if(['http:','https:'].includes(u.protocol))localStorage.setItem('zoneServerUrl',u.origin);}catch{}}
- let clientReady=false;
- try{
-  clientReady=window.zoneSocketClientReady
-   ? await Promise.race([window.zoneSocketClientReady,new Promise(resolve=>setTimeout(()=>resolve(false),20000))])
-   : (typeof io==='function');
- }catch(error){console.warn('Socket.IO client loader failed:',error);}
+ let clientReady = typeof io==='function';
+ if(!clientReady){
+  try{clientReady=window.zoneSocketClientReady?await window.zoneSocketClientReady:(typeof io==='function');}
+  catch(error){console.warn('Socket.IO loader failed:',error);clientReady=false;}
+ }
  if(connectAttempt!==zoneConnectAttempt)return;
  if(!clientReady || typeof io!=='function'){
-  setOnlineConnectionState('offline','Не удалось загрузить Socket.IO. Проверь интернет или открой игру с сервера. Если игра размещена отдельно, укажи адрес Node-сервера ниже.');
+  setOnlineConnectionState('connecting','Socket.IO пока не загрузился. Повторяем загрузку автоматически через 3 секунды…');
+  if(typeof window.loadZoneSocketClient==='function'){
+   window.zoneSocketClientReady=window.loadZoneSocketClient();
+   setTimeout(()=>{if(connectAttempt===zoneConnectAttempt)connectZone();},3000);
+  }else{
+   setOnlineConnectionState('offline','Загрузчик Socket.IO не найден. Обнови страницу или проверь подключение скриптов в index.html.');
+  }
   return;
  }
  const sameOrigin=window.location.origin;
  let serverUrl=(localStorage.getItem('zoneServerUrl')||DEFAULT_ZONE_SERVER_URL).trim();
- if(!localStorage.getItem('zoneServerUrl'))localStorage.setItem('zoneServerUrl',serverUrl);
  if(serverUrl){
   try{const parsed=new URL(serverUrl);if(!['http:','https:'].includes(parsed.protocol))throw new Error('Неподдерживаемый протокол');serverUrl=parsed.origin;}
   catch(error){console.warn('Discarding invalid saved multiplayer server URL:',error.message);serverUrl=DEFAULT_ZONE_SERVER_URL;localStorage.setItem('zoneServerUrl',serverUrl);}
@@ -1033,7 +1032,7 @@ async function connectZone(){
   const engine=zoneSocket?.io?.engine;
   if(engine&&!engine.__zoneCloseLogged){engine.__zoneCloseLogged=true;engine.on('close',reason=>console.warn('ZONE ONLINE: Engine.IO transport closed',reason));}
  });
- zoneSocket.on('connect_error',err=>{const target=(localStorage.getItem('zoneServerUrl')||window.location.origin).trim();const reason=err?.message||'ошибка сети';const extra=/timeout|websocket|transport/i.test(reason)?' Render может перезапустить экземпляр или оборвать сеть. Адрес сохранён; клиент продолжит автоматические попытки с увеличивающейся задержкой. Проверь /health и журналы Render.':' Проверь /health, адрес сервера и журналы Render.';setOnlineConnectionState('offline',`Нет связи с ${target}. Причина: ${reason}.${extra}`);console.error('ZONE ONLINE Socket.IO connect_error:',err);});
+ zoneSocket.on('connect_error',err=>{const target=(localStorage.getItem('zoneServerUrl')||window.location.origin).trim();const reason=err?.message||'ошибка сети';const extra=/timeout|websocket|transport/i.test(reason)?' Render может перезапустить экземпляр или оборвать сеть. Адрес сохранён; клиент продолжит автоматические попытки с увеличивающейся задержкой. Проверь /health и журналы Render.':' Проверь /health, адрес сервера и журналы Render.';setOnlineConnectionState('connecting',`Нет связи с ${target}. Причина: ${reason}. Клиент продолжит автоматические попытки. Проверка: ${extra}`);console.error('ZONE ONLINE Socket.IO connect_error:',err);});
  zoneSocket.on('disconnect',(reason,details)=>{console.warn('ZONE ONLINE socket disconnected:',reason,details?.message||'',details?.description||'',{active:zoneSocket?.active,connected:zoneSocket?.connected,target:zoneSocketTarget});zonePlayerReady=false;if(zoneHelloReadyTimer){clearTimeout(zoneHelloReadyTimer);zoneHelloReadyTimer=null;}if(reason!=='io client disconnect')setOnlineConnectionState('offline',`Соединение с сервером потеряно (${reason||'неизвестная причина'}). Клиент автоматически попробует подключиться снова.`);renderOnlinePlayers();renderOnlineWorldStatus();});
  zoneSocket.io.on('reconnect_attempt',()=>setOnlineConnectionState('connecting','Повторное подключение к серверу…'));
  zoneSocket.on('player:hello:error',data=>setOnlineConnectionState('offline',data?.message||'Не удалось завершить вход.'));
