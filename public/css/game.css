@@ -897,3 +897,29 @@ body.title-screen-active .survival-hud{display:none}
 /* 4.33.28 camp-life navigation */
 .camp-section-nav{display:flex;flex-wrap:wrap;gap:7px;margin:12px 0 18px;padding:10px;background:rgba(20,29,21,.72);border:1px solid var(--line);border-radius:10px;position:sticky;top:4px;z-index:4;backdrop-filter:blur(8px)}
 .camp-section-nav button{font-size:12px;padding:7px 10px}
+
+/* 4.33.30 — classic STALKER-style barter layout */
+#trade .trade-topbar{grid-template-columns:minmax(210px,1fr) minmax(180px,.8fr) minmax(230px,1fr) 42px}
+#trade .trade-merchant-id{grid-column:1;grid-row:1;justify-content:flex-start;text-align:left;flex-direction:row}
+#trade .trade-title-center{grid-column:2;grid-row:1}
+#trade .trade-player-id{grid-column:3;grid-row:1;justify-content:flex-end;text-align:right;flex-direction:row-reverse}
+#trade .trade-close{grid-column:4;grid-row:1}
+#trade .trade-workspace>.trade-merchant-panel{order:1}
+#trade .trade-workspace>.trade-equipment-panel{order:2}
+#trade .trade-workspace>.trade-player-id,
+#trade .trade-workspace>.trade-inventory-panel:not(.trade-merchant-panel){order:3}
+#trade .trade-workspace{grid-template-columns:minmax(0,1fr) 230px minmax(0,1fr)}
+#trade .trade-inventory-panel{background:linear-gradient(145deg,#20221f,#080909 68%);border-color:#55564d;box-shadow:inset 0 0 25px #000d,0 2px 7px #000b}
+#trade .trade-panel-heading{background:linear-gradient(180deg,#45463f,#20221e);border-bottom-color:#050605}
+#trade .trade-item-card{background:linear-gradient(145deg,#292b27,#111310);border-color:#4c4d43;box-shadow:inset 0 1px #ffffff0d}
+#trade .trade-item-art{background:radial-gradient(ellipse,#77705255,#090b09);border-color:#5d5a49}
+#trade .trade-deal-basket{background:linear-gradient(135deg,#171a18,#292a25);border-color:#625d50}
+@media(max-width:620px){
+ #trade .trade-topbar{grid-template-columns:1fr 36px}
+ #trade .trade-player-id{grid-column:1;grid-row:1;justify-content:flex-start;text-align:left;flex-direction:row}
+ #trade .trade-merchant-id{display:none}
+ #trade .trade-title-center{display:none}
+ #trade .trade-workspace>.trade-merchant-panel{order:2}
+ #trade .trade-workspace>.trade-equipment-panel{order:1}
+ #trade .trade-workspace>.trade-inventory-panel:not(.trade-merchant-panel){order:3}
+}
