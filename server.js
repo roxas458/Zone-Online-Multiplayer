@@ -76,7 +76,10 @@ const io = new Server(server, {
   pingInterval: 20000,
   pingTimeout: 45000,
   connectTimeout: 30000,
-  maxHttpBufferSize: 1e6
+  // Player saves contain the complete persistent game state. The Socket.IO
+  // default (1 MB) rejected valid player:hello/player:save packets and closed
+  // otherwise successful WebSocket handshakes. Keep a bounded 10 MB ceiling.
+  maxHttpBufferSize: 10 * 1024 * 1024
 });
 io.engine.on('connection', rawSocket=>{
   console.info(`[engine] handshake id=${rawSocket.id} transport=${rawSocket.transport.name} origin=${clean(rawSocket.request.headers.origin||'unknown',180)}`);
@@ -151,6 +154,16 @@ function publicNpcRoster(){
   return Object.fromEntries(Object.entries(world.npcState||{}).map(([id,n])=>[id,Object.fromEntries(fields.filter(k=>n[k]!==undefined).map(k=>[k,n[k]]))]));
 }
 function publicWorldSnapshot(){const {npcState,npcEvents,...snapshot}=world;return snapshot;}
+function publicWorldSync(sinceRevision){
+  const sync=buildWorldSync(world,sinceRevision);
+  // NPC state is delivered once through world:npc-state, not duplicated inside
+  // the world snapshot. This substantially reduces the initial ready packet.
+  if(sync.mode==='snapshot'&&sync.snapshot){
+    const {npcState,npcEvents,...snapshot}=sync.snapshot;
+    return {...sync,snapshot};
+  }
+  return sync;
+}
 function emitNpcState(target=io){target.emit('world:npc-state',{npcs:publicNpcRoster(),events:(world.npcEvents||[]).slice(-20),squads:world.npcSquads||[],memorial:world.npcMemorial||[],battlefronts:world.battlefronts||[],convoys:world.convoys||[],factionBases:world.factionBases||[],frontlineOrders:world.frontlineOrders||[]});}
 function broadcastOnline(){ io.emit('world:players',onlineList()); }
 function systemMessage(text){ const m={id:crypto.randomUUID(),system:true,name:'Система',text:clean(text,240),time:Date.now()}; recentChat.push(m); if(recentChat.length>80)recentChat.shift(); io.emit('world:chat',m); }
@@ -242,7 +255,7 @@ io.on('connection', socket=>{
       // Acknowledge after registration but BEFORE the world snapshot, so clients
       // receive the small acknowledgement without waiting for a large NPC payload.
       if(typeof ack==='function'){ack({ok:true,accepted:true,persistent:dbReady});console.info(`[socket] player:hello ack sent id=${socket.id}`);}
-      socket.emit('player:ready',{id, savedState:s.state, guest:true, world:publicWorldSnapshot(), worldSync:buildWorldSync(world, Number(payload?.lastRevision)||0), status:publicWorldStatus(world,online.size), chat:recentChat.filter(m=>!m.location||m.location===p.location).slice(-60), players:onlineList(), leaderboard:leaderboardPayload(), position:{x:p.x,y:p.y}, persistent:dbReady});
+      socket.emit('player:ready',{id, savedState:s.state, guest:true, world:publicWorldSnapshot(), worldSync:publicWorldSync(Number(payload?.lastRevision)||0), status:publicWorldStatus(world,online.size), chat:recentChat.filter(m=>!m.location||m.location===p.location).slice(-60), players:onlineList(), leaderboard:leaderboardPayload(), position:{x:p.x,y:p.y}, persistent:dbReady});
       console.log(`player:hello completed for ${id} in ${Date.now()-helloStartedAt}ms (db=${dbReady?'postgres':'memory-fallback'})`);
       socket.to('zone-world').emit('world:event',joinEvent);
       io.emit('world:npcs',world.npcPositions); emitNpcState(); io.emit('world:ecosystem',world.ecosystem); io.emit('world:coop',world.coOpQuests); io.emit('war:state',{operations:world.warOperations||[],history:(world.warHistory||[]).slice(0,12)});
@@ -306,7 +319,8 @@ io.on('connection', socket=>{
   socket.on('player:travel-response',input=>{const p=online.get(socket.data.playerId);if(!p||(!p.travelEncounter&&p.expedition?.status!=='paused'))return;const action=['continue','fight'].includes(input?.action)?input.action:'retreat';p.travelEncounter=null;if(p.expedition?.status==='paused'){if(action==='continue')p.expedition.status='travelling';else p.expedition=null;}if(action!=='continue')p.moveOrder=null;else if(p.moveOrder)p.moveOrder.encounterChecked=true;socket.emit('player:move-result',{ok:true,message:action==='continue'?'Продолжаешь путь после опасной встречи.':action==='fight'?'Ты принимаешь бой. Маршрут приостановлен.':'Маршрут прерван. Персонаж отходит в безопасную точку.'});});
   socket.on('world:sync', input=>{
     if(!socket.data.playerId)return;
-    socket.emit('world:sync',buildWorldSync(world,Number(input?.sinceRevision)||0));
+    socket.emit('world:sync',publicWorldSync(Number(input?.sinceRevision)||0));
+    emitNpcState(socket);
   });
   socket.on('world:chat:send', async input=>{
     if(!socket.data.playerId)return;

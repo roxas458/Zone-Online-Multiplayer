@@ -33,3 +33,16 @@ test('HTTP server listens without waiting for PostgreSQL and player hello waits 
 test('Render service explicitly uses production mode', () => {
   assert.match(render, /- key: NODE_ENV\s+value: production/);
 });
+
+
+test('Socket.IO accepts full player save payloads larger than the 1 MB default', () => {
+  assert.match(server, /maxHttpBufferSize:\s*10\s*\*\s*1024\s*\*\s*1024/);
+  assert.doesNotMatch(server, /maxHttpBufferSize:\s*1e6/);
+});
+
+test('world snapshots avoid duplicating the NPC roster and resync sends it separately', () => {
+  assert.match(server, /function publicWorldSync\(sinceRevision\)/);
+  assert.match(server, /const \{npcState,npcEvents,\.\.\.snapshot\}=sync\.snapshot/);
+  assert.match(server, /worldSync:publicWorldSync\(/);
+  assert.match(server, /socket\.emit\('world:sync',publicWorldSync\([\s\S]*?emitNpcState\(socket\)/);
+});
