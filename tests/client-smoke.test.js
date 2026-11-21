@@ -439,8 +439,8 @@ test('4.25 field PDA keeps long-page filters and map controls reachable', () => 
 test('4.33 build labels are consistent', () => {
   const html = fs.readFileSync(path.join(root, 'public/index.html'), 'utf8');
   const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
-  assert.equal(pkg.version, '4.33.28');
-  assert.match(html, /BUILD 4\.33\.28/);
+  assert.equal(pkg.version, '4.33.29');
+  assert.match(html, /BUILD 4\.33\.29/);
   assert.match(html, /ZONE ONLINE 4\.33/);
 });
 
@@ -473,10 +473,12 @@ test('4.27 connection diagnostics support a separate server URL and health endpo
 });
 
 
-test('4.33.5 keeps the configured Render URL when health preflight is slow and retries Socket.IO', () => {
+test('4.33.29 waits for Render health before Socket.IO and falls back after a bounded probe', () => {
   const client = fs.readFileSync(path.join(root, 'public/js/game.js'), 'utf8');
   const server = fs.readFileSync(path.join(root, 'server.js'), 'utf8');
-  assert.match(client, /Do not gate Socket\.IO on an HTTP health preflight/);
+  assert.match(client, /async function waitForMultiplayerHealth\(/);
+  assert.match(client, /await waitForMultiplayerHealth\(targetUrl,connectAttempt,90000\)/);
+  assert.match(client, /health preflight limit reached; trying Socket\.IO anyway/);
   assert.doesNotMatch(client, /localStorage\.removeItem\('zoneServerUrl'\);[\s\S]{0,180}Using the server that hosts this game/);
   assert.match(client, /reconnectionAttempts:Infinity/);
   assert.match(client, /reconnectionDelayMax:5000/);
@@ -625,7 +627,8 @@ test('4.33.9 uses the configured Render server with WebSocket-first fallback and
   assert.match(server, /transportMode:'websocket-first-with-polling-fallback'/);
   assert.match(client, /keeping existing Socket\.IO connection/);
   assert.match(client, /zoneSocketTarget===targetUrl/);
-  assert.match(client, /zoneSocketTarget===targetUrl[\s\S]{0,240}return;[\s\S]{0,80}zonePlayerReady=false/);
+  assert.match(client, /zoneSocketTarget===targetUrl[\s\S]{0,240}return;/);
+  assert.match(client, /await waitForMultiplayerHealth[\s\S]{0,120}zonePlayerReady=false/);
   assert.match(server, /Publish the new owner before closing an older tab\/session/);
   assert.match(server, /oldSocket\.disconnect\(true\)/);
 });

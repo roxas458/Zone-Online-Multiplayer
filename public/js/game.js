@@ -1,4 +1,4 @@
-// ZONE ONLINE 4.33.28 browser client. IMMERSIVE TITLE SCREEN / SURVIVAL / MULTIPLAYER.
+// ZONE ONLINE 4.33.29 browser client. IMMERSIVE TITLE SCREEN / SURVIVAL / MULTIPLAYER.
 const clone=o=>JSON.parse(JSON.stringify(o));
 const base={
  name:"Новичок",money:1450,hp:100,radiation:0,radiationProtectionUntil:0,stamina:85,hunger:18,thirst:20,rep:10,day:1,hour:9,loc:"cordon",faction:"Одиночки",xp:0,meetings:0,completed:0,flags:{metSid:false,metWolf:false,heardBar:false,foundArtifact:false,helpedWolf:false},
@@ -1184,6 +1184,24 @@ async function runNetworkCheck(){
 
 const IS_LOCAL_ZONE_HOST=/^(localhost|127\.0\.0\.1|0\.0\.0\.0|\[?::1\]?)$/.test(String(window.location.hostname||''));
 const DEFAULT_ZONE_SERVER_URL=IS_LOCAL_ZONE_HOST?window.location.origin:'https://zone-online-multiplayer.onrender.com';
+async function waitForMultiplayerHealth(targetUrl, connectAttempt, maxWaitMs=90000){
+ const startedAt=Date.now();let lastError='сервер ещё запускается';let attempts=0;
+ while(Date.now()-startedAt<maxWaitMs){
+  if(connectAttempt!==zoneConnectAttempt)return {cancelled:true};
+  attempts++;const controller=new AbortController();const requestTimer=setTimeout(()=>controller.abort(),7000);
+  try{
+   const response=await fetch(`${targetUrl.replace(/\/$/,'')}/health?probe=${Date.now()}`,{cache:'no-store',mode:'cors',signal:controller.signal});
+   if(response.ok){const data=await response.json();if(data?.ok){console.info('ZONE ONLINE: health check passed before Socket.IO',{version:data.version,elapsedMs:Date.now()-startedAt,attempts});return {ok:true,data};}lastError='сервер ответил без признака готовности';}
+   else lastError=`HTTP ${response.status}`;
+  }catch(error){lastError=error?.name==='AbortError'?'тайм-аут запуска сервера':(error?.message||'сервер пока недоступен');}
+  finally{clearTimeout(requestTimer);}
+  const elapsed=Math.floor((Date.now()-startedAt)/1000);
+  setOnlineConnectionState('connecting',`Ожидаем запуск сервера… ${elapsed} сек. (${lastError}). Адрес сохранён, подключение начнётся сразу после ответа сервера.`);
+  if(Date.now()-startedAt<maxWaitMs)await new Promise(resolve=>setTimeout(resolve,2000));
+ }
+ console.warn('ZONE ONLINE: health preflight limit reached; trying Socket.IO anyway',{targetUrl,elapsedMs:Date.now()-startedAt,lastError});
+ return {ok:false,error:lastError};
+}
 async function connectZone(){
  const connectAttempt=++zoneConnectAttempt;
  if(IS_LOCAL_ZONE_HOST){const saved=(localStorage.getItem('zoneServerUrl')||'').trim();if(/onrender\.com/i.test(saved))localStorage.removeItem('zoneServerUrl');}
@@ -1210,22 +1228,19 @@ async function connectZone(){
   try{const parsed=new URL(serverUrl);if(!['http:','https:'].includes(parsed.protocol))throw new Error('Неподдерживаемый протокол');serverUrl=parsed.origin;}
   catch(error){console.warn('Discarding invalid saved multiplayer server URL:',error.message);serverUrl=DEFAULT_ZONE_SERVER_URL;localStorage.setItem('zoneServerUrl',serverUrl);}
  }
- // Do not gate Socket.IO on an HTTP health preflight. Render free instances may
- // be asleep; a slow /health response must never erase the user's configured URL
- // or redirect the client to the static game's origin. Socket.IO will retry below.
+ // Do not start Engine.IO retries against a sleeping Render instance. Poll its
+ // lightweight health endpoint first; this wakes Free services and starts Socket.IO
+ // only after Express is listening. If CORS/network blocks the probe, fall back
+ // to Socket.IO after a bounded wait instead of trapping the player here forever.
  const targetUrl=serverUrl||sameOrigin;
- // Wake a sleeping Render instance in parallel with Socket.IO. This request
- // never gates connection startup; it simply lets HTTP and WebSocket race.
- fetch(`${targetUrl.replace(/\/$/,'')}/health`,{cache:'no-store',mode:'cors',keepalive:true})
-  .then(response=>{if(!response.ok)throw new Error(`HTTP ${response.status}`);return response.json();})
-  .then(data=>console.info('ZONE ONLINE: server warm-up completed',{version:data.version,online:data.online}))
-  .catch(error=>console.warn('ZONE ONLINE: server warm-up pending; Socket.IO will continue retrying',error?.message||error));
- // A second tap on Connect must not destroy a healthy socket or an in-progress
- // automatic reconnection. Only replace the socket when the target actually changes.
+ // A second tap must not interrupt a healthy socket or an existing reconnect loop.
  if(zoneSocket && zoneSocketTarget===targetUrl && (zoneSocket.connected||zoneSocket.active)){
   console.info('ZONE ONLINE: keeping existing Socket.IO connection', {connected:zoneSocket.connected, active:zoneSocket.active, target:targetUrl});
   return;
  }
+ setOnlineConnectionState('connecting','Проверяем доступность сервера и ожидаем его запуска…');
+ await waitForMultiplayerHealth(targetUrl,connectAttempt,90000);
+ if(connectAttempt!==zoneConnectAttempt)return;
  zonePlayerReady=false;
  if(zoneSocket){try{zoneSocket.removeAllListeners();zoneSocket.disconnect();}catch{}}
  zoneSocketTarget=targetUrl;
@@ -1343,7 +1358,7 @@ function mpConnect(){
   if(!['http:','https:'].includes(parsed.protocol))return alert('Адрес сервера должен начинаться с http:// или https://');
   localStorage.setItem('zoneServerUrl',parsed.origin);
  }else localStorage.removeItem('zoneServerUrl');
- setOnlineConnectionState('connecting','Подключаемся к серверу. Если Render неактивен после простоя, первое соединение может занять до минуты…');
+ setOnlineConnectionState('connecting','Проверяем сервер. Если Render уснул после простоя, сначала дождёмся его запуска, затем подключим мультиплеер…');
  connectZone();
 }
 // All normal game saves are mirrored to the server. The server keeps one profile per player.

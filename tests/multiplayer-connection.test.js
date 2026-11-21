@@ -73,9 +73,9 @@ test('multiplayer reconnect attempts use short bounded delays and login acknowle
 });
 
 
-test('NPC roster transfer omits precomputed dialogue text and warms Render without gating Socket.IO', () => {
+test('NPC roster transfer omits precomputed dialogue text and waits for Render health before Socket.IO', () => {
   assert.doesNotMatch(server, /'dialogueVersion','dialogue','relationships'/);
-  assert.match(game, /server warm-up completed/);
-  assert.match(game, /fetch\(`\$\{targetUrl\.replace/);
-  assert.match(game, /Socket\.IO will continue retrying/);
+  assert.match(game, /health check passed before Socket\.IO/);
+  assert.match(game, /await waitForMultiplayerHealth\(targetUrl,connectAttempt,90000\)/);
+  assert.match(game, /trying Socket\.IO anyway/);
 });

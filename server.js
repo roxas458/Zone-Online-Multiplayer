@@ -88,11 +88,12 @@ io.engine.on('connection', rawSocket=>{
 });
 io.engine.on('connection_error', error=>console.error(`[engine] connection_error code=${error.code} message=${error.message} context=${JSON.stringify(error.context||{})}`));
 const PORT = process.env.PORT || 3000;
+const SERVER_PROCESS_STARTED_AT = Date.now();
 const SECTOR_COORDS = Object.freeze({chaes:[503,104],zaton:[561,405],pripyat:[676,649],jupiter:[391,703],limansk:[128,838],red:[311,903],radar:[675,897],army:[502,1046],wild:[347,1212],bar:[441,1215],yantar:[174,1302],dump:[466,1470],agro:[243,1528],dark:[787,1418],cordon:[463,1753],swamps:[185,1788],darkhollow:[793,1742]});
 const SPAWN_BY_FACTION = Object.freeze({'Одиночки':'cordon','Долг':'bar','Свобода':'army','Бандиты':'dump','Военные':'agro','Учёные':'yantar','Наёмники':'limansk','Монолит':'radar','Чистое небо':'swamps'});
 app.use(express.json({limit:'64kb'}));
 app.use(express.static(path.join(__dirname, 'public')));
-app.get('/health', (_req,res) => { res.set('Access-Control-Allow-Origin','*'); res.set('Cache-Control','no-store'); res.status(200).json({ ok:true, service:'ZONE ONLINE', version:require('./package.json').version, database:dbReady?'postgres':'memory-fallback', databaseRequiredForAccounts:false, online:online.size, revision:world.revision||1, timestamp:Date.now() }); });
+app.get('/health', (_req,res) => { res.set('Access-Control-Allow-Origin','*'); res.set('Cache-Control','no-store'); res.status(200).json({ ok:true, service:'ZONE ONLINE', version:require('./package.json').version, database:dbReady?'postgres':'memory-fallback', databaseRequiredForAccounts:false, online:online.size, revision:world.revision||1, uptimeSeconds:Math.floor(process.uptime()), worldNpcCount:Object.keys(world.npcState||{}).length, timestamp:Date.now() }); });
 app.get('/api/diagnostics', (_req,res) => { res.set('Access-Control-Allow-Origin','*'); res.set('Cache-Control','no-store'); res.json({ ok:true, version:require('./package.json').version, multiplayer:true, guestMode:true, database:dbReady?'postgres':'memory-fallback', online:online.size, socketPath:'/socket.io', transports:['websocket','polling'], transportMode:'websocket-first-with-polling-fallback', node:process.version, nodeMajor:Number(process.versions.node.split('.')[0]), timestamp:Date.now() }); });
 app.get('/api/status', (_req,res) => res.json({ ...publicWorldStatus(world, online.size), persistent:dbReady, service:`ZONE ONLINE ${require('./package.json').version} SURVIVAL & EXPEDITIONS` }));
 app.get('/api/leaderboard', (_req,res) => { res.set('Cache-Control','no-store'); res.json({ok:true,updatedAt:Date.now(),entries:buildStalkerLeaderboard(),hallOfFame:(world.stalkerHallOfFame||[]).slice(0,100),news:(world.stalkerNews||[]).slice(0,40)}); });
@@ -238,16 +239,22 @@ io.on('connection', socket=>{
     try {
       // The HTTP health endpoint is available immediately, but player profile
       // loading waits for the one-time DB bootstrap to finish (or fall back).
+      const dbWaitStartedAt=Date.now();
       await dbInitialization;
+      const dbWaitMs=Date.now()-dbWaitStartedAt;
       // guest identity mode: account registration/login has been removed. Every connection is a guest
       // identified by a browser-generated UUID; no token or database lookup is required.
       const id=validId(payload?.id)?String(payload.id):crypto.randomUUID();
+      const profileLoadStartedAt=Date.now();
       let saved=await loadPlayer(id);
       const pendingNewCharacter=payload?.state?.characterCreated===true&&saved?.characterCreated!==true;
       if((!saved||pendingNewCharacter) && payload?.state) { saved=safeState(payload.state).state; await persistPlayer(id,saved); }
+      const profileLoadMs=Date.now()-profileLoadStartedAt;
+      const stateValidationStartedAt=Date.now();
       const s=safeState(saved||payload?.state);
       // Never reattach an unvalidated database record after normalizing it.
       if(saved) await persistPlayer(id,s.state);
+      const stateValidationMs=Date.now()-stateValidationStartedAt;
       const spawnPoint=SECTOR_COORDS[s.loc]||SECTOR_COORDS.cordon;const savedPos=s.state?.worldPosition;const p={ id, name:s.name, faction:s.faction, location:s.loc, x:Number.isFinite(Number(savedPos?.x))?Math.max(0,Math.min(1000,Number(savedPos.x))):spawnPoint[0], y:Number.isFinite(Number(savedPos?.y))?Math.max(0,Math.min(2000,Number(savedPos.y))):spawnPoint[1], hp:s.hp, xp:s.xp, joinedAt:Date.now(), lastSeen:Date.now(), state:s.state, moveOrder:null, travelEncounter:null };
       // Publish the new owner before closing an older tab/session. The old
       // disconnect handler checks socketId and must never remove the new session.
@@ -264,7 +271,7 @@ io.on('connection', socket=>{
       // receive the small acknowledgement without waiting for a large NPC payload.
       if(typeof ack==='function'){ack({ok:true,accepted:true,persistent:dbReady});console.info(`[socket] player:hello ack sent id=${socket.id}`);}
       socket.emit('player:ready',{id, savedState:s.state, guest:true, world:publicWorldSnapshot(), worldSync:initialWorldSync(Number(payload?.lastRevision)||0), status:publicWorldStatus(world,online.size), chat:recentChat.filter(m=>!m.location||m.location===p.location).slice(-60), players:onlineList(), leaderboard:leaderboardPayload(), position:{x:p.x,y:p.y}, persistent:dbReady});
-      console.log(`player:hello completed for ${id} in ${Date.now()-helloStartedAt}ms (db=${dbReady?'postgres':'memory-fallback'})`);
+      console.log(`player:hello completed for ${id} in ${Date.now()-helloStartedAt}ms (dbWait=${dbWaitMs}ms profile=${profileLoadMs}ms state=${stateValidationMs}ms db=${dbReady?'postgres':'memory-fallback'})`);
       socket.to('zone-world').emit('world:event',joinEvent);
       socket.emit('world:npcs',world.npcPositions); emitNpcState(socket); socket.emit('world:ecosystem',world.ecosystem); socket.emit('world:coop',world.coOpQuests); socket.emit('war:state',{operations:world.warOperations||[],history:(world.warHistory||[]).slice(0,12)});
       systemMessage(`${p.name} вошёл в Зону.`); broadcastOnline(); persistWorld().catch(e=>console.error('join persistence:',e.message));
@@ -713,7 +720,7 @@ setInterval(async()=>{
   try{await persistWorld();io.emit('world:zoneEvent',event);io.emit('world:event',syncEvent);io.emit('world:status',publicWorldStatus(world,online.size));}catch(e){console.error('Zone event:',e.message);}
 },4*60*1000).unref();
 dbInitialization = initDb().catch(e=>{console.error('Database bootstrap error:',e);});
-server.listen(PORT,'0.0.0.0',()=>console.log(`ZONE ONLINE listening on ${PORT} node=${process.version} socketTransports=websocket,polling`));
+server.listen(PORT,'0.0.0.0',()=>console.log(`ZONE ONLINE listening on ${PORT} node=${process.version} bootMs=${Date.now()-SERVER_PROCESS_STARTED_AT} npcCount=${Object.keys(world.npcState||{}).length} socketTransports=websocket,polling`));
 server.on('error',error=>{console.error('HTTP server failed to start:',error);process.exitCode=1;});
 let shutdownStarted=false;
 async function gracefulShutdown(signal){
