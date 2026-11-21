@@ -269,11 +269,31 @@ function news(t,b){const c=realClock();g.news.unshift({day:c.day,hour:c.time,tit
 function addItem(id,name,type,desc,weight,value,qty=1){let x=g.items.find(i=>i.id===id);if(x)x.qty+=qty;else g.items.push({id,name,type,desc,weight,value,qty})}
 function count(id){return g.items.find(i=>i.id===id)?.qty||0}
 function take(id,n){let x=g.items.find(i=>i.id===id);if(!x||x.qty<n)return false;x.qty-=n;if(x.qty<=0)g.items=g.items.filter(i=>i.id!==id);return true}
-function view(id){if(id!=="people"&&$("npcDialogueOverlay")?.classList.contains("open"))closeTalk();document.querySelectorAll(".view").forEach(v=>v.classList.toggle("active",v.id===id));document.querySelectorAll("[data-v]").forEach(b=>b.classList.toggle("active",b.dataset.v===id));document.querySelector("main>aside.panel")?.classList.remove("mobile-open");if(id==="war")renderWar();if(id==="encyclopedia")renderEncyclopedia();if(id==="stories")renderStories();if(id==="people")renderPeople();if(id==="squads")renderSquads();if(id==="profile")renderProfile();if(id==="inventory")renderInventory();if(id==="trade")renderTrade();if(id==="settings")applyGameOptions();if(id==="world")renderMap()}
+function view(id){if(id!=="people"&&$("npcDialogueOverlay")?.classList.contains("open"))closeTalk();document.querySelectorAll(".view").forEach(v=>v.classList.toggle("active",v.id===id));document.querySelectorAll("[data-v]").forEach(b=>b.classList.toggle("active",b.dataset.v===id));document.querySelector("main>aside.panel")?.classList.remove("mobile-open");if(id==="war")renderWar();if(id==="encyclopedia")renderEncyclopedia();if(id==="stories")renderStories();if(id==="people")renderPeople();if(id==="squads")renderSquads();if(id==="profile")renderProfile();if(id==="inventory")renderInventory();if(id==="trade")renderTrade();if(id==="settings")applyGameOptions();if(id==="world")renderMap();if(id==="ranks")renderStalkerLeaderboard()}
 function toggleMobileMenu(){document.querySelector("main>aside.panel")?.classList.toggle("mobile-open")}
 document.addEventListener("keydown",e=>{if(e.key==="Escape"&&$("npcDialogueOverlay")?.classList.contains("open"))closeTalk();});
 document.querySelectorAll("[data-v]").forEach(b=>b.onclick=()=>{view(b.dataset.v);if(b.dataset.v==="armory")renderArmory();if(b.dataset.v==="inventory")renderInventory()});
 
+function localLeaderboardFallback(){
+ const roster=(serverWorld?.npcState?Object.values(serverWorld.npcState):(g.npcs||[])).filter(n=>n&&n.name);
+ const rows=roster.map((n,i)=>({id:`npc:${n.id||i}`,type:'npc',name:n.name,faction:n.faction||'Одиночки',role:n.role||'сталкер',location:n.location||g.loc,kills:Number(n.combatKills)||0,deaths:Number(n.combatDeaths)||0,score:100+(Number(n.combatKills)||0)*125+Math.max(0,20-i),place:0}));
+ rows.push({id:`player:${zonePlayerId||'local'}`,type:'player',playerId:zonePlayerId||'local',name:g.name||'Ты',faction:g.faction||'Одиночки',role:'сталкер',location:g.loc,kills:Number(g.careerStats?.kills)||0,deaths:0,score:100+(Number(g.careerStats?.kills)||0)*150+Math.min(500,Math.floor((Number(g.xp)||0)/10)),place:0});
+ rows.sort((a,b)=>b.score-a.score||b.kills-a.kills||a.name.localeCompare(b.name,'ru'));return rows.slice(0,20).map((x,i)=>({...x,place:i+1}));
+}
+function rankLabel(row){const score=Number(row.score)||0;return score>=1800?'Легенда':score>=1200?'Мастер':score>=800?'Ветеран':score>=450?'Опытный':score>=200?'Боец':'Новичок'}
+function renderStalkerLeaderboard(){
+ const list=$('stalkerLeaderboard');if(!list)return;
+ const rows=serverLeaderboard.length?serverLeaderboard:localLeaderboardFallback();
+ if(!rows.some(x=>x.id===selectedRankId))selectedRankId=rows[0]?.id||'';
+ list.innerHTML=rows.map(row=>`<button class="pda-rank-row ${row.id===selectedRankId?'selected':''}" onclick="selectRankEntry('${String(row.id).replace(/[^a-zA-Z0-9:_-]/g,'')}')"><span class="rank-place">${row.place||'—'}.</span><span class="rank-name">${escapeHtml(row.name)}</span><span class="rank-score">${Number(row.score||0).toLocaleString('ru-RU')}</span></button>`).join('')||'<div class="mutedbox small">Рейтинг пока пуст.</div>';
+ const chosen=rows.find(x=>x.id===selectedRankId)||rows[0];
+ if(chosen){$('rankDetailTitle').textContent=chosen.name;$('rankDetail').innerHTML=`<div class="rank-detail-top">${portraitMarkup({id:chosen.id,name:chosen.name,faction:chosen.faction,role:chosen.role||'сталкер'},true)}<div><b>${escapeHtml(chosen.name)}</b><div class="desc">${escapeHtml(chosen.role||'сталкер')} · ${escapeHtml(chosen.faction||'Одиночки')}</div><span class="tag">${rankLabel(chosen)}</span></div></div><div class="rank-detail-grid"><div><small>Место</small><b>№ ${chosen.place||'—'}</b></div><div><small>Очки</small><b>${Number(chosen.score||0).toLocaleString('ru-RU')}</b></div><div><small>Победы</small><b>${Number(chosen.kills||0)}</b></div><div><small>Поражения</small><b>${Number(chosen.deaths||0)}</b></div><div><small>Локация</small><b>${escapeHtml(locationName(chosen.location)||chosen.location||'—')}</b></div><div><small>Тип записи</small><b>${chosen.type==='player'?'Игрок':'Персонаж Зоны'}</b></div></div><div class="rank-detail-note">${chosen.lastVictim?`Последняя победа: ${escapeHtml(chosen.lastVictim)}`:'Рейтинг обновляется после боевых событий и активности в Зоне.'}</div>`;}
+ const me=rows.find(x=>x.playerId===zonePlayerId||x.id===`player:${zonePlayerId||'local'}`);$('rankMyPosition').textContent=me?`ТВОЁ МЕСТО: ${me.place}`:'ТВОЁ МЕСТО: ВНЕ ТОП-20';$('rankUpdated').textContent=`ОБНОВЛЕНО ${new Date().toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'})}`;$('rankClock').textContent=realClock().time+'  '+realClock().stamp;
+ $('rankSummary').innerHTML=[['Участников в рейтинге',rows.length],['Твоя статистика',Number(g.careerStats?.kills)||0],['Текущий рейтинг',me?Number(me.score).toLocaleString('ru-RU'):'—']].map(x=>`<div class="stat"><span>${x[0]}</span><strong>${x[1]}</strong></div>`).join('');
+ $('rankRecent').innerHTML=rankRecentEvents.slice(0,6).map(e=>`<div class="item block"><b>${escapeHtml(e.name||'Сталкер')}</b><div class="desc">${escapeHtml(e.text||'Позиция в рейтинге обновлена')}</div></div>`).join('')||'<div class="mutedbox small">Новых изменений пока нет.</div>';
+}
+function selectRankEntry(id){selectedRankId=id;renderStalkerLeaderboard()}
+function applyLeaderboard(data){if(!Array.isArray(data))return;serverLeaderboard=data.slice(0,20);if($('ranks')?.classList.contains('active'))renderStalkerLeaderboard();}
 function renderStories(){if(window.ZoneStories&&$('storyList'))$('storyList').innerHTML=window.ZoneStories.render(g)}
 function chooseStory(id){if(!window.ZoneStories)return;const result=window.ZoneStories.choose(g,id);if(result.message){log(result.message);news(result.ok?'Личное дело':'Сведения по делу',result.message)}save();renderStories()}
 function here(){return g.locations.find(l=>l.id===g.loc)}
@@ -685,6 +705,7 @@ function renderAtmosphere(){
 function radiationLevel(){return Math.max(0,Math.min(100,Number(g.radiation)||0))}
 function tickRadiation(){const hazards={chaes:1.8,radar:1.5,pripyat:1.1,red:.65,yantar:.45,swamps:.35,darkhollow:.3,limansk:.25};if(Date.now()<(g.radiationProtectionUntil||0))return;const exposure=hazards[g.loc]||0;if(exposure){g.radiation=Math.min(100,radiationLevel()+exposure);if(g.radiation>=35&&Math.random()<.18)g.hp=Math.max(1,g.hp-1);if(g.radiation>=70&&Math.random()<.25)g.stamina=Math.max(0,g.stamina-2);save();}}
 setInterval(()=>{tickRadiation();tickSurvival();if($('inventory')?.classList.contains('active'))renderInventory();},60000);
+setInterval(()=>{if($('ranks')?.classList.contains('active'))renderStalkerLeaderboard();},15000);
 function needPercent(value){const n=Number(value);return Math.round(Math.max(0,Math.min(100,Number.isFinite(n)?n:0)));}
 function render(){let l=here();$("topMoney").textContent=g.money.toLocaleString("ru-RU");$("topHp").textContent=g.hp+"%";$("topHunger").textContent=needPercent(g.hunger)+"%";$("topThirst").textContent=needPercent(g.thirst)+"%";const radEl=$("topRadiation");if(radEl)radEl.textContent=Math.round(radiationLevel())+"%";$("topDay").textContent=realClock().stamp;$("topLoc").textContent=l.name;$("sMoney").textContent=g.money+" ₽";$("sHp").textContent=g.hp+"%";$("sRep").textContent=g.rep;$("sDay").textContent=g.day;
 $("nearby").innerHTML=nearbyNpcs().slice(0,3).map(n=>`<div class="item"><div><b>${n.icon} ${n.name}</b><div class="desc">${n.role} · ${n.desc}</div></div><button onclick="meet('${n.id}')">Подойти</button></div>`).join("")||'<div class="mutedbox">Поблизости никого нет.</div>';
@@ -704,6 +725,7 @@ localStorage.removeItem('zoneAccountToken');localStorage.removeItem('zoneAccount
 const factionSpawn={ 'Одиночки':'cordon','Долг':'bar','Свобода':'army','Бандиты':'dump','Военные':'agro','Учёные':'yantar','Наёмники':'limansk','Монолит':'radar','Чистое небо':'swamps' };
 const spawnNames={cordon:'Кордон',bar:'Бар',army:'Военные склады',dump:'Свалка',agro:'Агропром',yantar:'Янтарь',limansk:'Лиманск',radar:'Радар',swamps:'Болота'};
 let onlinePlayers=[], serverWorld=null, serverChat=[], incomingTrades=[], activePlayerSquad=null;
+let serverLeaderboard=[], selectedRankId='', rankRecentEvents=[];
 let applyingServerState=false;
 
 render();
@@ -832,7 +854,7 @@ function combatAction(action){if(!battle)return;
 
 
 const originalFinishCombat=finishCombat;
-finishCombat=function(result){if(result==='win'){g.careerStats||={};g.careerStats.kills=(g.careerStats.kills||0)+1;}return originalFinishCombat(result);};
+finishCombat=function(result){if(result==='win'){g.careerStats||={};g.careerStats.kills=(g.careerStats.kills||0)+1;rankRecentEvents.unshift({name:g.name,text:'Победа в столкновении. Личный рейтинг обновлён.'});rankRecentEvents=rankRecentEvents.slice(0,12);if($('ranks')?.classList.contains('active'))renderStalkerLeaderboard();}return originalFinishCombat(result);};
 const originalTravel=travel;
 travel=function(id){const before=g.loc;originalTravel(id);if(g.loc!==before){g.careerStats||={};g.careerStats.travelled=(g.careerStats.travelled||0)+1;g.visitedLocations||=[before];if(!g.visitedLocations.includes(g.loc))g.visitedLocations.push(g.loc);save();setTimeout(()=>startRandomEncounter(false),120);}};
 const originalExplore=explore;
@@ -1045,12 +1067,13 @@ async function connectZone(){
   if(data.savedState&&typeof data.savedState==='object'){applyingServerState=true;g=data.savedState;if(g.characterCreated===undefined)g.characterCreated=true;migrateWorld();localStorage.setItem('zoneExpandedSave',JSON.stringify(g));applyingServerState=false;render();if(g.characterCreated)$('characterSetup')?.classList.remove('show');else if(!$('characterSetup')?.classList.contains('show'))openCharacterSetup();}
   if(data.position&&Number.isFinite(Number(data.position.x))&&Number.isFinite(Number(data.position.y))){g.worldPosition={x:Number(data.position.x),y:Number(data.position.y)};g.mapCoordinateVersion=2;localStorage.setItem('zoneExpandedSave',JSON.stringify(g));}
   serverWorld=data.world||null;syncNpcRosterToClient();applyWorldSync(data.worldSync);if(serverWorld?.discoveredPoints)applySharedDiscoveredPoints(serverWorld.discoveredPoints);renderWar();renderOnlineWorldStatus(data.status);if(serverWorld?.diplomacy){g.diplomacy=serverWorld.diplomacy;renderDiplomacy();}if(serverWorld?.npcPositions)applySharedNpcPositions(serverWorld.npcPositions);renderCoopQuests(serverWorld?.coOpQuests||[]);
-  onlinePlayers=data.players||[];serverChat=(data.chat||[]).filter(m=>!m.location||m.location===g.loc);renderOnlinePlayers();renderServerChat();
+  applyLeaderboard(data.leaderboard||[]);onlinePlayers=data.players||[];serverChat=(data.chat||[]).filter(m=>!m.location||m.location===g.loc);renderOnlinePlayers();renderServerChat();
   if($('mpName'))$('mpName').value=g.name;if($('localChatHeading'))$('localChatHeading').textContent=`Локальный канал КПК · ${locationName(g.loc)}`;
   $('mpStatusText').textContent=data.persistent?'Гостевой режим · профиль и общий мир сохраняются на сервере.':'Гостевой режим · данные сервера хранятся в памяти и сбросятся после перезапуска.';
   if(!data.savedState)zoneSocket.emit('player:save',g);
   renderPlayerTrade();renderIncomingTrades();mpSyncLocation();
  });
+ zoneSocket.on('world:leaderboard',data=>{applyLeaderboard(data?.entries||[]);});
  zoneSocket.on('world:players',list=>{onlinePlayers=list||[];renderOnlinePlayers();renderPlayerTrade();renderOnlineWorldStatus();if(activePlayerDM&&!onlinePlayers.some(p=>p.id===activePlayerDM&&p.location===g.loc)){activePlayerDM=null;renderPlayerDM();}});
  zoneSocket.on('player:expedition-result',data=>{updateMoveOrderStatus(data?.message||'Состояние экспедиции обновлено');if(data?.ok&&data.expedition){g.expedition=data.expedition;save();}});
  zoneSocket.on('player:expedition-step',data=>{if(!data?.location)return;if(data.state&&typeof data.state==='object')g={...g,...data.state};g.loc=data.location;g.expedition=data.arrived?null:{...(g.expedition||{}),path:data.route,index:data.index};activeNpc=null;save();render();view('world');updateMoveOrderStatus(data.arrived?'Экспедиция завершена':'Прибыл в сектор '+locationName(data.location));log('Экспедиция: переход в сектор '+locationName(data.location)+'.');});

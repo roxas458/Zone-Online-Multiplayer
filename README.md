@@ -66,3 +66,11 @@ The browser now connects to the configured Render multiplayer service by default
 - The HTTP server starts listening immediately while PostgreSQL initializes in the background. Player profile handshakes wait for that initialization to finish (or enter the existing memory fallback), avoiding a race with database restoration.
 - Render explicitly sets `NODE_ENV=production`.
 - Added regression tests for the connection loader, local URL selection, server startup ordering and Render environment.
+
+
+### 4.33.12 — PDA stalker leaderboard
+- Added a PDA-style Top 20 stalkers screen with two-column dossier layout inspired by the supplied reference image.
+- Added live server leaderboard updates and `/api/leaderboard` endpoint.
+- Player NPC victories increase the player's score; NPC-vs-NPC combat increments the killer NPC's combat statistics.
+- Leaderboard data is stored inside the persistent shared world and falls back to local NPC/player statistics when the multiplayer server is unavailable.
+- Added selected-stalker dossier, faction, role, location, rank, kills, losses, score and current player position.

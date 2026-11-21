@@ -91,11 +91,36 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.get('/health', (_req,res) => { res.set('Access-Control-Allow-Origin','*'); res.set('Cache-Control','no-store'); res.status(200).json({ ok:true, service:'ZONE ONLINE', version:require('./package.json').version, database:dbReady?'postgres':'memory-fallback', databaseRequiredForAccounts:false, online:online.size, revision:world.revision||1, timestamp:Date.now() }); });
 app.get('/api/diagnostics', (_req,res) => { res.set('Access-Control-Allow-Origin','*'); res.set('Cache-Control','no-store'); res.json({ ok:true, version:require('./package.json').version, multiplayer:true, guestMode:true, database:dbReady?'postgres':'memory-fallback', online:online.size, socketPath:'/socket.io', transports:['websocket','polling'], transportMode:'websocket-first-with-polling-fallback', node:process.version, nodeMajor:Number(process.versions.node.split('.')[0]), timestamp:Date.now() }); });
 app.get('/api/status', (_req,res) => res.json({ ...publicWorldStatus(world, online.size), persistent:dbReady, service:`ZONE ONLINE ${require('./package.json').version} SURVIVAL & EXPEDITIONS` }));
+app.get('/api/leaderboard', (_req,res) => { res.set('Cache-Control','no-store'); res.json({ok:true,updatedAt:Date.now(),entries:buildStalkerLeaderboard()}); });
 app.get('/api/world/snapshot', (_req,res) => res.json({ status:publicWorldStatus(world, online.size), world }));
 app.get('/api/world/events', (req,res) => { const since=Number(req.query.since||0); const sync=buildWorldSync(world, Number.isSafeInteger(since)?since:0); res.json(sync); });
 
 function publicPlayer(p){ return { id:p.id, name:p.name, faction:p.faction, location:p.location, x:p.x, y:p.y, hp:p.hp, xp:p.xp, joinedAt:p.joinedAt, lastSeen:p.lastSeen }; }
 function onlineList(){ return [...online.values()].map(publicPlayer).sort((a,b)=>a.name.localeCompare(b.name,'ru')); }
+function buildStalkerLeaderboard(){
+  world.stalkerLeaderboard ||= {};
+  for(const npc of Object.values(world.npcState||{})){
+    const id=`npc:${npc.id}`;
+    const row=world.stalkerLeaderboard[id] ||= {id,type:'npc',name:npc.name,faction:npc.faction||'Одиночки',role:npc.role||'сталкер',kills:0,deaths:0,score:0,location:npc.location||'Неизвестно',updatedAt:Date.now()};
+    row.name=npc.name||row.name;row.faction=npc.faction||row.faction;row.role=npc.role||row.role;row.location=npc.location||row.location;
+    row.kills=Math.max(Number(row.kills)||0,Number(npc.combatKills)||0);
+    row.deaths=Number(row.deaths)||0;row.score=Math.max(Number(row.score)||0,100+(row.kills*125));
+  }
+  for(const p of online.values()){
+    const id=`player:${p.id}`;
+    const row=world.stalkerLeaderboard[id] ||= {id,type:'player',playerId:p.id,name:p.name,faction:p.faction||'Одиночки',role:'сталкер',kills:0,deaths:0,score:100,location:p.location||'Неизвестно',updatedAt:Date.now()};
+    row.name=p.name||row.name;row.faction=p.faction||row.faction;row.location=p.location||row.location;
+    row.score=100+(Number(row.kills)||0)*150+Math.min(500,Math.floor((Number(p.xp)||0)/10));row.updatedAt=Date.now();
+  }
+  const rows=Object.values(world.stalkerLeaderboard).map(row=>({...row,score:Math.max(0,Math.floor(Number(row.score)||0)),kills:Math.max(0,Math.floor(Number(row.kills)||0)),deaths:Math.max(0,Math.floor(Number(row.deaths)||0))}));
+  return rows.sort((a,b)=>b.score-a.score||b.kills-a.kills||a.name.localeCompare(b.name,'ru')).slice(0,20).map((row,index)=>({...row,place:index+1}));
+}
+function recordStalkerKill(player,npc){
+  world.stalkerLeaderboard ||= {};
+  const id=`player:${player.id}`;
+  const row=world.stalkerLeaderboard[id] ||= {id,type:'player',playerId:player.id,name:player.name,faction:player.faction,role:'сталкер',kills:0,deaths:0,score:100,location:player.location};
+  row.name=player.name;row.faction=player.faction;row.location=player.location;row.kills=(Number(row.kills)||0)+1;row.score=100+row.kills*150+Math.min(500,Math.floor((Number(player.xp)||0)/10));row.lastKillAt=Date.now();row.lastVictim=npc.name;row.updatedAt=Date.now();
+}
 function publicNpcRoster(){
   const fields=['id','name','faction','role','location','alive','generated','supportSpecialist','icon','personality','mood','action','behavior','duty','guardPost','homeLocation','health','morale','supplies','biography','friends','rivals','squadId','squadName','dialogueVersion','dialogue','relationships','equipment'];
   return Object.fromEntries(Object.entries(world.npcState||{}).map(([id,n])=>[id,Object.fromEntries(fields.filter(k=>n[k]!==undefined).map(k=>[k,n[k]]))]));
@@ -192,7 +217,7 @@ io.on('connection', socket=>{
       // Acknowledge after registration but BEFORE the world snapshot, so clients
       // receive the small acknowledgement without waiting for a large NPC payload.
       if(typeof ack==='function'){ack({ok:true,accepted:true,persistent:dbReady});console.info(`[socket] player:hello ack sent id=${socket.id}`);}
-      socket.emit('player:ready',{id, savedState:s.state, guest:true, world:publicWorldSnapshot(), worldSync:buildWorldSync(world, Number(payload?.lastRevision)||0), status:publicWorldStatus(world,online.size), chat:recentChat.filter(m=>!m.location||m.location===p.location).slice(-60), players:onlineList(), position:{x:p.x,y:p.y}, persistent:dbReady});
+      socket.emit('player:ready',{id, savedState:s.state, guest:true, world:publicWorldSnapshot(), worldSync:buildWorldSync(world, Number(payload?.lastRevision)||0), status:publicWorldStatus(world,online.size), chat:recentChat.filter(m=>!m.location||m.location===p.location).slice(-60), players:onlineList(), leaderboard:buildStalkerLeaderboard(), position:{x:p.x,y:p.y}, persistent:dbReady});
       console.log(`player:hello completed for ${id} in ${Date.now()-helloStartedAt}ms (db=${dbReady?'postgres':'memory-fallback'})`);
       socket.to('zone-world').emit('world:event',joinEvent);
       io.emit('world:npcs',world.npcPositions); emitNpcState(); io.emit('world:ecosystem',world.ecosystem); io.emit('world:coop',world.coOpQuests); io.emit('war:state',{operations:world.warOperations||[],history:(world.warHistory||[]).slice(0,12)});
@@ -503,7 +528,9 @@ io.on('connection', socket=>{
     world.npcMemorial||=[];world.npcMemorial.unshift({id:`mem_${npc.id}_${npc.diedAt}`,name:npc.name,faction:npc.faction,role:npc.role,location:npc.location,cause:npc.deathCause,diedAt:npc.diedAt});world.npcMemorial=world.npcMemorial.slice(0,100);
     world.npcPositions[npc.id]=npc.location;
     const ev=appendWorldEvent(world,'npc_killed',{npcId:npc.id,name:npc.name,faction:npc.faction,playerId:p.id,playerName:p.name,location:p.location});
-    await persistWorld();io.emit('world:event',ev);emitNpcState();socket.emit('npc:combat:result',{ok:true,npcId:npc.id});
+    recordStalkerKill(p,npc);
+    const leaderboard=buildStalkerLeaderboard();
+    await persistWorld();io.emit('world:event',ev);io.emit('world:leaderboard',{updatedAt:Date.now(),entries:leaderboard});emitNpcState();socket.emit('npc:combat:result',{ok:true,npcId:npc.id,leaderboard});
   });
   socket.on('npc:specialist', async input=>{
     const p=online.get(socket.data.playerId);if(!p)return;
@@ -617,6 +644,7 @@ setInterval(async()=>{
   try {
     initSharedWorld(world, NPC_HOME, LOCATIONS, COOP_TEMPLATES);
     const now=Date.now(), events=tickNpcWorld(world,LOCATIONS,Math.random,now);
+    const leaderboard=buildStalkerLeaderboard();
     for(const p of online.values()){for(const npc of Object.values(world.npcState||{})){if(!npc.alive||npc.location!==p.location)continue;npc.lastApproachAt ||= 0;if(now-npc.lastApproachAt<8*60*1000||Math.random()>.12)continue;npc.lastApproachAt=now;io.to(p.id).emit('npc:approach',{npcId:npc.id,text:`${npc.name} замечает тебя и подходит поговорить. «Эй, сталкер. Есть минутка?»`});break;}}
     const ecoEvents=tickEcosystem(world,Math.random,now);
     const soulEvents=tickSouls(world,LOCATIONS,Math.random,now);
@@ -625,7 +653,7 @@ setInterval(async()=>{
     io.emit('world:event',tickEvent);
     for(const event of [...events,...ecoEvents,...soulEvents]){const ev=appendWorldEvent(world,event.type,{...event},now);io.emit('world:event',ev);io.emit('world:npc-event',event);if(['npc_skirmish','mutant_migration','anomaly_migration','convoy_ambush','convoy_started'].includes(event.type))systemMessage(event.text);}
     await persistWorld(); io.emit('world:npcs',world.npcPositions);
-    emitNpcState();io.emit('world:ecosystem',world.ecosystem);
+    emitNpcState();io.emit('world:leaderboard',{updatedAt:now,entries:leaderboard});io.emit('world:ecosystem',world.ecosystem);
     io.emit('world:status',publicWorldStatus(world,online.size));
   }catch(e){console.error('NPC AI schedule:',e.message);} finally {npcTickRunning=false;}
 },60*1000).unref();
