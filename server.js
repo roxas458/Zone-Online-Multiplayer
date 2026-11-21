@@ -294,7 +294,7 @@ io.on('connection', socket=>{
     const center=SECTOR_COORDS[p.location]||SECTOR_COORDS.cordon;
     const tx=Number(input?.x),ty=Number(input?.y);
     if(!Number.isFinite(tx)||!Number.isFinite(ty)||Math.abs(tx-center[0])>255||Math.abs(ty-center[1])>255){socket.emit('player:move-result',{ok:false,message:'Точка находится за пределами доступной части сектора.'});return;}
-    const result=createMoveOrder(p,{x:tx,y:ty},Date.now(),7);
+    const result=createMoveOrder(p,{x:tx,y:ty},Date.now(),2.5);
     if(!result.ok){socket.emit('player:move-result',{ok:false,message:result.error});return;}
     p.moveOrder=result.order;p.travelEncounter=null;p.lastSeen=Date.now();
     const risk=({chaes:0.95,radar:0.85,pripyat:0.75,red:0.65,dark:0.6,dump:0.55,swamps:0.4,cordon:0.25,bar:0.2,yantar:0.3})[p.location]??0.35;

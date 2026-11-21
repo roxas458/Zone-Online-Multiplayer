@@ -14,8 +14,9 @@ test('inventory can be opened directly from the in-game header', () => {
 });
 
 test('full Zone map preserves its original aspect ratio instead of stretching', () => {
-  assert.match(client, /zoneMapMode==='zone'\?'xMidYMid meet'/);
-  assert.match(css, /\.zone-map\{[^}]*aspect-ratio:1\/2/s);
+  assert.match(client, /preserveAspectRatio=\"xMidYMid meet\"/);
+  assert.match(css, /\.zone-map\{[^}]*width:100%[^}]*height:min\(76dvh,920px\)/s);
+  assert.match(html, /onclick=\"toggleMapFullscreen\(\)\"/);
 });
 
 test('NPC squad markers do not render group size as an overlaid number', () => {

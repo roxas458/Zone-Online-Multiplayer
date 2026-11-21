@@ -867,10 +867,11 @@ body.title-screen-active .survival-hud{display:none}
 .inventory-quick-trigger .backpack-icon{font-size:19px;line-height:1}
 .inventory-quick-trigger:hover{border-color:#d2c17e;background:linear-gradient(180deg,#5a583b,#293323);color:#fff0b4}
 .zone-map-frame{display:flex;flex-direction:column;align-items:stretch}
-.zone-map{width:min(100%,520px);height:auto;aspect-ratio:1/2;max-height:78dvh;margin-inline:auto;flex:none}
-.zone-map svg{width:100%;height:100%}
+.zone-map{width:100%;height:min(76dvh,920px);min-height:480px;aspect-ratio:auto;max-height:none;margin:0;flex:1 1 auto;overflow:hidden;cursor:grab;touch-action:none;background:#111810}
+.zone-map svg{width:100%;height:100%;display:block;touch-action:none;user-select:none}.zone-map svg:active{cursor:grabbing}
+#zoneMapFrame:fullscreen{width:100vw;height:100dvh;max-width:none;margin:0;padding:10px;background:#0b100c;overflow:auto;display:flex;flex-direction:column}#zoneMapFrame:fullscreen .zone-map{height:calc(100dvh - 210px);min-height:0;flex:1}#zoneMapFrame:fullscreen .map-foot{padding-bottom:env(safe-area-inset-bottom)}
 @media(max-width:650px){
  .inventory-quick-trigger{min-height:36px;padding:5px 8px;gap:4px;font-size:9px}
  .inventory-quick-trigger .backpack-icon{font-size:18px}
- .zone-map{width:min(100%,430px);max-height:72dvh;min-height:0}
+ .zone-map{width:100%;height:68dvh;max-height:none;min-height:400px}
 }

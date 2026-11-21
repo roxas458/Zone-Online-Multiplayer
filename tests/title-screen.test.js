@@ -4,12 +4,12 @@ const fs = require('node:fs');
 const path = require('node:path');
 const root = path.join(__dirname, '..');
 
-test('4.33.24 title screen has clean branding, resume/new game and integrated settings', () => {
+test('4.33.25 title screen has clean branding, resume/new game and integrated settings', () => {
   const html = fs.readFileSync(path.join(root, 'public/index.html'), 'utf8');
   const js = fs.readFileSync(path.join(root, 'public/js/game.js'), 'utf8');
   const css = fs.readFileSync(path.join(root, 'public/css/game.css'), 'utf8');
   for (const id of ['titleScreen', 'titleContinue', 'titleOptionsPanel', 'titleCredits']) assert.match(html, new RegExp(`id="${id}"`));
-  assert.ok(html.includes('ZONE ONLINE · VER. 4.33.24'));
+  assert.ok(html.includes('ZONE ONLINE · VER. 4.33.25'));
   assert.match(html, /Новая игра/);
   assert.match(html, /Настройки/);
   assert.doesNotMatch(html, /title-mark">Z</);
