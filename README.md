@@ -74,3 +74,9 @@ The browser now connects to the configured Render multiplayer service by default
 - Player NPC victories increase the player's score; NPC-vs-NPC combat increments the killer NPC's combat statistics.
 - Leaderboard data is stored inside the persistent shared world and falls back to local NPC/player statistics when the multiplayer server is unavailable.
 - Added selected-stalker dossier, faction, role, location, rank, kills, losses, score and current player position.
+
+
+## 4.33.14 — PDA faction ranking
+- Added a Call of Pripyat-inspired faction standings panel with rank, base location, strength score, relationship matrix, and local faction emblems.
+- Ranking derives from faction influence, roster size, controlled territory, patrol strength, and recorded faction wins; it refreshes while the Statistics view is open.
+- Includes a selected faction dossier and responsive PDA layout.

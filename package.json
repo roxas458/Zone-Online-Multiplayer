@@ -1,8 +1,8 @@
 {
   "name": "zone-online",
-  "version": "4.33.13",
+  "version": "4.33.14",
   "private": true,
-  "description": "ZONE ONLINE — live PDA stalker leaderboard and combat statistics",
+  "description": "ZONE ONLINE — PDA stalker and faction rankings",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
