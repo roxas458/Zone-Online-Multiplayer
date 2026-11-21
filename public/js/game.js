@@ -1,4 +1,4 @@
-// ZONE ONLINE 4.33.29 browser client. IMMERSIVE TITLE SCREEN / SURVIVAL / MULTIPLAYER.
+// ZONE ONLINE 4.33.30 browser client. IMMERSIVE TITLE SCREEN / SURVIVAL / MULTIPLAYER.
 const clone=o=>JSON.parse(JSON.stringify(o));
 const base={
  name:"Новичок",money:1450,hp:100,radiation:0,radiationProtectionUntil:0,stamina:85,hunger:18,thirst:20,rep:10,day:1,hour:9,loc:"cordon",faction:"Одиночки",xp:0,meetings:0,completed:0,flags:{metSid:false,metWolf:false,heardBar:false,foundArtifact:false,helpedWolf:false},
@@ -943,12 +943,13 @@ function applySharedNpcPositions(positions){
  syncNpcRosterToClient();renderPeople();renderQuick();if($('people').classList.contains('active'))renderPeople();
 }
 function renderPlayerTrade(){const el=$('playerTrade');if(!el)return;const others=onlinePlayers.filter(p=>p.id!==zonePlayerId);if(!others.length){el.innerHTML='<div class="mutedbox small">Пока нет других игроков онлайн.</div>';return;}
- const items=(g.items||[]).filter(x=>x.qty>0&&['med','bread','bolt','scrap','bandage','artifact','canned','sausage','condensed','water','tea','ration'].includes(x.id)||x.type==='Артефакт'||x.type==='Броня');
- el.innerHTML=others.map(p=>`<div class="item block"><b>${escapeHtml(p.name)}</b><div class="desc">${escapeHtml(p.faction)} · ${escapeHtml(locationName(p.location))}</div><div class="rightbuttons" style="margin-top:7px"><select class="field" id="tradeItem_${p.id}">${items.map(x=>`<option value="${escapeHtml(x.id)}">${escapeHtml(x.name)} · есть ${x.qty}</option>`).join('')}</select><input class="field" id="tradeQty_${p.id}" type="number" min="1" max="99" value="1" style="width:62px"><input class="field" id="tradePrice_${p.id}" type="number" min="0" max="1000000" value="0" style="width:82px" placeholder="₽"><button onclick="sendPlayerTrade('${p.id}')" ${items.length?'':'disabled'}>Предложить</button></div></div>`).join('');
+ const allowed=new Set(['med','bread','bolt','scrap','bandage','anti_rad','artifact','canned','sausage','condensed','water','tea','ration','artifact_medusa','artifact_flower','artifact_dummy','artifact_meat','artifact_flash','artifact_nightstar','artifact_soul','artifact_goldfish','armor_leather','armor_stalker','armor_zarya','armor_seva','armor_bulat','mutant_trophy']);
+ const items=(g.items||[]).filter(x=>x.qty>0&&allowed.has(x.id));
+ el.innerHTML=others.map(p=>{const sameSector=p.location===g.loc;return `<div class="item block"><b>${escapeHtml(p.name)}</b><div class="desc">${escapeHtml(p.faction)} · ${escapeHtml(locationName(p.location))}</div>${sameSector?`<div class="small" style="margin-top:5px;color:var(--good)">В одном секторе — можно торговать</div>`:`<div class="small muted" style="margin-top:5px">Для торговли встретьтесь в одном секторе</div>`}<div class="rightbuttons" style="margin-top:7px"><select class="field" id="tradeItem_${p.id}" ${items.length&&sameSector?'':'disabled'}>${items.map(x=>`<option value="${escapeHtml(x.id)}">${escapeHtml(x.name)} · есть ${x.qty}</option>`).join('')||'<option value="">Нет доступных предметов</option>'}</select><input class="field" id="tradeQty_${p.id}" type="number" min="1" max="99" value="1" style="width:62px" ${sameSector&&items.length?'':'disabled'}><input class="field" id="tradePrice_${p.id}" type="number" min="0" max="1000000" value="0" style="width:82px" placeholder="₽" ${sameSector&&items.length?'':'disabled'}><button onclick="sendPlayerTrade('${p.id}')" ${sameSector&&items.length?'':'disabled'}>Предложить</button></div></div>`;}).join('');
 }
-function sendPlayerTrade(to){if(!zoneSocket?.connected)return alert('Нет соединения.');const item=$(`tradeItem_${to}`)?.value,qty=Number($(`tradeQty_${to}`)?.value),price=Number($(`tradePrice_${to}`)?.value);zoneSocket.emit('trade:offer',{to,item,qty,price});}
-function renderIncomingTrades(){const el=$('incomingTrades');if(!el)return;el.innerHTML=incomingTrades.map(o=>`<div class="item block"><b>${escapeHtml(o.fromName)}</b><div class="desc">Предлагает: ${escapeHtml(o.itemName)} ×${o.qty} за ${o.price} ₽</div><div class="rightbuttons"><button onclick="respondTrade('${o.id}',true)">Принять</button><button onclick="respondTrade('${o.id}',false)">Отклонить</button></div></div>`).join('')||'<div class="mutedbox small">Нет входящих предложений.</div>';}
-function respondTrade(offerId,accept){zoneSocket?.emit('trade:respond',{offerId,accept});incomingTrades=incomingTrades.filter(x=>x.id!==offerId);renderIncomingTrades();}
+function sendPlayerTrade(to){if(!zoneSocket?.connected)return alert('Нет соединения.');const item=$(`tradeItem_${to}`)?.value,qty=Number($(`tradeQty_${to}`)?.value),price=Number($(`tradePrice_${to}`)?.value);if(!item)return alert('В рюкзаке нет предметов, доступных для обмена.');zoneSocket.emit('trade:offer',{to,item,qty,price});}
+function renderIncomingTrades(){const el=$('incomingTrades');if(!el)return;const now=Date.now();incomingTrades=incomingTrades.filter(o=>Number(o.expiresAt||0)>now);el.innerHTML=incomingTrades.map(o=>`<div class="item block"><b>${escapeHtml(o.fromName)}</b><div class="desc">Предлагает: ${escapeHtml(o.itemName)} ×${o.qty} за ${o.price} ₽</div><div class="small muted">Предложение действует ограниченное время</div><div class="rightbuttons"><button onclick="respondTrade('${o.id}',true)">Принять</button><button onclick="respondTrade('${o.id}',false)">Отклонить</button></div></div>`).join('')||'<div class="mutedbox small">Нет входящих предложений.</div>';}
+function respondTrade(offerId,accept){if(!zoneSocket?.connected)return alert('Нет соединения.');zoneSocket.emit('trade:respond',{offerId,accept});}
 function renderCoopQuests(list){const el=$('coopQuestList');if(!el)return;el.innerHTML=(list||[]).map(q=>{const joined=q.participants?.includes(zonePlayerId),arrived=q.arrivals?.includes(zonePlayerId);return `<div class="item block"><div style="display:flex;justify-content:space-between;gap:8px"><b>${escapeHtml(q.title)}</b><span class="tag">${q.done?'Выполнено':`${q.arrivals?.length||0}/${q.required} прибыли`}</span></div><div class="desc">${escapeHtml(q.description)} · сектор: ${escapeHtml(locationName(q.location))}</div><div class="small">Группа: ${q.participants?.length||0} · награда: ${q.reward} ₽ и ${q.xp} опыта</div><div class="rightbuttons" style="margin-top:7px">${!joined&&!q.done?`<button onclick="joinCoop('${q.id}')">Вступить</button>`:''}${joined&&!arrived&&!q.done?`<button onclick="contributeCoop('${q.id}')">Отметить прибытие</button>`:''}</div></div>`}).join('')||'<div class="mutedbox small">Пока нет совместных заданий.</div>';}
 function joinCoop(id){zoneSocket?.emit('coop:join',{questId:id});}
 function contributeCoop(id){zoneSocket?.emit('coop:contribute',{questId:id});}
@@ -1184,11 +1185,11 @@ async function runNetworkCheck(){
 
 const IS_LOCAL_ZONE_HOST=/^(localhost|127\.0\.0\.1|0\.0\.0\.0|\[?::1\]?)$/.test(String(window.location.hostname||''));
 const DEFAULT_ZONE_SERVER_URL=IS_LOCAL_ZONE_HOST?window.location.origin:'https://zone-online-multiplayer.onrender.com';
-async function waitForMultiplayerHealth(targetUrl, connectAttempt, maxWaitMs=90000){
+async function waitForMultiplayerHealth(targetUrl, connectAttempt, maxWaitMs=4500){
  const startedAt=Date.now();let lastError='сервер ещё запускается';let attempts=0;
  while(Date.now()-startedAt<maxWaitMs){
   if(connectAttempt!==zoneConnectAttempt)return {cancelled:true};
-  attempts++;const controller=new AbortController();const requestTimer=setTimeout(()=>controller.abort(),7000);
+  attempts++;const controller=new AbortController();const requestTimer=setTimeout(()=>controller.abort(),3000);
   try{
    const response=await fetch(`${targetUrl.replace(/\/$/,'')}/health?probe=${Date.now()}`,{cache:'no-store',mode:'cors',signal:controller.signal});
    if(response.ok){const data=await response.json();if(data?.ok){console.info('ZONE ONLINE: health check passed before Socket.IO',{version:data.version,elapsedMs:Date.now()-startedAt,attempts});return {ok:true,data};}lastError='сервер ответил без признака готовности';}
@@ -1197,7 +1198,7 @@ async function waitForMultiplayerHealth(targetUrl, connectAttempt, maxWaitMs=900
   finally{clearTimeout(requestTimer);}
   const elapsed=Math.floor((Date.now()-startedAt)/1000);
   setOnlineConnectionState('connecting',`Ожидаем запуск сервера… ${elapsed} сек. (${lastError}). Адрес сохранён, подключение начнётся сразу после ответа сервера.`);
-  if(Date.now()-startedAt<maxWaitMs)await new Promise(resolve=>setTimeout(resolve,2000));
+  if(Date.now()-startedAt<maxWaitMs)await new Promise(resolve=>setTimeout(resolve,400));
  }
  console.warn('ZONE ONLINE: health preflight limit reached; trying Socket.IO anyway',{targetUrl,elapsedMs:Date.now()-startedAt,lastError});
  return {ok:false,error:lastError};
@@ -1239,7 +1240,7 @@ async function connectZone(){
   return;
  }
  setOnlineConnectionState('connecting','Проверяем доступность сервера и ожидаем его запуска…');
- await waitForMultiplayerHealth(targetUrl,connectAttempt,90000);
+ await waitForMultiplayerHealth(targetUrl,connectAttempt,4500);
  if(connectAttempt!==zoneConnectAttempt)return;
  zonePlayerReady=false;
  if(zoneSocket){try{zoneSocket.removeAllListeners();zoneSocket.disconnect();}catch{}}
@@ -1254,11 +1255,11 @@ async function connectZone(){
   zoneSocket=io(serverUrl||undefined,{
    transports:['websocket','polling'],
    tryAllTransports:true,
-   timeout:12000,
+   timeout:7000,
    reconnection:true,
    reconnectionAttempts:Infinity,
-   reconnectionDelay:750,
-   reconnectionDelayMax:5000,
+   reconnectionDelay:500,
+   reconnectionDelayMax:2500,
    randomizationFactor:0.25,
    path:'/socket.io/',
    autoConnect:false,
@@ -1339,9 +1340,9 @@ async function connectZone(){
  zoneSocket.on('war:state',data=>{serverWorld=serverWorld||{};serverWorld.warOperations=data.operations||[];serverWorld.warHistory=data.history||[];renderWar();});
  zoneSocket.on('war:result',data=>{if(data.state){g=data.state;localStorage.setItem('zoneExpandedSave',JSON.stringify(g));render();}if(data.world)serverWorld=data.world;alert(data.message||'');renderWar();});
  zoneSocket.on('war:reward',data=>{if(data.state){g=data.state;localStorage.setItem('zoneExpandedSave',JSON.stringify(g));render();}alert(data.won?'Победа! +180 ₽, +35 опыта и +5 репутации.':'Операция завершена. +35 опыта, репутация скорректирована.');});
- zoneSocket.on('trade:incoming',offer=>{incomingTrades.push(offer);renderIncomingTrades();});
+ zoneSocket.on('trade:incoming',offer=>{if(!offer?.id||incomingTrades.some(x=>x.id===offer.id))return;incomingTrades.push(offer);renderIncomingTrades();});
  zoneSocket.on('market:result',data=>{if(data.state){g=data.state;localStorage.setItem('zoneExpandedSave',JSON.stringify(g));if(data.ok)tradeBasket={buy:{},sell:{}};render();renderTrade();}alert(data.message||'Операция выполнена.');});
- zoneSocket.on('trade:result',data=>{alert(data.message|| (data.ok?'Обмен выполнен.':'Обмен не выполнен.'));if(data.state){g=data.state;localStorage.setItem('zoneExpandedSave',JSON.stringify(g));render();}});
+ zoneSocket.on('trade:result',data=>{if(data?.offerId&&data.ok)incomingTrades=incomingTrades.filter(x=>x.id!==data.offerId);if(data.state){g=data.state;localStorage.setItem('zoneExpandedSave',JSON.stringify(g));render();renderTrade();}renderPlayerTrade();renderIncomingTrades();if(data.message)alert(data.message);});
  zoneSocket.on('coop:result',data=>{alert(data.message||'');});
  zoneSocket.on('coop:reward',data=>{if(data.state){g=data.state;localStorage.setItem('zoneExpandedSave',JSON.stringify(g));render();}alert(`Совместное задание выполнено: +${data.reward} ₽ и ${data.xp} опыта.`);});
  zoneSocket.on('world:chat:history',list=>{serverChat=(list||[]).filter(m=>!m.location||m.location===g.loc);renderServerChat();});

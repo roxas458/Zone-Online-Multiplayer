@@ -439,8 +439,8 @@ test('4.25 field PDA keeps long-page filters and map controls reachable', () => 
 test('4.33 build labels are consistent', () => {
   const html = fs.readFileSync(path.join(root, 'public/index.html'), 'utf8');
   const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
-  assert.equal(pkg.version, '4.33.29');
-  assert.match(html, /BUILD 4\.33\.29/);
+  assert.equal(pkg.version, '4.33.30');
+  assert.match(html, /BUILD 4\.33\.30/);
   assert.match(html, /ZONE ONLINE 4\.33/);
 });
 
@@ -473,16 +473,16 @@ test('4.27 connection diagnostics support a separate server URL and health endpo
 });
 
 
-test('4.33.29 waits for Render health before Socket.IO and falls back after a bounded probe', () => {
+test('4.33.30 waits for Render health before Socket.IO and falls back after a bounded probe', () => {
   const client = fs.readFileSync(path.join(root, 'public/js/game.js'), 'utf8');
   const server = fs.readFileSync(path.join(root, 'server.js'), 'utf8');
   assert.match(client, /async function waitForMultiplayerHealth\(/);
-  assert.match(client, /await waitForMultiplayerHealth\(targetUrl,connectAttempt,90000\)/);
+  assert.match(client, /await waitForMultiplayerHealth\(targetUrl,connectAttempt,4500\)/);
   assert.match(client, /health preflight limit reached; trying Socket\.IO anyway/);
   assert.doesNotMatch(client, /localStorage\.removeItem\('zoneServerUrl'\);[\s\S]{0,180}Using the server that hosts this game/);
   assert.match(client, /reconnectionAttempts:Infinity/);
-  assert.match(client, /reconnectionDelayMax:5000/);
-  assert.match(client, /timeout:12000/);
+  assert.match(client, /reconnectionDelayMax:2500/);
+  assert.match(client, /timeout:7000/);
   assert.match(server, /transports: \['websocket','polling'\]/);
 });
 
@@ -496,7 +496,7 @@ test('4.27 trader panel uses local portrait assets for the active trader', () =>
 test('4.27 login acknowledgement timeout accounts for Render cold starts', () => {
   const game = fs.readFileSync(path.join(root, 'public/js/game.js'), 'utf8');
   assert.match(game, /zoneSocket\.timeout\(15000\)\.emit\('player:hello'/);
-  assert.match(game, /timeout:12000,[\s\S]*reconnection:true/);
+  assert.match(game, /timeout:7000,[\s\S]*reconnection:true/);
   assert.match(game, /Сервер подтвердил вход, но не прислал профиль мира/);
 });
 

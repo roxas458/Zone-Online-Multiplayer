@@ -8,6 +8,7 @@ const {
   COOP_TEMPLATES, ZONE_EVENTS
 } = require('./src/shared/game-data');
 const { clean, validId, createSafeState } = require('./src/server/validation');
+const { applyPlayerTrade } = require('./src/server/player-trade');
 const safeState = createSafeState(FACTIONS, LOCATIONS);
 const { createMoveOrder, advanceMoveOrder } = require('./src/systems/player-orders');
 const { createExpedition, advanceExpedition, findRoute } = require('./src/systems/expedition');
@@ -271,6 +272,7 @@ io.on('connection', socket=>{
       // receive the small acknowledgement without waiting for a large NPC payload.
       if(typeof ack==='function'){ack({ok:true,accepted:true,persistent:dbReady});console.info(`[socket] player:hello ack sent id=${socket.id}`);}
       socket.emit('player:ready',{id, savedState:s.state, guest:true, world:publicWorldSnapshot(), worldSync:initialWorldSync(Number(payload?.lastRevision)||0), status:publicWorldStatus(world,online.size), chat:recentChat.filter(m=>!m.location||m.location===p.location).slice(-60), players:onlineList(), leaderboard:leaderboardPayload(), position:{x:p.x,y:p.y}, persistent:dbReady});
+      for(const entry of (world.events||[])){const offer=entry?.type==='trade'?entry.offer:null;if(offer?.to===id&&offer.status==='pending'&&Number(offer.expiresAt)>Date.now())socket.emit('trade:incoming',offer); }
       console.log(`player:hello completed for ${id} in ${Date.now()-helloStartedAt}ms (dbWait=${dbWaitMs}ms profile=${profileLoadMs}ms state=${stateValidationMs}ms db=${dbReady?'postgres':'memory-fallback'})`);
       socket.to('zone-world').emit('world:event',joinEvent);
       socket.emit('world:npcs',world.npcPositions); emitNpcState(socket); socket.emit('world:ecosystem',world.ecosystem); socket.emit('world:coop',world.coOpQuests); socket.emit('war:state',{operations:world.warOperations||[],history:(world.warHistory||[]).slice(0,12)});
@@ -453,41 +455,59 @@ io.on('connection', socket=>{
     const fromId=socket.data.playerId, from=online.get(fromId), toId=String(input?.to||'');
     const to=online.get(toId), itemId=String(input?.item||''), qty=Math.floor(Number(input?.qty)||0), rawPrice=Number(input?.price), price=Number.isFinite(rawPrice)?Math.floor(rawPrice):-1;
     if(!from||!to||fromId===toId||!TRADE_ITEM_IDS.has(itemId)||qty<1||qty>99||price<0||price>1000000){socket.emit('trade:result',{ok:false,message:'Некорректное предложение обмена.'});return;}
-    const a=safeState(from.state), item=a.state.items?.find(x=>x.id===itemId);
+    if(from.location!==to.location){socket.emit('trade:result',{ok:false,message:'Для торговли вы должны находиться в одном секторе Зоны.'});return;}
+    const pending=(world.events||[]).filter(x=>x.type==='trade'&&x.offer?.status!=='accepted'&&x.offer?.status!=='declined'&&x.offer?.expiresAt>Date.now()&&(x.offer?.from===fromId||x.offer?.to===fromId));
+    if(pending.length>=5){socket.emit('trade:result',{ok:false,message:'Слишком много активных предложений. Заверши или дождись отмены старых.'});return;}
+    const state=safeState(from.state).state, item=state.items?.find(x=>x.id===itemId);
     if(!item||item.qty<qty){socket.emit('trade:result',{ok:false,message:'Недостаточно предметов в рюкзаке.'});return;}
-    const offer={id:crypto.randomUUID(),from:fromId,to:toId,fromName:from.name,toName:to.name,item:itemId,itemName:item.name,qty,price,createdAt:Date.now()};
-    world.events ||= []; world.events.push({type:'trade',offer}); world.events=world.events.slice(-100); const syncEvent=appendWorldEvent(world,'trade_offer',{offerId:offer.id,from:from.name,to:to.name,item:offer.item,qty:offer.qty,price:offer.price});
-    to && io.to(toId).emit('trade:incoming',offer); socket.emit('trade:result',{ok:true,message:'Предложение отправлено.',offer}); io.emit('world:event',syncEvent); await persistWorld();
+    const offer={id:crypto.randomUUID(),from:fromId,to:toId,fromName:from.name,toName:to.name,item:itemId,itemName:item.name,qty,price,createdAt:Date.now(),expiresAt:Date.now()+120000,status:'pending'};
+    world.events ||= []; world.events.push({type:'trade',offer}); world.events=world.events.slice(-150);
+    const syncEvent=appendWorldEvent(world,'trade_offer',{offerId:offer.id,from:from.name,to:to.name,item:offer.item,qty:offer.qty,price:offer.price});
+    io.to(toId).emit('trade:incoming',offer);
+    socket.emit('trade:result',{ok:true,message:'Предложение отправлено. Оно действует 2 минуты.',offer,offerId:offer.id});
+    io.emit('world:event',syncEvent); await persistWorld();
   });
   socket.on('trade:respond', async input=>{
     const toId=socket.data.playerId, offerId=String(input?.offerId||''), accept=!!input?.accept;
-    const event=(world.events||[]).find(x=>x.type==='trade'&&x.offer?.id===offerId);
-    const offer=event?.offer;
-    if(!offer||offer.to!==toId||offer.status){socket.emit('trade:result',{ok:false,message:'Предложение уже недоступно.'});return;}
+    const event=(world.events||[]).find(x=>x.type==='trade'&&x.offer?.id===offerId), offer=event?.offer;
+    if(!offer||offer.to!==toId||offer.status!=='pending'){socket.emit('trade:result',{ok:false,message:'Предложение уже недоступно.',offerId});return;}
+    if(Number(offer.expiresAt||0)<=Date.now()){offer.status='expired';socket.emit('trade:result',{ok:false,message:'Время предложения истекло.',offerId});io.to(offer.from).emit('trade:result',{ok:false,message:'Время предложения обмена истекло.',offerId});persistWorld().catch(()=>{});return;}
     const from=online.get(offer.from), to=online.get(toId);
-    if(!from||!to){socket.emit('trade:result',{ok:false,message:'Один из игроков отключился.'});return;}
-    if(!accept){offer.status='declined';const syncEvent=appendWorldEvent(world,'trade_declined',{offerId:offer.id,by:to.name});io.emit('world:event',syncEvent);io.to(offer.from).emit('trade:result',{ok:false,message:`${to.name} отклонил обмен.`});socket.emit('trade:result',{ok:true,message:'Обмен отклонён.'});await persistWorld();return;}
+    if(!from||!to){socket.emit('trade:result',{ok:false,message:'Один из игроков отключился.',offerId});return;}
+    if(from.location!==to.location){socket.emit('trade:result',{ok:false,message:'Игроки больше не находятся в одном секторе.',offerId});return;}
+    if(!accept){offer.status='declined';const syncEvent=appendWorldEvent(world,'trade_declined',{offerId:offer.id,by:to.name});io.emit('world:event',syncEvent);io.to(offer.from).emit('trade:result',{ok:true,message:`${to.name} отклонил обмен.`,offerId});socket.emit('trade:result',{ok:true,message:'Обмен отклонён.',offerId});await persistWorld();return;}
     offer.status='processing';
     try{
-      if(!pool){offer.status=null;socket.emit('trade:result',{ok:false,message:'Для безопасного обмена требуется PostgreSQL на сервере.'});return;}
-      const client=await pool.connect();
-      try{
-        await client.query('BEGIN');
-        const rows=await client.query('SELECT id,state FROM zone_players WHERE id = ANY($1::text[]) FOR UPDATE',[[offer.from,offer.to]]);
-        const states=new Map(rows.rows.map(r=>[r.id,r.state])); const fs=states.get(offer.from), ts=states.get(offer.to);
-        if(!fs||!ts)throw new Error('Профиль игрока не найден.');
-        fs.items ||= []; ts.items ||= []; const fi=(fs.items||[]).find(x=>x.id===offer.item); if(!fi||fi.qty<offer.qty)throw new Error('У отправителя больше нет нужного количества предметов.');
-        if((Number(ts.money)||0)<offer.price)throw new Error('У покупателя недостаточно рублей.');
-        fi.qty-=offer.qty; if(fi.qty===0)fs.items=fs.items.filter(x=>x!==fi);
-        let ti=(ts.items||[]).find(x=>x.id===offer.item); if(ti)ti.qty+=offer.qty; else ts.items.push({...fi,qty:offer.qty});
-        fs.money=(Number(fs.money)||0)+offer.price; ts.money=(Number(ts.money)||0)-offer.price;
-        await client.query('UPDATE zone_players SET state=$2,updated_at=NOW() WHERE id=$1',[offer.from,fs]);
-        await client.query('UPDATE zone_players SET state=$2,updated_at=NOW() WHERE id=$1',[offer.to,ts]);
-        await client.query('COMMIT'); from.state=fs;to.state=ts; offer.status='accepted';
-        socket.emit('trade:result',{ok:true,message:'Обмен завершён.',state:ts});io.to(offer.from).emit('trade:result',{ok:true,message:`${to.name} принял обмен.`,state:fs});
-        const syncEvent=appendWorldEvent(world,'trade_completed',{offerId:offer.id,from:from.name,to:to.name,item:offer.item,qty:offer.qty,price:offer.price});io.emit('world:event',syncEvent);io.emit('world:trade',{offer,from:from.name,to:to.name}); persistWorld().catch(e=>console.error('trade offer persistence:',e.message));
-      }catch(err){await client.query('ROLLBACK');throw err;}finally{client.release();}
-    }catch(e){offer.status=null;socket.emit('trade:result',{ok:false,message:e.message||'Не удалось выполнить обмен.'});}
+      let sellerState, buyerState, itemName;
+      if(pool){
+        const client=await pool.connect();
+        try{
+          await client.query('BEGIN');
+          const rows=await client.query('SELECT id,state FROM zone_players WHERE id = ANY($1::text[]) FOR UPDATE',[[offer.from,offer.to]]);
+          const states=new Map(rows.rows.map(r=>[r.id,r.state]));
+          const result=applyPlayerTrade({sellerState:states.get(offer.from),buyerState:states.get(offer.to),itemId:offer.item,qty:offer.qty,price:offer.price,allowedItemIds:TRADE_ITEM_IDS});
+          if(!result.ok)throw new Error(result.message);
+          sellerState=result.sellerState;buyerState=result.buyerState;itemName=result.itemName;
+          await client.query('UPDATE zone_players SET state=$2,updated_at=NOW() WHERE id=$1',[offer.from,sellerState]);
+          await client.query('UPDATE zone_players SET state=$2,updated_at=NOW() WHERE id=$1',[offer.to,buyerState]);
+          await client.query('COMMIT');
+        }catch(err){await client.query('ROLLBACK');throw err;}finally{client.release();}
+      }else{
+        // Guest mode has no PostgreSQL. Keep both online profiles authoritative in memory
+        // and perform the same all-or-nothing validation before changing either player.
+        const result=applyPlayerTrade({sellerState:from.state,buyerState:to.state,itemId:offer.item,qty:offer.qty,price:offer.price,allowedItemIds:TRADE_ITEM_IDS});
+        if(!result.ok)throw new Error(result.message);
+        sellerState=result.sellerState;buyerState=result.buyerState;itemName=result.itemName;
+      }
+      from.state=sellerState;to.state=buyerState;from.money=sellerState.money;to.money=buyerState.money;
+      offer.status='accepted';offer.completedAt=Date.now();
+      await Promise.all([persistPlayer(from.id,from.state),persistPlayer(to.id,to.state)]);
+      socket.emit('trade:result',{ok:true,message:`Обмен завершён: получено ${offer.qty} × ${itemName} за ${offer.price} ₽.`,state:buyerState,offerId});
+      io.to(offer.from).emit('trade:result',{ok:true,message:`${to.name} принял обмен: ${offer.qty} × ${itemName} передано за ${offer.price} ₽.`,state:sellerState,offerId});
+      const syncEvent=appendWorldEvent(world,'trade_completed',{offerId:offer.id,from:from.name,to:to.name,item:offer.item,qty:offer.qty,price:offer.price});
+      io.emit('world:event',syncEvent);io.emit('world:trade',{offer,from:from.name,to:to.name});
+      broadcastOnline();persistWorld().catch(e=>console.error('trade offer persistence:',e.message));
+    }catch(e){offer.status='pending';socket.emit('trade:result',{ok:false,message:e.message||'Не удалось выполнить обмен.',offerId});}
   });
   socket.on('coop:join', async input=>{
     const p=online.get(socket.data.playerId); if(!p)return;

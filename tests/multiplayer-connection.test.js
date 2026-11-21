@@ -67,8 +67,8 @@ test('NPC dialogue generation is not repeated on every minute tick', () => {
 });
 
 test('multiplayer reconnect attempts use short bounded delays and login acknowledgements', () => {
-  assert.match(game, /timeout:12000/);
-  assert.match(game, /reconnectionDelayMax:5000/);
+  assert.match(game, /timeout:7000/);
+  assert.match(game, /reconnectionDelayMax:2500/);
   assert.match(game, /zoneSocket\.timeout\(15000\)\.emit\('player:hello'/);
 });
 
@@ -76,6 +76,6 @@ test('multiplayer reconnect attempts use short bounded delays and login acknowle
 test('NPC roster transfer omits precomputed dialogue text and waits for Render health before Socket.IO', () => {
   assert.doesNotMatch(server, /'dialogueVersion','dialogue','relationships'/);
   assert.match(game, /health check passed before Socket\.IO/);
-  assert.match(game, /await waitForMultiplayerHealth\(targetUrl,connectAttempt,90000\)/);
+  assert.match(game, /await waitForMultiplayerHealth\(targetUrl,connectAttempt,4500\)/);
   assert.match(game, /trying Socket\.IO anyway/);
 });
