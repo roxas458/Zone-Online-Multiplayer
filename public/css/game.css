@@ -472,3 +472,39 @@ button,input,select{touch-action:manipulation}
 .faction-rating-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:7px 12px;background:linear-gradient(90deg,#484b4e,#25292c);border:1px solid #62676a;color:#d6d6d0}.faction-rating-heading>div{display:grid;gap:3px}.faction-rating-heading small,.faction-rating-heading>span{font:9px monospace;color:#929792}.faction-rating-heading b{font:15px Georgia,serif;font-weight:normal}.faction-rating-caption{padding:9px 12px 6px;color:#92958f;font:10px Georgia,serif}.faction-rating-list{display:grid;gap:3px;max-height:560px;overflow:auto;padding:3px 2px;scrollbar-color:#55585d #181a1c}
 .faction-rank-row{width:100%;display:grid;grid-template-columns:minmax(245px,1.1fr) minmax(230px,1fr) 118px;align-items:center;gap:12px;padding:7px 9px;border:1px solid transparent;border-bottom-color:#ffffff0c;background:transparent;color:#c1c2bc;text-align:left;cursor:pointer}.faction-rank-row:hover,.faction-rank-row.selected{background:linear-gradient(90deg,#303436,#1b1f20);border-color:#4a4f50}.faction-rank-main{display:grid;grid-template-columns:26px 18px minmax(0,1fr);align-items:start;gap:5px}.faction-rank-place{font:17px Georgia,serif;color:#d1d1ca;text-align:center}.faction-rank-trend{font-size:12px;color:#9a9d96;padding-top:3px}.faction-rank-trend.up{color:#65b75b}.faction-rank-nameblock{display:grid;gap:3px;min-width:0}.faction-rank-nameblock>b{font:13px Georgia,serif;color:#deded7}.faction-rank-nameblock small{font:9px Georgia,serif;color:#858a85;white-space:normal}.faction-rank-nameblock small strong{font-weight:normal;color:#c0c1ba}.faction-relations{min-width:0}.faction-rel-cells{display:grid;grid-template-columns:repeat(18,minmax(5px,1fr));gap:3px}.faction-rel-cell{height:27px;border:1px solid #44494a;background:linear-gradient(#24292a,#171b1c);box-shadow:inset 0 0 2px #000}.faction-rel-cell.enemy{background:linear-gradient(#9a2429,#57171c);border-color:#a34243}.faction-rel-cell.friend{background:linear-gradient(#477a38,#294b26);border-color:#668c4e}.faction-rel-cell.tense{background:linear-gradient(#9a6b2e,#61431f);border-color:#a17b43}.faction-rel-labels{display:flex;justify-content:space-between;padding:3px 2px 0;color:#777c77;font:8px Georgia,serif}.faction-rank-emblem{height:52px;display:flex;align-items:center;justify-content:center;background:linear-gradient(110deg,#171a1b,#333839,#171a1b);border:2px solid #555b5b;box-shadow:inset 0 0 0 2px #111}.faction-emblem{display:block;width:100%;height:46px;object-fit:contain;filter:drop-shadow(0 1px 2px #000)}.faction-emblem-fallback{font-size:28px;color:#c5b88c}.faction-rating-foot{display:flex;justify-content:space-between;gap:8px;margin-top:7px;padding:7px 4px 0;border-top:1px solid #454a4a;color:#8e928c;font:8px monospace}.faction-rating-foot b{color:#c3a05b}.faction-detail-panel{display:grid;grid-template-columns:70px minmax(0,1fr);gap:10px;margin-top:9px;padding:10px;background:#191d1e;border:1px solid #424849}.faction-detail-emblem{grid-row:span 2;display:grid;place-items:center;background:#24292a;border:1px solid #505655}.faction-detail-copy{display:grid;gap:4px}.faction-detail-copy b{font:14px Georgia,serif;color:#deded7}.faction-detail-copy span{font:10px Georgia,serif;color:#929790}.faction-detail-stats{grid-column:2;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}.faction-detail-stats span{display:grid;gap:3px;color:#858a84;font:8px monospace;text-transform:uppercase}.faction-detail-stats b{color:#d1d0c8;font:11px Georgia,serif;text-transform:none}
 @media(max-width:850px){.faction-rank-row{grid-template-columns:1fr 100px;gap:8px}.faction-relations{grid-column:1/-1;grid-row:2}.faction-rank-emblem{grid-column:2;grid-row:1;height:48px}.faction-rel-cell{height:19px}.faction-detail-stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+/* 4.33.15 — classic PDA encyclopedia / split tree and dossier */
+#encyclopedia{padding:10px;background:linear-gradient(145deg,#1a1b1c,#101112);color:#c5c3bd}
+.pda-ency-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:2px 4px 9px;border-bottom:1px solid #55545a}
+.pda-ency-head h1{margin:0;color:#d5d2c9;font:500 19px Georgia,serif;letter-spacing:.4px}
+.pda-ency-search{display:flex;align-items:center;gap:8px;min-width:min(52%,440px)}
+.pda-ency-search .field{width:100%;background:#111214;border-color:#45444b;border-radius:0;font:11px monospace;padding:7px 9px}
+.pda-ency-search span{white-space:nowrap;color:#777783;font:9px monospace}
+.pda-ency-layout{display:grid;grid-template-columns:minmax(215px,31%) minmax(0,1fr);gap:10px;min-height:490px;margin-top:9px}
+.pda-ency-tree,.pda-ency-page{min-width:0;border:1px solid #55545e;background:#111315;box-shadow:inset 0 0 0 2px #08090a}
+.pda-ency-tree{padding:9px 10px;overflow:auto;max-height:66vh;scrollbar-color:#454451 #17181b;scrollbar-width:thin}
+.pda-ency-tree-title{padding:4px 8px 8px;margin-bottom:5px;background:#353541;color:#dedbd3;font:16px Georgia,serif;letter-spacing:.3px}
+.pda-ency-group{margin:2px 0}
+.pda-ency-group-toggle{display:flex;align-items:center;gap:5px;width:100%;padding:3px 6px;text-align:left;background:transparent;border:0;border-radius:0;color:#bcbab5;font:12px Georgia,serif;min-height:24px}
+.pda-ency-group-toggle:hover,.pda-ency-group-toggle.current{background:#25262c;color:#e4d5a0}
+.pda-ency-group-toggle>span{width:10px;color:#d2d0c8;font:12px monospace}
+.pda-ency-nodes{display:grid;padding:1px 0 3px 20px}
+.pda-ency-node{display:block;width:100%;min-height:22px;padding:2px 6px;text-align:left;background:transparent;border:0;border-radius:0;color:#a9a7a2;font:11px Georgia,serif;white-space:normal}
+.pda-ency-node:before{content:'· ';color:#686975}
+.pda-ency-node:hover,.pda-ency-node.selected{background:#24252b;color:#e2d39b}
+.pda-ency-page{display:flex;flex-direction:column;overflow:hidden}
+.pda-ency-path{padding:7px 12px;background:#353541;border-bottom:1px solid #55545e;color:#aaa9ad;font:10px monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pda-ency-article{padding:12px 18px 20px;overflow:auto;max-height:calc(66vh - 34px);scrollbar-color:#454451 #17181b;scrollbar-width:thin}
+.pda-ency-article-title{display:flex;align-items:flex-start;gap:13px;margin:1px 0 12px}
+.pda-ency-symbol{display:grid;place-items:center;flex:0 0 78px;width:78px;height:70px;background:radial-gradient(ellipse,#665a3c55,#222326 70%);border:1px solid #48464b;color:#c2ad75;font:38px Georgia,serif;text-shadow:0 2px 12px #d0bd7966}
+.pda-ency-article-title h2{margin:2px 0 5px;color:#dedbd2;font:500 21px Georgia,serif}
+.pda-ency-article-title .eyebrow{font:9px monospace;color:#777986;letter-spacing:1px}
+.pda-ency-subtitle{color:#9c9aa0;font:11px Georgia,serif}
+.pda-ency-rule{height:1px;background:linear-gradient(90deg,#77736a,#34343a 75%,transparent);margin:8px 0 12px}
+.pda-ency-copy{max-width:850px;color:#c4c1b9;font:13px/1.65 Georgia,'Times New Roman',serif;white-space:normal}
+.pda-ency-copy p{margin:0 0 13px;text-indent:15px}
+.pda-ency-note{display:grid;gap:5px;margin-top:20px;padding:9px 11px;border-top:1px solid #39393e;border-bottom:1px solid #39393e;color:#a5a29a;font:11px Georgia,serif}
+.pda-ency-note b{color:#8f8c83;font:9px monospace;letter-spacing:1.2px}
+.pda-ency-foot{display:flex;justify-content:space-between;gap:10px;padding:8px 5px 1px;color:#777780;font:9px monospace;letter-spacing:.4px}
+.pda-ency-empty{padding:12px;color:#777780;font:11px Georgia,serif}
+@media(max-width:760px){.pda-ency-layout{grid-template-columns:minmax(0,1fr);min-height:0}.pda-ency-tree{max-height:32vh}.pda-ency-page{min-height:390px}.pda-ency-article{max-height:52vh}.pda-ency-head{align-items:flex-start;flex-direction:column}.pda-ency-search{min-width:0;width:100%}.pda-ency-foot{flex-direction:column}.pda-ency-symbol{flex-basis:60px;width:60px;height:58px;font-size:30px}}

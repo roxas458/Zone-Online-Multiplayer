@@ -80,3 +80,11 @@ The browser now connects to the configured Render multiplayer service by default
 - Added a Call of Pripyat-inspired faction standings panel with rank, base location, strength score, relationship matrix, and local faction emblems.
 - Ranking derives from faction influence, roster size, controlled territory, patrol strength, and recorded faction wins; it refreshes while the Statistics view is open.
 - Includes a selected faction dossier and responsive PDA layout.
+
+
+## 4.33.15 — PDA Encyclopedia redesign
+
+- Rebuilt the encyclopedia as a classic two-pane PDA reference: expandable tree navigation on the left and a readable dossier on the right.
+- Added expanded sections for training, wildlife and mutants, anomalies, locations and points of interest, artifacts, Zone history, societies, characters, weapons and armor.
+- Added article search, selected-entry highlighting, category counts, field-note metadata and responsive mobile layout.
+- Entries are generated from the current game world where appropriate, so discovered locations, NPCs, factions and equipment remain connected to the active save.
