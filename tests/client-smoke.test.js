@@ -55,7 +55,7 @@ function bootClient() {
 }
 
 
-test('4.33.16 technician repair system supports weapons and armor with durable item conditions', () => {
+test('4.33.17 technician PDA repair system supports faction technicians and durable item conditions', () => {
   const html = fs.readFileSync(path.join(root, 'public/index.html'), 'utf8');
   const game = fs.readFileSync(path.join(root, 'public/js/game.js'), 'utf8');
   assert.match(game, /function openRepairWorkshop\(npcId\)/);
@@ -66,6 +66,12 @@ test('4.33.16 technician repair system supports weapons and armor with durable i
   assert.match(game, /armor\.condition=Math\.max\(0,Number\(armor\.condition\?\?100\)-Math\.max\(1,Math\.ceil\(damage\/12\)\)\)/);
   const css = fs.readFileSync(path.join(root, 'public/css/game.css'), 'utf8');
   assert.match(css, /repair-overlay/);
+  assert.match(css, /repair-pda-grid/);
+  assert.match(game, /factionTechBases/);
+  assert.match(game, /function selectRepairItem\(npcId,itemId\)/);
+  assert.match(game, /ПОЧИНИТЬ ВЫБРАННЫЙ ПРЕДМЕТ/);
+  assert.match(game, /Этот техник служит группировке/);
+  for (const faction of ['Одиночки','Долг','Свобода','Бандиты','Военные','Учёные','Наёмники','Монолит','Чистое небо','Ренегаты']) assert.ok(game.includes(`'${faction}'`), `missing faction technician: ${faction}`);
 });
 
 test('browser client bootstraps without temporal-dead-zone errors', () => {
@@ -429,8 +435,8 @@ test('4.25 field PDA keeps long-page filters and map controls reachable', () => 
 test('4.33 build labels are consistent', () => {
   const html = fs.readFileSync(path.join(root, 'public/index.html'), 'utf8');
   const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
-  assert.equal(pkg.version, '4.33.16');
-  assert.match(html, /BUILD 4\.33\.16/);
+  assert.equal(pkg.version, '4.33.17');
+  assert.match(html, /BUILD 4\.33\.17/);
   assert.match(html, /ZONE ONLINE 4\.33/);
 });
 

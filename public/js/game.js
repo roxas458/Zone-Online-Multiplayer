@@ -1,4 +1,4 @@
-// ZONE ONLINE 4.33.16 browser client. SURVIVAL / EXPEDITIONS / REPAIR WORKSHOP / DYNAMIC ECOLOGY.
+// ZONE ONLINE 4.33.17 browser client. SURVIVAL / EXPEDITIONS / REPAIR WORKSHOP / DYNAMIC ECOLOGY.
 const clone=o=>JSON.parse(JSON.stringify(o));
 const base={
  name:"Новичок",money:1450,hp:100,radiation:0,radiationProtectionUntil:0,stamina:85,hunger:18,thirst:20,rep:10,day:1,hour:9,loc:"cordon",faction:"Одиночки",xp:0,meetings:0,completed:0,flags:{metSid:false,metWolf:false,heardBar:false,foundArtifact:false,helpedWolf:false},
@@ -121,6 +121,24 @@ function migrateWorld(){
  for(const [faction,leader] of Object.entries(content.factionLeaders||{})){const f=g.factions.find(x=>x.name===faction);if(f)f.leader=clone(leader);}
  for(const n of (content.npcs||[])){if(!g.npcs.some(x=>x.id===n.id))g.npcs.push(clone(n));const l=g.locations.find(x=>x.id===n.loc);if(l&&!l.people.includes(n.id))l.people.push(n.id);}
  for(const q of (content.storyQuests||[])){if(!g.quests.some(x=>x.id===q.id))g.quests.push({...clone(q),accepted:false,done:false});}
+ // Give every faction a permanent technician at its home base. Existing saves are migrated without resetting progress.
+ const factionTechBases={
+  'Одиночки':['cordon','Тихон','Полевой механик одиночек'],
+  'Долг':['bar','Медведь','Техник ремонтной службы Долга'],
+  'Свобода':['army','Лис','Механик свободовцев'],
+  'Бандиты':['dump','Шило','Мастер бандитской стоянки'],
+  'Военные':['agro','Сержант Ковалёв','Техник ремонтной роты'],
+  'Учёные':['yantar','Кондратьев','Инженер научной экспедиции'],
+  'Наёмники':['limansk','Грей','Контрактный оружейник'],
+  'Монолит':['radar','Послушник','Механик группировки Монолит'],
+  'Чистое небо':['swamps','Новиков','Техник базы Чистого неба'],
+  'Ренегаты':['darkhollow','Гвоздь','Ремонтник болотной группировки']
+ };
+ for(const [faction,[loc,name,desc]] of Object.entries(factionTechBases)){
+  const id='faction-tech-'+faction.toLowerCase().replace(/[^a-zа-яё0-9]+/gi,'-');
+  if(!g.npcs.some(n=>n.id===id))g.npcs.push({id,name,role:'техник',faction,loc,icon:'🔧',desc,greeting:'Показывай снаряжение. Для своих сделаю по нормальной цене.',topics:[['Что ремонтируешь?','Оружие, броню и детекторы. Осмотр и ремонт прямо здесь.'],['Условия ремонта','Цена зависит от стоимости предмета и степени износа. Для бойцов нашей группировки действует скидка.']]});
+  const baseLocation=g.locations.find(l=>l.id===loc);if(baseLocation){baseLocation.people||=[];if(!baseLocation.people.includes(id))baseLocation.people.push(id);}
+ }
  // Run AFTER all legacy and content NPCs are loaded, otherwise old browser saves keep their real-name NPCs.
  migrateLocalNpcCallsigns();
  if(!g.foodKitGranted){addItem("canned","Консервы","Еда","Сытный полевой паёк.",.45,65,1);addItem("water","Бутылка воды","Еда","Чистая питьевая вода.",.5,25,2);g.foodKitGranted=true;}
@@ -462,38 +480,53 @@ function npcSpecialistAction(npcId){
  if(g.hp>=100)return alert('Здоровье уже в порядке.');
  g.money-=cost;g.hp=Math.min(100,g.hp+35);log(`${npc.name} оказал медицинскую помощь. Здоровье восстановлено.`);save();
 }
-function repairableGear(){
- return (g.items||[]).filter(x=>['Оружие','Броня','Детектор'].includes(x.type)&&Number(x.condition??100)<100&&Number(x.qty||1)>0);
-}
+function repairableGear(){return (g.items||[]).filter(x=>['Оружие','Броня','Детектор'].includes(x.type)&&Number(x.qty||1)>0);}
 function repairCost(item,npc){
  const missing=100-Math.max(0,Math.min(100,Number(item.condition??100)));
  const base=Math.max(1,Number(item.value)||100);
- const multiplier=(npc && npc.id==='azot') ? 0.92 : 1;
+ const factionTech=npc?.id?.startsWith('faction-tech-');
+ const multiplier=npc?.id==='azot'?.92:(factionTech?.94:1);
  const reputationDiscount=Math.min(.12,Math.max(0,Number(g.rep)||0)/5000);
- return Math.max(10,Math.ceil(base*(missing/100)*.72*multiplier*(1-reputationDiscount)));
+ return missing<=0?0:Math.max(10,Math.ceil(base*(missing/100)*.72*multiplier*(1-reputationDiscount)));
 }
+function repairWorkshopItemCard(item,npc,selectedId){
+ const condition=Math.max(0,Math.min(100,Number(item.condition??100))),cost=repairCost(item,npc),isSelected=item.id===selectedId;
+ return `<button type="button" class="repair-backpack-item ${isSelected?'selected':''} ${condition>=100?'perfect':''}" onclick="selectRepairItem('${escapeHtml(npc.id)}','${escapeHtml(item.id)}')" aria-pressed="${isSelected}"><span class="repair-item-qty">×${Math.max(1,Number(item.qty)||1)}</span><span class="repair-item-glyph">${itemGlyph(item)}</span><b>${escapeHtml(item.name)}</b><small>${escapeHtml(item.type)}</small><i><em style="width:${condition}%"></em></i><span class="repair-item-condition">${condition}%</span><span class="repair-item-cost">${condition>=100?'ИСПРАВНО':cost.toLocaleString('ru-RU')+' RU'}</span></button>`;
+}
+let repairSelectedItemId=null;
 function openRepairWorkshop(npcId){
  const npc=npcBy(npcId);if(!npc||npc.role!=='техник')return alert('Здесь нет техника, который может выполнить ремонт.');
- const gear=repairableGear();
+ if(npc.loc!==g.loc)return alert('Техник должен находиться в текущей локации.');
+ if(npc.id.startsWith('faction-tech-')&&npc.faction!==g.faction)return alert(`Этот техник служит группировке «${npc.faction}». Ремонт у него доступен только своим.`);
+ const gear=repairableGear();const selected=gear.find(x=>x.id===repairSelectedItemId)||gear.find(x=>x.name===g.equipment?.weapon)||gear.find(x=>x.name===g.equipment?.suit)||gear[0]||null;repairSelectedItemId=selected?.id||null;
  const old=document.getElementById('repairWorkshopOverlay');if(old)old.remove();
- const overlay=document.createElement('div');overlay.id='repairWorkshopOverlay';overlay.className='repair-overlay';
- const rows=gear.map(x=>{const cost=repairCost(x,npc),condition=Math.max(0,Math.min(100,Number(x.condition??100)));return `<div class="repair-row"><div class="repair-item-art">${x.type==='Оружие'?'⌁':'▤'}</div><div class="repair-item-info"><b>${escapeHtml(x.name)}</b><small>${escapeHtml(x.type)} · ${condition}% прочности</small><div class="repair-meter"><i style="width:${condition}%"></i></div></div><div class="repair-price"><b>${cost.toLocaleString('ru-RU')} RU</b><button onclick="repairGearItem('${escapeHtml(npc.id)}','${escapeHtml(x.id)}')">Починить</button></div></div>`;}).join('');
- overlay.innerHTML=`<div class="repair-window"><header class="repair-head"><div><small>МАСТЕРСКАЯ / ОБСЛУЖИВАНИЕ СНАРЯЖЕНИЯ</small><h2>${escapeHtml(npc.name)}</h2><p>${escapeHtml(npc.desc||'Техник Зоны')}</p></div><button class="repair-close" onclick="document.getElementById('repairWorkshopOverlay')?.remove()">×</button></header><div class="repair-body"><section class="repair-list-panel"><div class="repair-section-title">ПРЕДМЕТЫ, ТРЕБУЮЩИЕ РЕМОНТА</div>${rows||'<div class="repair-empty">Всё снаряжение исправно. Пока ремонтировать нечего.</div>'}</section><aside class="repair-summary"><div class="repair-summary-icon">⚙</div><b>Сервисное обслуживание</b><p>Стоимость зависит от цены предмета и степени износа. Ремонт восстанавливает прочность до 100%.</p><div class="repair-wallet">ТВОИ СРЕДСТВА <strong>${Number(g.money||0).toLocaleString('ru-RU')} RU</strong></div><button class="repair-all" onclick="repairAllGear('${escapeHtml(npc.id)}')" ${gear.length?'':'disabled'}>Отремонтировать всё</button><small>Скидка учитывает репутацию. У Азота действует специальный тариф.</small></aside></div><footer class="repair-foot">ZONE ONLINE · ТЕХНИЧЕСКАЯ СЛУЖБА ЗОНЫ</footer></div>`;
+ const overlay=document.createElement('div');overlay.id='repairWorkshopOverlay';overlay.className='repair-overlay repair-pda-overlay';
+ const damaged=gear.filter(x=>Number(x.condition??100)<100),total=damaged.reduce((sum,x)=>sum+repairCost(x,npc),0);
+ const portrait=portraitMarkup(npc,true);
+ const selectedCondition=selected?Math.max(0,Math.min(100,Number(selected.condition??100))):0;
+ const selectedCost=selected?repairCost(selected,npc):0;
+ const equippedWeapon=g.items.find(x=>x.name===g.equipment?.weapon&&x.type==='Оружие');
+ const equippedArmor=g.items.find(x=>x.name===g.equipment?.suit&&x.type==='Броня');
+ const equippedDetector=g.items.find(x=>x.name===g.equipment?.tool&&x.type==='Детектор');
+ overlay.innerHTML=`<div class="repair-pda-shell"><header class="repair-pda-top"><div class="repair-tech-identity"><div class="repair-tech-portrait">${portrait}</div><div><b>${escapeHtml(npc.name)}</b><small>${escapeHtml(npc.faction||'Техническая служба')} · ТЕХНИК</small><button type="button" onclick="repairAllGear('${escapeHtml(npc.id)}')">РЕМОНТ ВСЕГО СНАРЯЖЕНИЯ</button></div></div><div class="repair-player-identity"><div><b>${escapeHtml(g.name||'Сталкер')}</b><small>${escapeHtml(g.faction||'Одиночки')} · ПОЛЕВОЙ СТАЛКЕР</small><strong>${Number(g.money||0).toLocaleString('ru-RU')} RU</strong></div><div class="repair-player-portrait">☻</div></div><button class="repair-close" aria-label="Закрыть мастерскую" onclick="document.getElementById('repairWorkshopOverlay')?.remove()">×</button></header><div class="repair-pda-grid"><section class="repair-pda-left"><div class="repair-pda-section-title">ЭКИПИРОВКА / ОБСЛУЖИВАНИЕ</div><div class="repair-armor-display"><div class="repair-armor-art">▤</div><b>${escapeHtml(equippedArmor?.name||'Броня не экипирована')}</b><small>${equippedArmor?Math.round(equippedArmor.condition??100)+'% прочности':'Слот брони пуст'}</small><button type="button" onclick="${equippedArmor?`selectRepairItem('${escapeHtml(npc.id)}','${escapeHtml(equippedArmor.id)}')`:'void(0)'}" ${equippedArmor?'':'disabled'}>ВЫБРАТЬ</button></div><div class="repair-equipment-slots"><div><small>ОСНОВНОЕ ОРУЖИЕ</small><b>${escapeHtml(equippedWeapon?.name||'Не установлено')}</b><span>${equippedWeapon?Math.round(equippedWeapon.condition??100)+'%':'—'}</span></div><div><small>ДЕТЕКТОР</small><b>${escapeHtml(equippedDetector?.name||'Не установлен')}</b><span>${equippedDetector?Math.round(equippedDetector.condition??100)+'%':'—'}</span></div><div><small>ВТОРОЕ ОРУЖИЕ</small><b>${escapeHtml(g.equipment?.sidearm||'Пусто')}</b><span>—</span></div><div><small>СЕРВИС</small><b>${damaged.length} предметов требуют ремонта</b><span>${total.toLocaleString('ru-RU')} RU</span></div></div><div class="repair-left-note">Техник: ${escapeHtml(npc.desc||'Мастерская группировки')}<br>Скидка: ${npc.id==='azot'?'8% · тариф Азота':npc.id.startsWith('faction-tech-')?'6% · тариф группировки':'по репутации'}</div></section><section class="repair-pda-center"><div class="repair-pda-section-title">ПЕРСОНАЛЬНОЕ СНАРЯЖЕНИЕ</div><div class="repair-character-silhouette"><div class="repair-mask-slot">◉<small>ШЛЕМ</small></div><div class="repair-body-slot">▤<small>${escapeHtml((g.equipment?.suit||'КОСТЮМ').toUpperCase())}</small></div><div class="repair-belt-slot">▣<small>ПОЯС / КПК</small></div></div><div class="repair-selected-card">${selected?`<div class="repair-selected-glyph">${itemGlyph(selected)}</div><div class="repair-selected-info"><small>ВЫБРАННЫЙ ПРЕДМЕТ</small><b>${escapeHtml(selected.name)}</b><span>${escapeHtml(selected.type)} · ${selectedCondition}% прочности</span><div class="repair-selected-meter"><i><em style="width:${selectedCondition}%"></em></i></div><strong>${selectedCondition>=100?'РЕМОНТ НЕ ТРЕБУЕТСЯ':selectedCost.toLocaleString('ru-RU')+' RU'}</strong></div>`:'<div class="repair-empty">Выбери предмет в рюкзаке справа.</div>'}</div><button class="repair-selected-action" onclick="${selected?`repairGearItem('${escapeHtml(npc.id)}','${escapeHtml(selected.id)}')`:'void(0)'}" ${!selected||selectedCondition>=100||Number(g.money||0)<selectedCost?'disabled':''}>ПОЧИНИТЬ ВЫБРАННЫЙ ПРЕДМЕТ</button><div class="repair-center-stats"><span>ПРЕДМЕТОВ В РЮКЗАКЕ <b>${gear.length}</b></span><span>ТРЕБУЮТ РЕМОНТА <b>${damaged.length}</b></span></div></section><section class="repair-pda-right"><div class="repair-pda-section-title">ИНВЕНТАРЬ СТАЛКЕРА <span>${gear.length} ПРЕДМ.</span></div><div class="repair-backpack-grid">${gear.map(x=>repairWorkshopItemCard(x,npc,selected?.id)).join('')||'<div class="repair-empty">В рюкзаке нет оружия, брони или детекторов.</div>'}</div><div class="repair-inventory-foot"><span>ВСЕГО ПРЕДМЕТОВ ДЛЯ РЕМОНТА: ${gear.length}</span><b>ОБЩИЙ ВЕС: ${(g.items||[]).reduce((sum,x)=>sum+(Number(x.weight)||0)*(Number(x.qty)||1),0).toFixed(1)} кг</b></div></section></div><footer class="repair-pda-footer"><span>ZONE ONLINE / ТЕХНИЧЕСКАЯ СЛУЖБА</span><span>РЕМОНТ ВОССТАНАВЛИВАЕТ ПРОЧНОСТЬ ДО 100%</span><button onclick="document.getElementById('repairWorkshopOverlay')?.remove()">ВЫХОД</button></footer></div>`;
  overlay.addEventListener('click',e=>{if(e.target===overlay)overlay.remove();});document.body.append(overlay);
 }
+function selectRepairItem(npcId,itemId){repairSelectedItemId=itemId;openRepairWorkshop(npcId);}
 function repairGearItem(npcId,itemId){
  const npc=npcBy(npcId),item=g.items.find(x=>x.id===itemId);if(!npc||!item)return;
+ if(npc.loc!==g.loc)return alert('Техник должен находиться рядом.');
+ if(npc.id.startsWith('faction-tech-')&&npc.faction!==g.faction)return alert('Ремонт доступен только у техника твоей группировки.');
  const cost=repairCost(item,npc);if(Number(item.condition??100)>=100)return alert('Предмет уже полностью исправен.');
  if((Number(g.money)||0)<cost)return alert(`Не хватает ${cost-(Number(g.money)||0)} RU.`);
- g.money-=cost;item.condition=100;log(`${npc.name} отремонтировал ${item.name} до 100%. Потрачено ${cost} RU.`);save();openRepairWorkshop(npcId);
+ g.money-=cost;item.condition=100;log(`${npc.name} отремонтировал ${item.name} до 100%. Потрачено ${cost} RU.`);save();repairSelectedItemId=itemId;openRepairWorkshop(npcId);
 }
 function repairAllGear(npcId){
  const npc=npcBy(npcId);if(!npc)return;
- const gear=repairableGear(),total=gear.reduce((sum,x)=>sum+repairCost(x,npc),0);
+ const gear=repairableGear().filter(x=>Number(x.condition??100)<100),total=gear.reduce((sum,x)=>sum+repairCost(x,npc),0);
  if(!gear.length)return alert('Всё снаряжение исправно.');
  if((Number(g.money)||0)<total)return alert(`Для полного ремонта нужно ${total.toLocaleString('ru-RU')} RU. Не хватает ${(total-(Number(g.money)||0)).toLocaleString('ru-RU')} RU.`);
  g.money-=total;for(const item of gear)item.condition=100;
- log(`${npc.name} полностью обслужил снаряжение. Отремонтировано предметов: ${gear.length}. Потрачено ${total} RU.`);save();openRepairWorkshop(npcId);
+ log(`${npc.name} полностью обслужил снаряжение. Отремонтировано предметов: ${gear.length}. Потрачено ${total} RU.`);save();repairSelectedItemId=null;openRepairWorkshop(npcId);
 }
 let lastNpcApproach=null;
 function showNpcApproach(data){const n=npcBy(data?.npcId);if(!n)return;lastNpcApproach=data.npcId;const el=$('npcApproachFeed');if(!el)return;el.innerHTML=`<div class="npc-approach-card">${portraitMarkup(n)}<div><b>${escapeHtml(n.name)} подошёл к тебе</b><p>${escapeHtml(data.text||'Сталкер хочет поговорить.')}</p><button onclick="meet('${n.id}')">Поговорить</button></div></div>`;}
