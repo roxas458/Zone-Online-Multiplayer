@@ -42,7 +42,40 @@ test('Socket.IO accepts full player save payloads larger than the 1 MB default',
 
 test('world snapshots avoid duplicating the NPC roster and resync sends it separately', () => {
   assert.match(server, /function publicWorldSync\(sinceRevision\)/);
-  assert.match(server, /const \{npcState,npcEvents,\.\.\.snapshot\}=sync\.snapshot/);
-  assert.match(server, /worldSync:publicWorldSync\(/);
+  assert.match(server, /const \{npcState,npcEvents,eventLog,\.\.\.snapshot\}=sync\.snapshot/);
+  assert.match(server, /worldSync:initialWorldSync\(/);
   assert.match(server, /socket\.emit\('world:sync',publicWorldSync\([\s\S]*?emitNpcState\(socket\)/);
+});
+
+
+test('initial player:ready sends one world snapshot and a lightweight revision cursor', () => {
+  assert.match(server, /function publicWorldSnapshot\(\)[\s\S]*?const \{npcState,npcEvents,eventLog,\.\.\.snapshot\}=world/);
+  assert.match(server, /function initialWorldSync\(sinceRevision\)/);
+  assert.match(server, /world:sync',publicWorldSync\(/);
+});
+
+test('joining one player sends initial NPC/world state only to that socket', () => {
+  assert.match(server, /socket\.emit\('world:npcs',world\.npcPositions\); emitNpcState\(socket\); socket\.emit\('world:ecosystem'/);
+  assert.doesNotMatch(server, /io\.emit\('world:npcs',world\.npcPositions\); emitNpcState\(\); io\.emit\('world:ecosystem'/);
+});
+
+test('NPC dialogue generation is not repeated on every minute tick', () => {
+  const ai = fs.readFileSync(path.join(root, 'src/systems/npc-ai.js'), 'utf8');
+  const shared = fs.readFileSync(path.join(root, 'src/server/world.js'), 'utf8');
+  assert.match(ai, /npc\.dialogueCycle!==cycle \|\| !npc\.dialogue/);
+  assert.match(shared, /if\(!npc\.dialogue \|\| npc\.dialogue\.day!==npc\.dialogueCycle\)/);
+});
+
+test('multiplayer reconnect attempts use short bounded delays and login acknowledgements', () => {
+  assert.match(game, /timeout:12000/);
+  assert.match(game, /reconnectionDelayMax:5000/);
+  assert.match(game, /zoneSocket\.timeout\(15000\)\.emit\('player:hello'/);
+});
+
+
+test('NPC roster transfer omits precomputed dialogue text and warms Render without gating Socket.IO', () => {
+  assert.doesNotMatch(server, /'dialogueVersion','dialogue','relationships'/);
+  assert.match(game, /server warm-up completed/);
+  assert.match(game, /fetch\(`\$\{targetUrl\.replace/);
+  assert.match(game, /Socket\.IO will continue retrying/);
 });

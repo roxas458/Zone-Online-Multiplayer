@@ -479,8 +479,8 @@ test('4.33.5 keeps the configured Render URL when health preflight is slow and r
   assert.match(client, /Do not gate Socket\.IO on an HTTP health preflight/);
   assert.doesNotMatch(client, /localStorage\.removeItem\('zoneServerUrl'\);[\s\S]{0,180}Using the server that hosts this game/);
   assert.match(client, /reconnectionAttempts:Infinity/);
-  assert.match(client, /reconnectionDelayMax:15000/);
-  assert.match(client, /timeout:30000/);
+  assert.match(client, /reconnectionDelayMax:5000/);
+  assert.match(client, /timeout:12000/);
   assert.match(server, /transports: \['websocket','polling'\]/);
 });
 
@@ -493,8 +493,8 @@ test('4.27 trader panel uses local portrait assets for the active trader', () =>
 
 test('4.27 login acknowledgement timeout accounts for Render cold starts', () => {
   const game = fs.readFileSync(path.join(root, 'public/js/game.js'), 'utf8');
-  assert.match(game, /zoneSocket\.timeout\(60000\)\.emit\('player:hello'/);
-  assert.match(game, /timeout:30000,[\s\S]*reconnection:true/);
+  assert.match(game, /zoneSocket\.timeout\(15000\)\.emit\('player:hello'/);
+  assert.match(game, /timeout:12000,[\s\S]*reconnection:true/);
   assert.match(game, /Сервер подтвердил вход, но не прислал профиль мира/);
 });
 
@@ -620,7 +620,7 @@ test('4.33.9 uses the configured Render server with WebSocket-first fallback and
   assert.match(client, /transports:\['websocket','polling'\]/);
   assert.match(client, /tryAllTransports:true/);
   assert.match(client, /https:\/\/zone-online-multiplayer\.onrender\.com/);
-  assert.match(client, /randomizationFactor:0\.5/);
+  assert.match(client, /randomizationFactor:0\.25/);
   assert.match(server, /transports: \['websocket','polling'\]/);
   assert.match(server, /transportMode:'websocket-first-with-polling-fallback'/);
   assert.match(client, /keeping existing Socket\.IO connection/);
@@ -637,7 +637,7 @@ test('4.33.9 pins Render to Node.js 22 LTS and enables transport fallback', () =
   const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
   assert.equal(nodeVersion, '22.16.0');
   assert.match(render, /key: NODE_VERSION\s+value: 22\.16\.0/);
-  assert.equal(pkg.engines.node, '>=22 <23');
+  assert.equal(pkg.engines.node, '>=22 <27');
   assert.match(fs.readFileSync(path.join(root, 'server.js'), 'utf8'), /transports: \[\'websocket\',\'polling\'\]/);
 });
 

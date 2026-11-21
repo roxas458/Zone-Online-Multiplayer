@@ -150,16 +150,24 @@ function recordStalkerKill(player,npc){
 }
 
 function publicNpcRoster(){
-  const fields=['id','name','faction','role','location','alive','generated','supportSpecialist','icon','personality','mood','action','behavior','duty','guardPost','homeLocation','health','morale','supplies','biography','friends','rivals','squadId','squadName','dialogueVersion','dialogue','relationships','equipment'];
+  const fields=['id','name','faction','role','location','alive','generated','supportSpecialist','icon','personality','mood','action','behavior','duty','guardPost','homeLocation','health','morale','supplies','biography','friends','rivals','squadId','squadName','dialogueVersion','relationships','equipment'];
   return Object.fromEntries(Object.entries(world.npcState||{}).map(([id,n])=>[id,Object.fromEntries(fields.filter(k=>n[k]!==undefined).map(k=>[k,n[k]]))]));
 }
-function publicWorldSnapshot(){const {npcState,npcEvents,...snapshot}=world;return snapshot;}
+function publicWorldSnapshot(){
+  // The full world is already included in player:ready. Do not include the
+  // event history or NPC roster here: they are synchronized separately.
+  const {npcState,npcEvents,eventLog,...snapshot}=world;
+  return snapshot;
+}
+function initialWorldSync(sinceRevision){
+  // player:ready already carries a current world snapshot. Only send the
+  // revision cursor here; the normal world:sync endpoint retains full replay.
+  return {mode:'delta',fromRevision:Number(sinceRevision)||0,revision:Number(world.revision)||1,events:[]};
+}
 function publicWorldSync(sinceRevision){
   const sync=buildWorldSync(world,sinceRevision);
-  // NPC state is delivered once through world:npc-state, not duplicated inside
-  // the world snapshot. This substantially reduces the initial ready packet.
   if(sync.mode==='snapshot'&&sync.snapshot){
-    const {npcState,npcEvents,...snapshot}=sync.snapshot;
+    const {npcState,npcEvents,eventLog,...snapshot}=sync.snapshot;
     return {...sync,snapshot};
   }
   return sync;
@@ -255,10 +263,10 @@ io.on('connection', socket=>{
       // Acknowledge after registration but BEFORE the world snapshot, so clients
       // receive the small acknowledgement without waiting for a large NPC payload.
       if(typeof ack==='function'){ack({ok:true,accepted:true,persistent:dbReady});console.info(`[socket] player:hello ack sent id=${socket.id}`);}
-      socket.emit('player:ready',{id, savedState:s.state, guest:true, world:publicWorldSnapshot(), worldSync:publicWorldSync(Number(payload?.lastRevision)||0), status:publicWorldStatus(world,online.size), chat:recentChat.filter(m=>!m.location||m.location===p.location).slice(-60), players:onlineList(), leaderboard:leaderboardPayload(), position:{x:p.x,y:p.y}, persistent:dbReady});
+      socket.emit('player:ready',{id, savedState:s.state, guest:true, world:publicWorldSnapshot(), worldSync:initialWorldSync(Number(payload?.lastRevision)||0), status:publicWorldStatus(world,online.size), chat:recentChat.filter(m=>!m.location||m.location===p.location).slice(-60), players:onlineList(), leaderboard:leaderboardPayload(), position:{x:p.x,y:p.y}, persistent:dbReady});
       console.log(`player:hello completed for ${id} in ${Date.now()-helloStartedAt}ms (db=${dbReady?'postgres':'memory-fallback'})`);
       socket.to('zone-world').emit('world:event',joinEvent);
-      io.emit('world:npcs',world.npcPositions); emitNpcState(); io.emit('world:ecosystem',world.ecosystem); io.emit('world:coop',world.coOpQuests); io.emit('war:state',{operations:world.warOperations||[],history:(world.warHistory||[]).slice(0,12)});
+      socket.emit('world:npcs',world.npcPositions); emitNpcState(socket); socket.emit('world:ecosystem',world.ecosystem); socket.emit('world:coop',world.coOpQuests); socket.emit('war:state',{operations:world.warOperations||[],history:(world.warHistory||[]).slice(0,12)});
       systemMessage(`${p.name} вошёл в Зону.`); broadcastOnline(); persistWorld().catch(e=>console.error('join persistence:',e.message));
     } catch(e){
       console.error(`[socket] player:hello failed id=${socket.id} after ${Date.now()-helloStartedAt}ms:`,e);

@@ -42,8 +42,7 @@ function tickNpcWorld(world, locations, random = Math.random, now = Date.now()) 
   for (const npc of Object.values(world.npcState)) {
     if (!npc.equipment) { const role=npc.role||'сталкер'; npc.equipment={suit:role.includes('учёный')?'Научный комбинезон':role.includes('торговец')?'Куртка торговца':'Комбинезон сталкера',weapon:role.includes('охотник')?'ТОЗ-34':role.includes('разведчик')?'АКС-74У':'ПМ',tool:'Обычный детектор',backpack:'Полевой рюкзак'}; }
     if (!npc.alive) continue;
-    const cycle=Math.floor(now/900000); if(npc.dialogueCycle!==cycle){npc.dialogueCycle=cycle;npc.dialogueVersion=(npc.dialogueVersion||0)+1;events.push({type:'npc_dialogue_updated',npcId:npc.id,text:`${npc.name}: появились новые темы и слухи для разговора.`,at:now});}
-    npc.dialogue = buildDialogue(npc, {recentWorldEvent:world.zoneEvents?.at(-1)?.title || ''}, now);
+    const cycle=Math.floor(now/900000); if(npc.dialogueCycle!==cycle || !npc.dialogue){npc.dialogueCycle=cycle;if(npc.dialogue)npc.dialogueVersion=(npc.dialogueVersion||0)+1;npc.dialogue = buildDialogue(npc, {recentWorldEvent:world.zoneEvents?.at(-1)?.title || ''}, now);if(npc.dialogueVersion)events.push({type:'npc_dialogue_updated',npcId:npc.id,text:`${npc.name}: появились новые темы и слухи для разговора.`,at:now});}
     npc.health=clamp(npc.health,0,100);npc.morale=clamp(npc.morale,0,100);npc.supplies=clamp(npc.supplies,0,100);
     npc.homeLocation ||= homeForFaction(npc.faction,owners,npc.location);
     npc.baseLocation ||= npc.homeLocation;
