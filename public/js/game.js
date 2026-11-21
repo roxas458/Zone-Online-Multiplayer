@@ -63,6 +63,12 @@ const base={
  log:["КПК активирован. Добро пожаловать в Зону.","Получено стартовое снаряжение."],
  world:{weather:"Пасмурно",emission: "Низкая активность",mutants:"Следы замечены",tension:42}
 };
+const QUICK_USE_SLOTS=[
+ {id:'anti_rad',icon:'☢',label:'Антирад'},
+ {id:'med',icon:'✚',label:'Аптечка'},
+ {id:'bandage',icon:'▤',label:'Бинт'},
+ {id:'bread',icon:'🥫',label:'Еда'}
+];
 const hadLocalSave=!!localStorage.getItem("zoneExpandedSave");
 let g;try{g=JSON.parse(localStorage.getItem("zoneExpandedSave"))||clone(base)}catch(e){g=clone(base)}
 if(g.characterCreated===undefined)g.characterCreated=hadLocalSave;
@@ -559,7 +565,15 @@ function renderPlayerFriends(list=[]){const el=$('playerFriendsPanel');if(!el)re
 function renderQuick(){$("quickNpc").innerHTML=nearbyNpcs().slice(0,3).map(n=>`<div class="item" style="padding:7px;margin-bottom:6px"><span>${n.icon} ${n.name}</span><button onclick="meet('${n.id}')">Встреча</button></div>`).join("")||'<span class="muted small">Поблизости никого не видно.</span>'}
 function travel(id){const l=g.locations.find(x=>x.id===id);if(!l||id===g.loc)return;if(activePlayerSquad&&activePlayerSquad.leader!==zonePlayerId)return alert('Отрядом командует лидер. Попроси его сменить маршрут или покинь отряд.');const dest=$('expeditionDestination');if(dest)dest.value=id;startExpedition();}
 
-function renderMap(){if((($("world")?.classList.contains("active")||!zoneMapHasRendered)&&zoneMapDirty))renderZoneMap();$("map").innerHTML=g.locations.map(l=>`<button class="loc ${chosenLoc===l.id?"selected":""}" onclick="selectLocation('${l.id}')"><b>${l.icon} ${l.name}</b><span class="owner">${l.owner}</span><span class="risk">Опасность: ${l.risk} · Расход сил: ${(l.travel||0)*5}%</span>${l.id===g.loc?'<span class="tag">Вы здесь</span>':""}</button>`).join("")}
+let mapListCacheKey='';
+function renderMap(){
+ if((($("world")?.classList.contains("active")||!zoneMapHasRendered)&&zoneMapDirty))renderZoneMap();
+ const host=$("map");if(!host)return;
+ const key=JSON.stringify([g.loc,chosenLoc,(g.locations||[]).map(l=>[l.id,l.name,l.icon,l.owner,l.risk,l.travel,l.control])]);
+ if(key===mapListCacheKey)return;
+ mapListCacheKey=key;
+ host.innerHTML=g.locations.map(l=>`<button class="loc ${chosenLoc===l.id?"selected":""}" onclick="selectLocation('${l.id}')"><b>${l.icon} ${l.name}</b><span class="owner">${l.owner}</span><span class="risk">Опасность: ${l.risk} · Расход сил: ${(l.travel||0)*5}%</span>${l.id===g.loc?'<span class="tag">Вы здесь</span>':""}</button>`).join("");
+}
 function selectLocation(id){
  chosenLoc=id;let l=g.locations.find(x=>x.id===id),pts=g.keyPoints?.[id]||[];
  $("locationInfo").innerHTML=`<b>${l.icon} ${l.name}</b> <span class="tag">${l.owner}</span><p class="muted small">${l.desc}</p><div class="small">Контроль: ${l.control}% · Уровень риска: ${l.risk}</div><div class="bar"><i style="width:${l.control}%"></i></div><div class="rightbuttons" style="margin-top:10px">${id===g.loc?'<span class="tag">Текущая локация</span>':`<button onclick="travel('${id}')">Отправиться · ${l.travel} ч.</button>`}<button onclick="influence('${id}')" ${l.owner===g.faction?"disabled":""}>Повысить влияние · 120 ₽</button></div><div class="section">Ключевые точки сектора</div><div class="poi-list">${pts.map(p=>`<div class="poi ${p.discovered?"discovered":""}"><b>${p.discovered?"✓":"⌖"} ${p.name}</b><span class="poi-marker">${p.kind}</span><small>${p.discovered?p.desc:"Сведения отсутствуют"}</small>${id===g.loc&&!p.discovered?`<div style="margin-top:7px"><button onclick="discoverPoint('${p.id}')">Исследовать</button></div>`:""}</div>`).join("")}</div>`;
@@ -894,7 +908,7 @@ function tickRadiation(){const hazards={chaes:1.8,radar:1.5,pripyat:1.1,red:.65,
 setInterval(()=>{tickRadiation();tickSurvival();if($('inventory')?.classList.contains('active'))renderInventory();},60000);
 setInterval(()=>{if($('ranks')?.classList.contains('active'))renderStalkerLeaderboard();if($('factions')?.classList.contains('active'))renderFactionLeaderboard();},15000);
 function needPercent(value){const n=Number(value);return Math.round(Math.max(0,Math.min(100,Number.isFinite(n)?n:0)));}
-function render(){let l=here();$("topMoney").textContent=g.money.toLocaleString("ru-RU");$("topHp").textContent=g.hp+"%";$("topHunger").textContent=needPercent(g.hunger)+"%";$("topThirst").textContent=needPercent(g.thirst)+"%";const radEl=$("topRadiation");if(radEl)radEl.textContent=Math.round(radiationLevel())+"%";$("topDay").textContent=realClock().stamp;$("topLoc").textContent=l.name;$("sMoney").textContent=g.money+" ₽";$("sHp").textContent=g.hp+"%";$("sRep").textContent=g.rep;$("sDay").textContent=g.day;
+function render(){let l=here();$("topMoney").textContent=g.money.toLocaleString("ru-RU");$("topHp")&&($("topHp").textContent=g.hp+"%");$("topHunger")&&($("topHunger").textContent=needPercent(g.hunger)+"%");$("topThirst")&&($("topThirst").textContent=needPercent(g.thirst)+"%");const radEl=$("topRadiation");if(radEl)radEl.textContent=Math.round(radiationLevel())+"%";$("topDay").textContent=realClock().stamp;$("topLoc").textContent=l.name;$("sMoney").textContent=g.money+" ₽";$("sHp").textContent=g.hp+"%";$("sRep").textContent=g.rep;$("sDay").textContent=g.day;
 $("nearby").innerHTML=nearbyNpcs().slice(0,3).map(n=>`<div class="item"><div><b>${n.icon} ${n.name}</b><div class="desc">${n.role} · ${n.desc}</div></div><button onclick="meet('${n.id}')">Подойти</button></div>`).join("")||'<div class="mutedbox">Поблизости никого нет.</div>';
 $("homeNews").textContent=g.news[0]?g.news[0].title+": "+g.news[0].body:"Пока без новостей.";
 $("miniStatus").innerHTML=`<div class="item"><span>Локация</span><b>${l.name}</b></div><div class="item"><span>Выносливость</span><b>${g.stamina}%</b></div><div class="bar"><i style="width:${g.stamina}%"></i></div><div class="item"><span>Голод</span><b>${needPercent(g.hunger)}%</b></div><div class="bar"><i style="width:${needPercent(g.hunger)}%;background:#c6a16c"></i></div><div class="item"><span>Жажда</span><b>${needPercent(g.thirst)}%</b></div><div class="bar"><i style="width:${needPercent(g.thirst)}%;background:#8ab5c7"></i></div><div class="item"><span>Радиация</span><b>${Math.round(radiationLevel())}%</b></div><div class="bar"><i style="width:${radiationLevel()}%;background:#a5b66d"></i></div><div class="item"><span>Погода</span><b>${g.world.weather}</b></div><div class="item"><span>Фракция</span><b>${g.faction}</b></div>`;
@@ -1010,9 +1024,30 @@ const enemyTemplates=[
  {name:'Снорк',icon:'☢',hp:66,power:11,desc:'Непредсказуемый противник из заражённого сектора.'}
 ];
 function equippedWeapon(){return g.items.find(x=>x.name===g.equipment?.weapon&&x.type==='Оружие')||g.items.find(x=>x.type==='Оружие')||null;}
+function renderQuickUseBar(){
+ const bar=$('quickUseBar');if(!bar)return;
+ bar.innerHTML=QUICK_USE_SLOTS.map(slot=>{
+  const item=g.items.find(x=>x.id===slot.id&&Number(x.qty)>0),qty=item?Number(item.qty):0;
+  return `<button type="button" class="quick-use-slot ${item?'has-item':'is-empty'}" ${item?`onclick="quickUseItem('${slot.id}')"`:'disabled'} title="${slot.label}${item?' · использовать':''}" aria-label="${slot.label}, количество ${qty}">
+   <span class="quick-use-icon">${slot.icon}</span><span class="quick-use-name">${slot.label}</span><b class="quick-use-qty">${item?'×'+qty:'—'}</b>
+  </button>`;
+ }).join('');
+}
+function quickUseItem(id){
+ const item=g.items.find(x=>x.id===id&&Number(x.qty)>0);
+ if(!item)return;
+ if(id==='med'&&g.hp>=100){log('Аптечка не использована: здоровье уже полное.');return;}
+ useItem(id);
+}
 function renderSurvivalHud(){
  const hud=$('survivalHud');if(!hud)return;
  const hp=Math.max(0,Math.min(100,Number(g.hp)||0)),st=Math.max(0,Math.min(100,Number(g.stamina)||0));
+ const setText=(id,value)=>{const el=$(id);if(el)el.textContent=value;};
+ setText('hudHungerValue',Math.round(needPercent(g.hunger))+'%');
+ setText('hudThirstValue',Math.round(needPercent(g.thirst))+'%');
+ setText('hudRadiationValue',Math.round(radiationLevel())+'%');
+ setText('hudStaminaCompact',Math.round(st)+'%');
+ renderQuickUseBar();
  const health=$('hudHealthTicks'),stamina=$('hudStaminaTicks');
  const ticks=(value,kind)=>Array.from({length:28},(_,i)=>`<i class="${i<Math.ceil(value/100*28)?'is-on':''}"></i>`).join('');
  if(health)health.innerHTML=ticks(hp,'health');if(stamina)stamina.innerHTML=ticks(st,'stamina');
