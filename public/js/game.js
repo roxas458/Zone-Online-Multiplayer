@@ -1,4 +1,4 @@
-// ZONE ONLINE 4.33.11 browser client. SURVIVAL / EXPEDITIONS / DYNAMIC ECOLOGY.
+// ZONE ONLINE 4.33.10 browser client. SURVIVAL / EXPEDITIONS / DYNAMIC ECOLOGY.
 const clone=o=>JSON.parse(JSON.stringify(o));
 const base={
  name:"Новичок",money:1450,hp:100,radiation:0,radiationProtectionUntil:0,stamina:85,hunger:18,thirst:20,rep:10,day:1,hour:9,loc:"cordon",faction:"Одиночки",xp:0,meetings:0,completed:0,flags:{metSid:false,metWolf:false,heardBar:false,foundArtifact:false,helpedWolf:false},
@@ -945,8 +945,8 @@ function setOnlineConnectionState(state,message){
 async function runNetworkCheck(){
  const output=$('mpDiagnosticsResult');if(output)output.textContent='Проверяем сервер и Socket.IO…';
  const saved=(localStorage.getItem('zoneServerUrl')||'').trim();
- const isLocal=/^(localhost|127\.0\.0\.1|0\.0\.0\.0)$/i.test(window.location.hostname);
- const target=saved||(isLocal?window.location.origin:DEFAULT_ZONE_SERVER_URL);
+ const isLocal=/^(localhost|127\.0\.0\.1)$/.test(window.location.hostname);
+  const target=(isLocal && /onrender\.com/i.test(saved)) ? window.location.origin : (saved||DEFAULT_ZONE_SERVER_URL);
  const checks=[];
  try{
   const healthResponse=await fetch(target.replace(/\/$/,'')+'/health',{cache:'no-store'});
@@ -965,29 +965,27 @@ async function runNetworkCheck(){
  return checks;
 }
 
-const IS_LOCAL_ZONE_HOST=/^(localhost|127\.0\.0\.1|0\.0\.0\.0)$/i.test(window.location.hostname);
-const DEFAULT_ZONE_SERVER_URL=IS_LOCAL_ZONE_HOST?window.location.origin:'https://zone-online-multiplayer.onrender.com';
+const DEFAULT_ZONE_SERVER_URL =
+  /^(localhost|127\\.0\\.0\\.1)$/.test(window.location.hostname)
+    ? window.location.origin
+    : 'https://zone-online-multiplayer.onrender.com';
 async function connectZone(){
  const connectAttempt=++zoneConnectAttempt;
- const isLocal=/^(localhost|127\.0\.0\.1|0\.0\.0\.0)$/i.test(window.location.hostname);
+ const isLocal=/^(localhost|127\\.0\\.0\\.1)$/.test(window.location.hostname);
  if(isLocal){
-  const savedLocal=(localStorage.getItem('zoneServerUrl')||'').trim();
-  if(!savedLocal||/onrender\.com/i.test(savedLocal))localStorage.removeItem('zoneServerUrl');
+  const saved=(localStorage.getItem('zoneServerUrl')||'').trim();
+  if(/onrender\\.com/i.test(saved))localStorage.removeItem('zoneServerUrl');
  }
  const queryMatch=String(window.location.search||'').match(/[?&]server=([^&]+)/);let queryServer=null;try{queryServer=queryMatch?decodeURIComponent(queryMatch[1].replace(/\+/g,' ')):null;}catch(error){console.warn('Invalid server URL query parameter:',error.message);}if(queryServer&&!localStorage.getItem('zoneServerUrl')){try{const u=new URL(queryServer);if(['http:','https:'].includes(u.protocol))localStorage.setItem('zoneServerUrl',u.origin);}catch{}}
- let clientReady = window.zoneSocketClientReady ? await window.zoneSocketClientReady : (typeof io==='function');
+ let clientReady=false;
+ try{
+  clientReady=window.zoneSocketClientReady
+   ? await Promise.race([window.zoneSocketClientReady,new Promise(resolve=>setTimeout(()=>resolve(false),20000))])
+   : (typeof io==='function');
+ }catch(error){console.warn('Socket.IO client loader failed:',error);}
  if(connectAttempt!==zoneConnectAttempt)return;
  if(!clientReady || typeof io!=='function'){
-  if(typeof window.loadZoneSocketClient==='function'){
-   setOnlineConnectionState('connecting','Socket.IO не загрузился. Повторяем загрузку через 3 секунды…');
-   setTimeout(()=>{
-    if(connectAttempt!==zoneConnectAttempt)return;
-    try{window.zoneSocketClientReady=window.loadZoneSocketClient();connectZone();}
-    catch(error){console.error('Socket.IO loader retry failed:',error);setOnlineConnectionState('offline','Ошибка повторной загрузки Socket.IO.');}
-   },3000);
-  }else{
-   setOnlineConnectionState('offline','Не удалось загрузить Socket.IO. Проверь интернет или открой игру с сервера.');
-  }
+  setOnlineConnectionState('offline','Не удалось загрузить Socket.IO. Проверь интернет или открой игру с сервера. Если игра размещена отдельно, укажи адрес Node-сервера ниже.');
   return;
  }
  const sameOrigin=window.location.origin;
