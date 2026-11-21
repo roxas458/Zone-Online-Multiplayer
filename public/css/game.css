@@ -897,3 +897,15 @@ body.title-screen-active .survival-hud{display:none}
 /* 4.33.28 camp-life navigation */
 .camp-section-nav{display:flex;flex-wrap:wrap;gap:7px;margin:12px 0 18px;padding:10px;background:rgba(20,29,21,.72);border:1px solid var(--line);border-radius:10px;position:sticky;top:4px;z-index:4;backdrop-filter:blur(8px)}
 .camp-section-nav button{font-size:12px;padding:7px 10px}
+
+
+/* 4.33.31 — compact clickable player markers and field interaction cards */
+.zone-map .map-player-hit{cursor:pointer;pointer-events:all}
+.zone-map .map-player-hit .marker-hit-area{fill:transparent;stroke:none;pointer-events:all}
+.zone-map .map-player-hit:focus .marker-dot,.zone-map .map-player-hit:hover .marker-dot{stroke:#fff4b7;stroke-width:5}
+.zone-map .marker-self{color:#f4f1df}
+.zone-map .marker-self .marker-dot{stroke:#fff;stroke-width:3.5}
+.map-player-row{display:flex;width:100%;align-items:center;justify-content:space-between;gap:10px;padding:9px;margin-top:6px;text-align:left;background:#30372a;border:1px solid #656c4e;color:#eee8d0}
+.map-player-row>span{display:flex;flex-direction:column;gap:3px;min-width:0}.map-player-row small{font-size:10px;color:#b8b69d}.map-player-row em{font-size:11px;color:#e5d49a;font-style:normal;white-space:nowrap}
+.map-player-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin-top:10px}.map-player-actions button{min-height:40px;padding:7px;font-size:11px}
+@media(max-width:520px){.map-player-actions{grid-template-columns:1fr}.map-player-row{min-height:48px}}

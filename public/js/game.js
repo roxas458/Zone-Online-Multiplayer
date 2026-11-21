@@ -1,4 +1,4 @@
-// ZONE ONLINE 4.33.30 browser client. IMMERSIVE TITLE SCREEN / SURVIVAL / MULTIPLAYER.
+// ZONE ONLINE 4.33.31 browser client. IMMERSIVE TITLE SCREEN / SURVIVAL / MULTIPLAYER.
 const clone=o=>JSON.parse(JSON.stringify(o));
 const base={
  name:"Новичок",money:1450,hp:100,radiation:0,radiationProtectionUntil:0,stamina:85,hunger:18,thirst:20,rep:10,day:1,hour:9,loc:"cordon",faction:"Одиночки",xp:0,meetings:0,completed:0,flags:{metSid:false,metWolf:false,heardBar:false,foundArtifact:false,helpedWolf:false},
@@ -317,7 +317,7 @@ function news(t,b){const c=realClock();g.news.unshift({day:c.day,hour:c.time,tit
 function addItem(id,name,type,desc,weight,value,qty=1){let x=g.items.find(i=>i.id===id);if(x)x.qty+=qty;else g.items.push({id,name,type,desc,weight,value,qty})}
 function count(id){return g.items.find(i=>i.id===id)?.qty||0}
 function take(id,n){let x=g.items.find(i=>i.id===id);if(!x||x.qty<n)return false;x.qty-=n;if(x.qty<=0)g.items=g.items.filter(i=>i.id!==id);return true}
-function view(id){if(id!=="people"&&$("npcDialogueOverlay")?.classList.contains("open"))closeTalk();document.querySelectorAll(".view").forEach(v=>v.classList.toggle("active",v.id===id));document.querySelectorAll("[data-v]").forEach(b=>b.classList.toggle("active",b.dataset.v===id));document.querySelector("main>aside.panel")?.classList.remove("mobile-open");if(id==="war")renderWar();if(id==="encyclopedia")renderEncyclopedia();if(id==="stories")renderStories();if(id==="people")renderPeople();if(id==="squads")renderSquads();if(id==="profile")renderProfile();if(id==="inventory")renderInventory();if(id==="trade")renderTrade();if(id==="settings")applyGameOptions();if(id==="world")renderMap();if(id==="ranks"){renderStalkerLeaderboard()}if(id==="factions"){renderFactions();renderFactionLeaderboard();renderDiplomacy()}}
+function view(id){if(id!=="people"&&$("npcDialogueOverlay")?.classList.contains("open"))closeTalk();document.querySelectorAll(".view").forEach(v=>v.classList.toggle("active",v.id===id));document.querySelectorAll("[data-v]").forEach(b=>b.classList.toggle("active",b.dataset.v===id));document.querySelector("main>aside.panel")?.classList.remove("mobile-open");if(id==="war")renderWar();if(id==="encyclopedia")renderEncyclopedia();if(id==="stories")renderStories();if(id==="people")renderPeople();if(id==="squads")renderSquads();if(id==="profile")renderProfile();if(id==="inventory")renderInventory();if(id==="trade"){renderTrade();renderPlayerTrade();}if(id==="settings")applyGameOptions();if(id==="world")renderMap();if(id==="ranks"){renderStalkerLeaderboard()}if(id==="factions"){renderFactions();renderFactionLeaderboard();renderDiplomacy()}}
 function toggleMobileMenu(){document.querySelector("main>aside.panel")?.classList.toggle("mobile-open")}
 document.addEventListener("keydown",e=>{if(e.key==="Escape"&&$("npcDialogueOverlay")?.classList.contains("open"))closeTalk();});
 document.querySelectorAll("[data-v]").forEach(b=>b.onclick=()=>{view(b.dataset.v);if(b.dataset.v==="armory")renderArmory();if(b.dataset.v==="inventory")renderInventory()});
@@ -756,7 +756,14 @@ function handleMapSectorSelect(id){if(!id||id===g.loc){selectLocation(id||g.loc)
 
 function sectorCenter(id){return zoneSectorCoords[id]||[500,1000]}
 function playerWorldPosition(){if(g.mapCoordinateVersion!==2||!g.worldPosition||!Number.isFinite(g.worldPosition.x)||!Number.isFinite(g.worldPosition.y)){const c=sectorCenter(g.loc);g.worldPosition={x:c[0],y:c[1]+24};g.mapCoordinateVersion=2;}return g.worldPosition}
-function playerDotMarkup(p){return `<g id="playerMapMarker" class="world-marker marker-self" transform="translate(${p.x} ${p.y})" aria-label="Твоё положение"><circle class="marker-pulse" r="3.2"/><circle class="marker-dot" r="1.8"/><circle class="marker-center" r=".8"/></g>`}
+function playerDotMarkup(p){return `<g id="playerMapMarker" class="world-marker marker-self map-player-hit" transform="translate(${p.x} ${p.y}) scale(.42)" role="button" tabindex="0" aria-label="Твоё положение. Нажми, чтобы увидеть ближайших игроков" onclick="showNearbyPlayersCard()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();showNearbyPlayersCard()}"><circle class="marker-hit-area" r="12"/><circle class="marker-pulse" r="7"/><circle class="marker-dot" r="3.2"/><circle class="marker-center" r="1.1"/></g>`}
+function playerMapPointMarkup(player,point){const id=String(player.id||'').replace(/[^a-zA-Z0-9_-]/g,'');const name=escapeHtml(player.name||'Игрок');return `<g class="world-marker marker-player map-player-hit" transform="translate(${point[0]} ${point[1]}) scale(.42)" role="button" tabindex="0" aria-label="Игрок ${name}" onclick="showMapPlayerCard('${id}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();showMapPlayerCard('${id}')}"><circle class="marker-hit-area" r="12"/><circle class="marker-pulse" r="7"/><circle class="marker-dot" r="3.2"/><title>${name} · ${escapeHtml(locationName(player.location))}</title></g>`}
+function playerDistanceMeters(player){const me=playerWorldPosition();if(!Number.isFinite(Number(player?.x))||!Number.isFinite(Number(player?.y)))return null;return Math.round(Math.hypot(Number(player.x)-me.x,Number(player.y)-me.y));}
+function showNearbyPlayersCard(){const card=$('mapEntityCard');if(!card)return;const nearby=(onlinePlayers||[]).filter(p=>p.id!==zonePlayerId&&p.location===g.loc).map(p=>({p,d:playerDistanceMeters(p)})).sort((a,b)=>(a.d??Infinity)-(b.d??Infinity));card.hidden=false;card.innerHTML=`<div class="map-entity-head"><b>ИГРОКИ РЯДОМ · ${nearby.length}</b><button type="button" onclick="closeMapEntityCard()" aria-label="Закрыть">×</button></div><div class="map-entity-meta">Нажми на сталкера, чтобы открыть действия. Расстояние рассчитано по координатам карты.</div>${nearby.length?nearby.map(({p,d})=>`<button type="button" class="map-player-row" onclick="showMapPlayerCard('${String(p.id).replace(/[^a-zA-Z0-9_-]/g,'')}')"><span><b>${escapeHtml(p.name||'Сталкер')}</b><small>${escapeHtml(p.faction||'Неизвестная группировка')}</small></span><em>${d===null?'расстояние неизвестно':d+' м'}</em></button>`).join(''):'<div class="mutedbox small">В этом секторе пока нет других игроков.</div>'}`;}
+function showMapPlayerCard(playerId){const p=(onlinePlayers||[]).find(x=>x.id===playerId&&x.id!==zonePlayerId);const card=$('mapEntityCard');if(!p||!card)return;const d=playerDistanceMeters(p);card.hidden=false;card.innerHTML=`<div class="map-entity-head"><b>СТАЛКЕР · ${escapeHtml(p.name||'Игрок')}</b><button type="button" onclick="closeMapEntityCard()" aria-label="Закрыть">×</button></div><div class="map-entity-meta">${escapeHtml(p.faction||'Неизвестная группировка')} · ${escapeHtml(locationName(p.location))} · ${d===null?'расстояние неизвестно':d+' м от тебя'}</div><div class="map-player-actions"><button type="button" onclick="openMapPlayerMessage('${String(p.id).replace(/[^a-zA-Z0-9_-]/g,'')}')">✉ Поговорить</button><button type="button" onclick="openMapPlayerTrade('${String(p.id).replace(/[^a-zA-Z0-9_-]/g,'')}')">⇄ Торговать</button><button type="button" onclick="squadAction('invite','${String(p.id).replace(/[^a-zA-Z0-9_-]/g,'')}')">＋ Пригласить в отряд</button><button type="button" onclick="friendRequest('${String(p.id).replace(/[^a-zA-Z0-9_-]/g,'')}')">★ Добавить в друзья</button></div>`;}
+function openMapPlayerMessage(id){closeMapEntityCard();view('multiplayer');openPlayerDM(id);}
+function openMapPlayerTrade(id){if(!onlinePlayers.some(p=>p.id===id&&p.location===g.loc))return alert('Для торговли игроки должны находиться в одном секторе.');activePlayerTradeTarget=id;closeMapEntityCard();view('trade');renderPlayerTrade();}
+
 function npcHeading(n,index=0){const d=n.direction??n.facing??n.heading;const named={up:0,north:0,right:90,east:90,down:180,south:180,left:270,west:270};return Number.isFinite(Number(d))?Number(d):named[String(d||'').toLowerCase()]??((index*47)%360)}
 function mapPoint(x,y,cls,label,extra='',heading=0){const arrow=['marker-friendly','marker-neutral','marker-enemy'].includes(cls)?`<path class="marker-direction" transform="scale(.34) rotate(${heading})" d="M0 -9 L-2.7 -4 L0 -5.5 L2.7 -4 Z"/>`:``;return `<g class="world-marker ${cls||''}" transform="translate(${x} ${y}) scale(.42)" ${extra}><circle class="marker-pulse" r="7"/>${arrow}<circle class="marker-dot" r="3.2"/><title>${escapeHtml(label||'Отметка')}${arrow?' · направление НПС':''}</title></g>`}
 function mapSquadPoint(x,y,cls,label,count,extra='',heading=0,names=''){const arrow=`<path class="marker-direction" transform="scale(.34) rotate(${heading})" d="M0 -9 L-2.7 -4 L0 -5.5 L2.7 -4 Z"/>`;return `<g class="world-marker world-squad-marker ${cls||''}" transform="translate(${x} ${y}) scale(.48)" ${extra} role="button" tabindex="0" aria-label="${escapeHtml(label)}"><circle class="marker-pulse" r="8"/>${arrow}<circle class="marker-dot" r="5"/><title>${escapeHtml(label)} · ${escapeHtml(names)}</title></g>`}
@@ -796,7 +803,7 @@ function renderZoneMap(){
  const eco=ecologyData();
  for(const [i,pack] of (eco.mutantPacks||[]).entries()){if(zoneMapMode==='local'&&pack.location!==g.loc)continue;const q=sectorMarkerPosition(pack.location,20+i);if(q)overlays+=`<g class="world-marker marker-mutant" role="button" tabindex="0" aria-label="Мутанты: ${esc(pack.species)}, ${Number(pack.count)||0}" onclick="showMapMutants('${esc(pack.id)}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();showMapMutants('${esc(pack.id)}')} " transform="translate(${q[0]-10} ${q[1]+9})"><circle class="marker-pulse" r="9"/><circle class="marker-dot" r="5"/><text text-anchor="middle" y="3">☣</text><title>${esc(pack.species)} ×${pack.count} · ${locationName(pack.location)} · агрессия ${pack.aggression}%</title></g>`;}
  for(const [i,a] of (eco.anomalies||[]).entries()){if(zoneMapMode==='local'&&a.location!==g.loc)continue;const q=sectorMarkerPosition(a.location,45+i);if(q)overlays+=`<g class="world-marker marker-anomaly" transform="translate(${q[0]+10} ${q[1]-9})"><circle r="7"/><text text-anchor="middle" y="3">✧</text><title>${esc(a.kind)} · ${locationName(a.location)} · опасность ${a.danger}%</title></g>`;}
- overlays+=(onlinePlayers||[]).filter(p=>p.id!==zonePlayerId).map((p,i)=>{const q=Number.isFinite(p.x)&&Number.isFinite(p.y)?[p.x,p.y]:sectorMarkerPosition(p.location,i+2);return q?mapPoint(q[0],q[1],'marker-player',p.name||'Игрок'):''}).join('');
+ overlays+=(onlinePlayers||[]).filter(p=>p.id!==zonePlayerId&&(zoneMapMode!=='local'||p.location===g.loc)).map((p,i)=>{const q=Number.isFinite(p.x)&&Number.isFinite(p.y)?[p.x,p.y]:sectorMarkerPosition(p.location,i+2);return q?playerMapPointMarkup(p,q):''}).join('');
  const caches=Object.entries(g.keyPoints||{}).flatMap(([loc,arr])=>(arr||[]).filter(p=>p.discovered).map((p,i)=>({loc,p,i}))); 
  overlays+=caches.map(({loc,i})=>{const q=sectorMarkerPosition(loc,i+4);return q?mapPoint(q[0]+12,q[1]-14,'marker-cache','Тайник'):''}).join('');
  const npcRoutes=allNpcs.filter(n=>Array.isArray(n.route)&&n.route.length>1).map(n=>{const pts=n.route.map((v,i)=>Array.isArray(v)?v:(typeof v==='string'?zoneSectorCoords[v]:[v?.x,v?.y])).filter(v=>v&&Number.isFinite(v[0])&&Number.isFinite(v[1]));return pts.length>1?`<polyline class="npc-route-line" points="${pts.map(v=>v.join(',')).join(' ')}"><title>Маршрут: ${esc(n.name||'отряд')}</title></polyline>`:''}).join('');
@@ -902,7 +909,7 @@ let zoneSocket=null, zoneSocketTarget='', zoneHelloReadyTimer=null, zoneConnectA
 localStorage.removeItem('zoneAccountToken');localStorage.removeItem('zoneAccountUsername');
 const factionSpawn={ 'Одиночки':'cordon','Долг':'bar','Свобода':'army','Бандиты':'dump','Военные':'agro','Учёные':'yantar','Наёмники':'limansk','Монолит':'radar','Чистое небо':'swamps' };
 const spawnNames={cordon:'Кордон',bar:'Бар',army:'Военные склады',dump:'Свалка',agro:'Агропром',yantar:'Янтарь',limansk:'Лиманск',radar:'Радар',swamps:'Болота'};
-let onlinePlayers=[], serverWorld=null, serverChat=[], incomingTrades=[], activePlayerSquad=null;
+let onlinePlayers=[], serverWorld=null, serverChat=[], incomingTrades=[], activePlayerSquad=null, activePlayerTradeTarget=null;
 let serverLeaderboard=[], selectedRankId='', rankRecentEvents=[];
 let applyingServerState=false;
 
@@ -942,7 +949,7 @@ function applySharedNpcPositions(positions){
  for(const n of g.npcs||[]){if(positions[n.id]&&g.locations.some(l=>l.id===positions[n.id]))n.loc=positions[n.id];}
  syncNpcRosterToClient();renderPeople();renderQuick();if($('people').classList.contains('active'))renderPeople();
 }
-function renderPlayerTrade(){const el=$('playerTrade');if(!el)return;const others=onlinePlayers.filter(p=>p.id!==zonePlayerId);if(!others.length){el.innerHTML='<div class="mutedbox small">Пока нет других игроков онлайн.</div>';return;}
+function renderPlayerTrade(){const el=$('playerTrade');if(!el)return;const others=onlinePlayers.filter(p=>p.id!==zonePlayerId&&(!activePlayerTradeTarget||p.id===activePlayerTradeTarget));if(!others.length){el.innerHTML='<div class="mutedbox small">Пока нет других игроков онлайн.</div>';return;}
  const allowed=new Set(['med','bread','bolt','scrap','bandage','anti_rad','artifact','canned','sausage','condensed','water','tea','ration','artifact_medusa','artifact_flower','artifact_dummy','artifact_meat','artifact_flash','artifact_nightstar','artifact_soul','artifact_goldfish','armor_leather','armor_stalker','armor_zarya','armor_seva','armor_bulat','mutant_trophy']);
  const items=(g.items||[]).filter(x=>x.qty>0&&allowed.has(x.id));
  el.innerHTML=others.map(p=>{const sameSector=p.location===g.loc;return `<div class="item block"><b>${escapeHtml(p.name)}</b><div class="desc">${escapeHtml(p.faction)} · ${escapeHtml(locationName(p.location))}</div>${sameSector?`<div class="small" style="margin-top:5px;color:var(--good)">В одном секторе — можно торговать</div>`:`<div class="small muted" style="margin-top:5px">Для торговли встретьтесь в одном секторе</div>`}<div class="rightbuttons" style="margin-top:7px"><select class="field" id="tradeItem_${p.id}" ${items.length&&sameSector?'':'disabled'}>${items.map(x=>`<option value="${escapeHtml(x.id)}">${escapeHtml(x.name)} · есть ${x.qty}</option>`).join('')||'<option value="">Нет доступных предметов</option>'}</select><input class="field" id="tradeQty_${p.id}" type="number" min="1" max="99" value="1" style="width:62px" ${sameSector&&items.length?'':'disabled'}><input class="field" id="tradePrice_${p.id}" type="number" min="0" max="1000000" value="0" style="width:82px" placeholder="₽" ${sameSector&&items.length?'':'disabled'}><button onclick="sendPlayerTrade('${p.id}')" ${sameSector&&items.length?'':'disabled'}>Предложить</button></div></div>`;}).join('');
@@ -1185,11 +1192,11 @@ async function runNetworkCheck(){
 
 const IS_LOCAL_ZONE_HOST=/^(localhost|127\.0\.0\.1|0\.0\.0\.0|\[?::1\]?)$/.test(String(window.location.hostname||''));
 const DEFAULT_ZONE_SERVER_URL=IS_LOCAL_ZONE_HOST?window.location.origin:'https://zone-online-multiplayer.onrender.com';
-async function waitForMultiplayerHealth(targetUrl, connectAttempt, maxWaitMs=4500){
+async function waitForMultiplayerHealth(targetUrl, connectAttempt, maxWaitMs=1800){
  const startedAt=Date.now();let lastError='сервер ещё запускается';let attempts=0;
  while(Date.now()-startedAt<maxWaitMs){
   if(connectAttempt!==zoneConnectAttempt)return {cancelled:true};
-  attempts++;const controller=new AbortController();const requestTimer=setTimeout(()=>controller.abort(),3000);
+  attempts++;const controller=new AbortController();const requestTimer=setTimeout(()=>controller.abort(),1200);
   try{
    const response=await fetch(`${targetUrl.replace(/\/$/,'')}/health?probe=${Date.now()}`,{cache:'no-store',mode:'cors',signal:controller.signal});
    if(response.ok){const data=await response.json();if(data?.ok){console.info('ZONE ONLINE: health check passed before Socket.IO',{version:data.version,elapsedMs:Date.now()-startedAt,attempts});return {ok:true,data};}lastError='сервер ответил без признака готовности';}
@@ -1198,7 +1205,7 @@ async function waitForMultiplayerHealth(targetUrl, connectAttempt, maxWaitMs=450
   finally{clearTimeout(requestTimer);}
   const elapsed=Math.floor((Date.now()-startedAt)/1000);
   setOnlineConnectionState('connecting',`Ожидаем запуск сервера… ${elapsed} сек. (${lastError}). Адрес сохранён, подключение начнётся сразу после ответа сервера.`);
-  if(Date.now()-startedAt<maxWaitMs)await new Promise(resolve=>setTimeout(resolve,400));
+  if(Date.now()-startedAt<maxWaitMs)await new Promise(resolve=>setTimeout(resolve,250));
  }
  console.warn('ZONE ONLINE: health preflight limit reached; trying Socket.IO anyway',{targetUrl,elapsedMs:Date.now()-startedAt,lastError});
  return {ok:false,error:lastError};
@@ -1240,7 +1247,7 @@ async function connectZone(){
   return;
  }
  setOnlineConnectionState('connecting','Проверяем доступность сервера и ожидаем его запуска…');
- await waitForMultiplayerHealth(targetUrl,connectAttempt,4500);
+ await waitForMultiplayerHealth(targetUrl,connectAttempt,1800);
  if(connectAttempt!==zoneConnectAttempt)return;
  zonePlayerReady=false;
  if(zoneSocket){try{zoneSocket.removeAllListeners();zoneSocket.disconnect();}catch{}}
@@ -1253,9 +1260,9 @@ async function connectZone(){
   // Prefer WebSocket, but allow Socket.IO to fall back to HTTP polling when a
   // proxy or client network blocks WebSocket upgrades.
   zoneSocket=io(serverUrl||undefined,{
-   transports:['websocket','polling'],
+   transports:['polling','websocket'],
    tryAllTransports:true,
-   timeout:7000,
+   timeout:4500,
    reconnection:true,
    reconnectionAttempts:Infinity,
    reconnectionDelay:500,

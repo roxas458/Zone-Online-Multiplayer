@@ -439,8 +439,8 @@ test('4.25 field PDA keeps long-page filters and map controls reachable', () => 
 test('4.33 build labels are consistent', () => {
   const html = fs.readFileSync(path.join(root, 'public/index.html'), 'utf8');
   const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
-  assert.equal(pkg.version, '4.33.30');
-  assert.match(html, /BUILD 4\.33\.30/);
+  assert.equal(pkg.version, '4.33.31');
+  assert.match(html, /BUILD 4\.33\.31/);
   assert.match(html, /ZONE ONLINE 4\.33/);
 });
 
@@ -463,7 +463,7 @@ test('4.27 connection diagnostics support a separate server URL and health endpo
   assert.match(html, /zone-online-multiplayer\.onrender\.com/);
   assert.match(client, /queryMatch=.*server=/);
   assert.match(client, /\/health/);
-  assert.match(client, /transports:\['websocket','polling'\]/);
+  assert.match(client, /transports:\['polling','websocket'\]/);
   assert.match(client, /tryAllTransports:true/);
   assert.match(client, /https:\/\/zone-online-multiplayer\.onrender\.com/);
   assert.match(client, /connect_error/);
@@ -473,16 +473,16 @@ test('4.27 connection diagnostics support a separate server URL and health endpo
 });
 
 
-test('4.33.30 waits for Render health before Socket.IO and falls back after a bounded probe', () => {
+test('4.33.31 bounds Render health wait before Socket.IO and falls back after a bounded probe', () => {
   const client = fs.readFileSync(path.join(root, 'public/js/game.js'), 'utf8');
   const server = fs.readFileSync(path.join(root, 'server.js'), 'utf8');
   assert.match(client, /async function waitForMultiplayerHealth\(/);
-  assert.match(client, /await waitForMultiplayerHealth\(targetUrl,connectAttempt,4500\)/);
+  assert.match(client, /await waitForMultiplayerHealth\(targetUrl,connectAttempt,1800\)/);
   assert.match(client, /health preflight limit reached; trying Socket\.IO anyway/);
   assert.doesNotMatch(client, /localStorage\.removeItem\('zoneServerUrl'\);[\s\S]{0,180}Using the server that hosts this game/);
   assert.match(client, /reconnectionAttempts:Infinity/);
   assert.match(client, /reconnectionDelayMax:2500/);
-  assert.match(client, /timeout:7000/);
+  assert.match(client, /timeout:4500/);
   assert.match(server, /transports: \['websocket','polling'\]/);
 });
 
@@ -496,7 +496,7 @@ test('4.27 trader panel uses local portrait assets for the active trader', () =>
 test('4.27 login acknowledgement timeout accounts for Render cold starts', () => {
   const game = fs.readFileSync(path.join(root, 'public/js/game.js'), 'utf8');
   assert.match(game, /zoneSocket\.timeout\(15000\)\.emit\('player:hello'/);
-  assert.match(game, /timeout:7000,[\s\S]*reconnection:true/);
+  assert.match(game, /timeout:4500,[\s\S]*reconnection:true/);
   assert.match(game, /Сервер подтвердил вход, но не прислал профиль мира/);
 });
 
@@ -522,7 +522,7 @@ test('4.29 trade view is full-screen, split into player and trader inventories, 
   assert.match(html, /id="tradeWeapon"/);
   assert.match(html, /id="tradeArmor"/);
   assert.match(css, /#trade\.view\.active\{position:fixed;inset:0/);
-  assert.match(client, /if\(id==="trade"\)renderTrade\(\)/);
+  assert.match(client, /if\(id==="trade"\)\{renderTrade\(\);renderPlayerTrade\(\);\}/);
   assert.match(client, /market:result',[\s\S]*?renderTrade\(\)/);
   assert.match(client, /npc:trade:result',[\s\S]*?renderTrade\(\)/);
 });
@@ -616,10 +616,10 @@ test('4.33 survival and expedition features are wired into the game and server',
 });
 
 
-test('4.33.9 uses the configured Render server with WebSocket-first fallback and prevents duplicate reconnects', () => {
+test('4.33.31 uses polling-first desktop connection with WebSocket upgrade and prevents duplicate reconnects', () => {
   const client = fs.readFileSync(path.join(root, 'public/js/game.js'), 'utf8');
   const server = fs.readFileSync(path.join(root, 'server.js'), 'utf8');
-  assert.match(client, /transports:\['websocket','polling'\]/);
+  assert.match(client, /transports:\['polling','websocket'\]/);
   assert.match(client, /tryAllTransports:true/);
   assert.match(client, /https:\/\/zone-online-multiplayer\.onrender\.com/);
   assert.match(client, /randomizationFactor:0\.25/);
@@ -654,3 +654,27 @@ test('4.33.9 persists the last player state on disconnect and flushes state duri
 });
 
 test('hunger and thirst display helper rounds percentages to whole numbers',()=>{const {context}=bootClient();assert.equal(context.needPercent(58.034012666666655),58);assert.equal(context.needPercent(99.8),100);assert.equal(context.needPercent(-3),0);assert.equal(context.needPercent(120),100);});
+
+test('4.33.31 self marker matches compact player size and opens sorted nearby-player actions', () => {
+  const { context, elements } = bootClient();
+  const card = context.document.createElement('div');
+  elements.set('mapEntityCard', card);
+  const selfMarker = context.playerDotMarkup({x:100,y:100});
+  assert.match(selfMarker, /scale\(\.42\)/);
+  assert.match(selfMarker, /class="marker-dot" r="3\.2"/);
+  vm.runInContext(`
+    g.loc='cordon'; g.worldPosition={x:100,y:100}; g.mapCoordinateVersion=2;
+    zonePlayerId='self';
+    onlinePlayers=[
+      {id:'far',name:'Дальний',faction:'Одиночки',location:'cordon',x:120,y:100},
+      {id:'near',name:'Ближний',faction:'Свобода',location:'cordon',x:103,y:104}
+    ];
+    showNearbyPlayersCard();
+  `, context);
+  assert.ok(card.innerHTML.indexOf('Ближний') < card.innerHTML.indexOf('Дальний'));
+  vm.runInContext("showMapPlayerCard('near')", context);
+  assert.match(card.innerHTML, /Поговорить/);
+  assert.match(card.innerHTML, /Торговать/);
+  assert.match(card.innerHTML, /Пригласить в отряд/);
+  assert.match(card.innerHTML, /Добавить в друзья/);
+});

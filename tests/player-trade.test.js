@@ -58,9 +58,9 @@ test('multiplayer warm-up probe is bounded so a running server is not held behin
   const fs = require('node:fs');
   const path = require('node:path');
   const client = fs.readFileSync(path.join(__dirname, '..', 'public/js/game.js'), 'utf8');
-  assert.match(client, /waitForMultiplayerHealth\(targetUrl, connectAttempt, maxWaitMs=4500\)/);
-  assert.match(client, /await waitForMultiplayerHealth\(targetUrl,connectAttempt,4500\)/);
-  assert.match(client, /timeout:7000/);
+  assert.match(client, /waitForMultiplayerHealth\(targetUrl, connectAttempt, maxWaitMs=1800\)/);
+  assert.match(client, /await waitForMultiplayerHealth\(targetUrl,connectAttempt,1800\)/);
+  assert.match(client, /timeout:4500/);
   assert.match(client, /reconnectionDelayMax:2500/);
 });
 
