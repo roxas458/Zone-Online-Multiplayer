@@ -106,20 +106,21 @@ function systemMessage(text){ const m={id:crypto.randomUUID(),system:true,name:'
 initDiplomacy(world, FACTIONS); initSharedWorld(world, NPC_HOME, LOCATIONS, COOP_TEMPLATES); initSouls(world); ensureOnlineWorld(world);
 async function initDb(){
   if(!process.env.DATABASE_URL){ console.warn('DATABASE_URL missing: guest multiplayer is active in memory mode; server-side saves reset on restart.'); return; }
+  let dbPool=null;
   try {
     const { Pool } = require('pg');
-    pool = new Pool({ connectionString:process.env.DATABASE_URL, ssl:process.env.DATABASE_URL.includes('localhost')?false:{rejectUnauthorized:false}, max:10, idleTimeoutMillis:30000, connectionTimeoutMillis:8000, query_timeout:8000, statement_timeout:8000 });
-    await pool.query(`CREATE TABLE IF NOT EXISTS zone_players (id TEXT PRIMARY KEY, state JSONB NOT NULL, updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`);
-    await pool.query(`CREATE TABLE IF NOT EXISTS zone_world (id INTEGER PRIMARY KEY CHECK (id=1), state JSONB NOT NULL, updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`);
-    await pool.query(`CREATE TABLE IF NOT EXISTS zone_chat (id BIGSERIAL PRIMARY KEY, payload JSONB NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`);
-    await pool.query(`CREATE TABLE IF NOT EXISTS zone_private_messages (id BIGSERIAL PRIMARY KEY, message_id TEXT UNIQUE NOT NULL, from_id TEXT NOT NULL, to_id TEXT NOT NULL, payload JSONB NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`);
-    await pool.query(`CREATE INDEX IF NOT EXISTS zone_private_messages_pair_idx ON zone_private_messages(from_id,to_id,id DESC)`);
-    const wr=await pool.query('SELECT state FROM zone_world WHERE id=1');
-    if(wr.rows[0]) world={...world,...wr.rows[0].state}; else await pool.query('INSERT INTO zone_world(id,state) VALUES(1,$1)',[world]);
-    const cr=await pool.query('SELECT payload FROM zone_chat ORDER BY id DESC LIMIT 60');
+    dbPool = new Pool({ connectionString:process.env.DATABASE_URL, ssl:process.env.DATABASE_URL.includes('localhost')?false:{rejectUnauthorized:false}, max:10, idleTimeoutMillis:30000, connectionTimeoutMillis:8000, query_timeout:8000, statement_timeout:8000 });
+    await dbPool.query(`CREATE TABLE IF NOT EXISTS zone_players (id TEXT PRIMARY KEY, state JSONB NOT NULL, updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`);
+    await dbPool.query(`CREATE TABLE IF NOT EXISTS zone_world (id INTEGER PRIMARY KEY CHECK (id=1), state JSONB NOT NULL, updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`);
+    await dbPool.query(`CREATE TABLE IF NOT EXISTS zone_chat (id BIGSERIAL PRIMARY KEY, payload JSONB NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`);
+    await dbPool.query(`CREATE TABLE IF NOT EXISTS zone_private_messages (id BIGSERIAL PRIMARY KEY, message_id TEXT UNIQUE NOT NULL, from_id TEXT NOT NULL, to_id TEXT NOT NULL, payload JSONB NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`);
+    await dbPool.query(`CREATE INDEX IF NOT EXISTS zone_private_messages_pair_idx ON zone_private_messages(from_id,to_id,id DESC)`);
+    const wr=await dbPool.query('SELECT state FROM zone_world WHERE id=1');
+    if(wr.rows[0]) world={...world,...wr.rows[0].state}; else await dbPool.query('INSERT INTO zone_world(id,state) VALUES(1,$1)',[world]);
+    const cr=await dbPool.query('SELECT payload FROM zone_chat ORDER BY id DESC LIMIT 60');
     recentChat.push(...cr.rows.reverse().map(x=>x.payload)); initDiplomacy(world, FACTIONS); initSharedWorld(world, NPC_HOME, LOCATIONS, COOP_TEMPLATES); initSouls(world); ensureOnlineWorld(world); dbReady=true;
     console.log('PostgreSQL connected; shared world persistence enabled.');
-  } catch(e){ console.error('PostgreSQL initialization failed; server will continue in memory mode:',e.message); pool=null; dbReady=false; }
+  } catch(e){ console.error('PostgreSQL initialization failed; server will continue in memory mode:',e.message); if(dbPool){try{await dbPool.end();}catch{}} pool=null; dbReady=false; }
 }
 async function dbFallback(error, operation){
   console.error(`PostgreSQL ${operation} failed; continuing in memory mode:`, error.message);
@@ -630,7 +631,10 @@ setInterval(async()=>{
   world.zoneEvents ||= [];world.zoneEvents.push(event);world.zoneEvents=world.zoneEvents.slice(-30);const syncEvent=appendWorldEvent(world,'zone_event',event,event.at);
   try{await persistWorld();io.emit('world:zoneEvent',event);io.emit('world:event',syncEvent);io.emit('world:status',publicWorldStatus(world,online.size));}catch(e){console.error('Zone event:',e.message);}
 },4*60*1000).unref();
-initDb().catch(e=>{console.error('Database bootstrap error:',e);}).finally(()=>server.listen(PORT,'0.0.0.0',()=>console.log(`ZONE ONLINE listening on ${PORT} node=${process.version} socketTransports=websocket,polling`)));
+server.listen(PORT,'0.0.0.0',()=>{
+ console.log(`ZONE ONLINE listening on ${PORT} node=${process.version} socketTransports=websocket,polling`);
+ initDb().catch(e=>console.error('Database bootstrap error:',e));
+});
 server.on('error',error=>{console.error('HTTP server failed to start:',error);process.exitCode=1;});
 let shutdownStarted=false;
 async function gracefulShutdown(signal){

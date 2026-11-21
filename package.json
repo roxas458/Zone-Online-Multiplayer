@@ -1,8 +1,8 @@
 {
   "name": "zone-online",
-  "version": "4.33.10",
+  "version": "4.33.11",
   "private": true,
-  "description": "ZONE ONLINE client and server legacy NPC callsign migration",
+  "description": "ZONE ONLINE multiplayer startup and connection retry fixes",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
