@@ -1,29 +1,26 @@
-# ZONE ONLINE 4.33.19 — Single-player
+# ZONE ONLINE 4.34.0 — Multiplayer Foundation
 
-ZONE ONLINE is now a browser-based single-player RPG. Render hosts the web application; the game no longer creates player sessions, connects to Socket.IO, or requires a shared-world service.
+This build begins the multiplayer return without replacing the existing local game simulation.
+
+## Phase 1 included
+- Same-origin Socket.IO server hosted by the existing Render web service.
+- Connection status on the home screen.
+- Live online-player roster with callsign, faction and current location.
+- Reconnection handling and health endpoint.
+- Client sends presence metadata only; local save, money, inventory and progression are not uploaded.
 
 ## Run locally
-
 ```bash
+npm install
 npm start
 ```
+Open http://localhost:3000. Open a second browser/private window to see both sessions in the roster.
 
-Open `http://localhost:3000`. The server uses Node.js built-in HTTP modules and has no runtime package dependencies.
+## Render
+- Build command: `npm install`
+- Start command: `npm start`
+- Health check: `/health`
+- Node: 22.16.0
 
-## Deploy to Render
-
-Create or update a **Web Service** from this repository. Render reads `render.yaml`, runs `npm install` and `npm start`, and checks `/health`. No PostgreSQL database, `DATABASE_URL`, WebSocket configuration, or Socket.IO service is required.
-
-## Saves
-
-The game stores the player's save in the browser's `localStorage`. Saves are local to the browser/device and are not synchronized between devices. Clearing browser site data can erase the local save; export/backup support should be used for important saves.
-
-## Version 4.33.19
-
-- Removed multiplayer navigation, player lists, chat, direct messages, player trading, and shared-world connection bootstrapping.
-- Removed Socket.IO and PostgreSQL runtime dependencies and the old socket server.
-- Replaced the backend with a dependency-free Node.js static host and `/health` endpoint for Render.
-- Kept local browser saves and converted selected server-gated actions to local single-player behavior.
-- Repaired PDA navigation with delegated click handling and per-tab content refresh.
-- Added the missing System tab with interface preferences and save import/export controls.
-- Added navigation integrity regression tests for every PDA tab.
+## Important scope
+This is the first multiplayer milestone: connection and presence only. It does not yet synchronize movement in real time, combat, NPC/world state, inventory, trading, quests, faction wars, or saves. Those systems will be added in separate stages with server-side validation. The single-player simulation and browser-local save remain available when the server is offline.

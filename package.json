@@ -1,16 +1,18 @@
 {
   "name": "zone-online",
-  "version": "4.33.19",
+  "version": "4.34.0",
   "private": true,
-  "description": "ZONE ONLINE — single-player survival RPG hosted on Render",
+  "description": "ZONE ONLINE — single-player with multiplayer foundation",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "check": "node --check server.js && node --check src/shared/game-data.js && node --check public/js/content.js && node --check public/js/stories.js && node --check public/js/game.js && node --check public/js/survival.js",
-    "test": "npm run check && node --test tests/single-player-deployment.test.js"
+    "check": "node --check server.js && node --check src/shared/game-data.js && node --check public/js/content.js && node --check public/js/stories.js && node --check public/js/game.js && node --check public/js/survival.js && node --check public/js/multiplayer.js",
+    "test": "npm run check && node --test tests/*.test.js"
   },
   "engines": {
     "node": ">=22 <23"
   },
-  "dependencies": {}
+  "dependencies": {
+    "socket.io": "^4.8.1"
+  }
 }
