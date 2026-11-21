@@ -1,4 +1,4 @@
-// ZONE ONLINE 4.33.11 browser client. SURVIVAL / EXPEDITIONS / DYNAMIC ECOLOGY.
+// ZONE ONLINE 4.33.16 browser client. SURVIVAL / EXPEDITIONS / REPAIR WORKSHOP / DYNAMIC ECOLOGY.
 const clone=o=>JSON.parse(JSON.stringify(o));
 const base={
  name:"Новичок",money:1450,hp:100,radiation:0,radiationProtectionUntil:0,stamina:85,hunger:18,thirst:20,rep:10,day:1,hour:9,loc:"cordon",faction:"Одиночки",xp:0,meetings:0,completed:0,flags:{metSid:false,metWolf:false,heardBar:false,foundArtifact:false,helpedWolf:false},
@@ -6,9 +6,9 @@ const base={
  equipment:{suit:"Кожаная куртка",tool:"Простой детектор",weapon:"Старый ПМ"},
  locations:[
  {id:"chaes",name:"ЧАЭС",icon:"☢",owner:"Монолит",control:91,risk:"Критический",desc:"Северный промышленный комплекс и главный источник тайн Зоны.",people:["charon","archivist"],travel:8,loot:120},
- {id:"zaton",name:"Затон",icon:"▧",owner:"Одиночки",control:52,risk:"Средний",desc:"Заболоченная низина, старые баржи и промышленные руины.",people:["beard","sultan"],travel:3,loot:65},
+ {id:"zaton",name:"Затон",icon:"▧",owner:"Одиночки",control:52,risk:"Средний",desc:"Заболоченная низина, старые баржи и промышленные руины.",people:["beard","sultan","cardan"],travel:3,loot:65},
  {id:"pripyat",name:"Припять",icon:"🏙️",owner:"Монолит",control:91,risk:"Критический",desc:"Город-призрак глубоко в Зоне.",people:["loner"],travel:6,loot:110},
- {id:"jupiter",name:"Юпитер",icon:"▦",owner:"Свобода",control:58,risk:"Высокий",desc:"Промышленный район вокруг завода «Юпитер».",people:[],travel:4,loot:80},
+ {id:"jupiter",name:"Юпитер",icon:"▦",owner:"Свобода",control:58,risk:"Высокий",desc:"Промышленный район вокруг завода «Юпитер» и станции Янов.",people:["azot"],travel:4,loot:80},
  {id:"limansk",name:"Лиманск",icon:"🏚",owner:"Наёмники",control:39,risk:"Очень высокий",desc:"Заброшенный город с узкими улицами и опасными проходами.",people:["wolfhound"],travel:6,loot:95},
  {id:"red",name:"Рыжий лес",icon:"🌲",owner:"Свобода",control:48,risk:"Очень высокий",desc:"Лесные тропы, странные сигналы и опасные находки.",people:["guide"],travel:5,loot:90},
  {id:"radar",name:"Радар",icon:"📡",owner:"Монолит",control:84,risk:"Критический",desc:"Зона сильного пси-излучения вокруг антенного комплекса.",people:["monolith_scout"],travel:7,loot:105},
@@ -48,7 +48,9 @@ const base={
  {id:"prof",name:"Профессор Сахаров",role:"Учёный",loc:"yantar",icon:"🧑‍🏫",desc:"Руководит исследованиями на Янтаре.",greeting:"Рад встрече. Надеюсь, путь сюда был спокойным. У нас есть несколько исследовательских задач.",topics:[["Что изучаете?","Мы анализируем аномальные зоны, артефакты и изменения окружающей среды."],["Можно помочь?","Соберите сведения у трёх сталкеров: Волка, Разведчика и Бармена. Это поможет сопоставить наблюдения."],["Артефакты","Каждая находка требует аккуратной фиксации. Не стоит считать неизвестный предмет безделушкой."]]},
  {id:"freedom",name:"Свободовец Лис",role:"Свобода",loc:"army",icon:"🟢",desc:"Представитель Свободы на складах.",greeting:"Привет! Не каждый день встречаешь нового человека в этих местах.",topics:[["Позиция Свободы","Мы считаем, что Зону нужно изучать, а не просто пытаться закрыть от всех."],["Новости","На севере неспокойно. Но пока удаётся сохранять связь между постами."]]},
  {id:"guide",name:"Проводник",role:"Проводник",loc:"red",icon:"🧭",desc:"Знает тропы Рыжего леса.",greeting:"Дороги здесь меняются. Хорошо, что ты нашёл меня.",topics:[["Можно пройти дальше?","Можно. Но сначала подготовься и проверь припасы. Путь не любит спешки."],["Странное свечение","Я тоже его видел. Учёным стоит об этом сообщить."]]},
- {id:"loner",name:"Молчаливый сталкер",role:"Неизвестный",loc:"pripyat",icon:"👤",desc:"Редко вступает в разговор.",greeting:"Ты далеко зашёл. Здесь слова быстро теряют смысл.",topics:[["Что здесь произошло?","У каждого здания своя история. Но не каждую историю стоит искать."],["Ты один?","Сейчас — да."]]}
+ {id:"loner",name:"Молчаливый сталкер",role:"Неизвестный",loc:"pripyat",icon:"👤",desc:"Редко вступает в разговор.",greeting:"Ты далеко зашёл. Здесь слова быстро теряют смысл.",topics:[["Что здесь произошло?","У каждого здания своя история. Но не каждую историю стоит искать."],["Ты один?","Сейчас — да."]]},
+ {id:"cardan",name:"Кардан",role:"техник",loc:"zaton",icon:"🔧",desc:"Опытный механик со Скадовска. Ремонтирует оружие и броню, ценит качественные детали.",greeting:"Ну, показывай железо. Если не совсем развалилось — верну в строй. За хорошую работу, правда, придётся заплатить.",topics:[["Что умеешь ремонтировать?","Оружие, броню и детекторы. Сначала осмотрю состояние, потом назову цену."],["Как работаешь?","Чем сильнее износ, тем дороже ремонт. Не тяни до последнего — сломанное оружие в Зоне никому не поможет."]] },
+ {id:"azot",name:"Азот",role:"техник",loc:"jupiter",icon:"⚙",desc:"Техник станции Янов. Специализируется на ремонте снаряжения и обслуживании экипировки.",greeting:"Привет. Если принёс что-то на ремонт — выкладывай. Только без разговоров о скидках до осмотра.",topics:[["Какие услуги доступны?","Починка оружия, брони и детекторов. Цена зависит от состояния предмета."],["Есть ли скидка?","Постоянным клиентам могу сделать небольшую скидку. Репутация имеет значение."]] }
  ],
  quests:[
  {id:"intro",title:"Первое знакомство",giver:"Волк",desc:"Поговори с Волком на Кордоне и узнай, как устроена жизнь новичков.",reward:180,xp:25,rep:3,goal:"talk_wolf",done:false},
@@ -109,7 +111,7 @@ function migrateWorld(){
  if(!g.items.some(x=>x.id==="shotgun"))g.items.push({id:"shotgun",name:"Обрез",type:"Оружие",desc:"Старое двуствольное ружьё. Состояние: 62%.",weight:2.4,qty:1,value:1250,icon:"╾",condition:62});
  if(!g.items.some(x=>x.id==="suit"))g.items.push({id:"suit",name:"Комбинезон сталкера",type:"Броня",desc:"Полевой костюм с базовой защитой.",weight:4.2,qty:1,value:1700,icon:"▤",condition:84});
  if(!g.items.some(x=>x.id==="detector"))g.items.push({id:"detector",name:"Детектор Отклик",type:"Детектор",desc:"Помогает отмечать аномальные сигналы.",weight:1.1,qty:1,value:950,icon:"⌁",condition:91});
- g.equipment ||= {suit:"Кожаная куртка",tool:"Простой детектор",weapon:"Старый ПМ"};
+ g.equipment ||= {suit:"Кожаная куртка",tool:"Простой детектор",weapon:"Старый ПМ"}; for(const item of (g.items||[])){if((item.type==="Оружие"||item.type==="Броня"||item.type==="Детектор")&&item.condition==null)item.condition=100;}
  g.hunger=Number.isFinite(g.hunger)?Math.max(0,Math.min(100,g.hunger)):18;
  g.thirst=Number.isFinite(g.thirst)?Math.max(0,Math.min(100,g.thirst)):20;
  g.storyFlags ||= {};
@@ -371,7 +373,7 @@ function renderCopDialogue(n, message, choices){
  $('dialoguePlayerName').textContent=g.name||'Сталкер';
  $('dialoguePlayerFaction').textContent=g.faction||'Одиночки';
  box.innerHTML=`<div class="cop-message"><b>${escapeHtml(n.name||'Сталкер')}</b><p>${escapeHtml(message||n.greeting||'…')}</p></div>`;
- choiceBox.innerHTML=(choices||[]).map((t,i)=>`<button type="button" onclick="topic('${escapeHtml(n.id)}',${i})">${escapeHtml(t[0])}</button>`).join('')+`<button type="button" class="dialogue-trade-action" onclick="closeTalk();openNpcTrade('${escapeHtml(n.id)}')">Торговать</button>`;
+ choiceBox.innerHTML=(choices||[]).map((t,i)=>`<button type="button" onclick="topic('${escapeHtml(n.id)}',${i})">${escapeHtml(t[0])}</button>`).join('')+(n.role==='техник'?`<button type="button" class="dialogue-trade-action" onclick="openRepairWorkshop('${escapeHtml(n.id)}')">⚙ Мастерская: ремонт оружия и брони</button>`:'')+`<button type="button" class="dialogue-trade-action" onclick="closeTalk();openNpcTrade('${escapeHtml(n.id)}')">Торговать</button>`;
 }
 function startTalk(id){
  let n=npcBy(id);if(!n)return;
@@ -454,12 +456,44 @@ function npcServerAction(npcId,action){
 }
 function npcSpecialistAction(npcId){
  const npc=npcBy(npcId);if(!npc)return;
- if(zoneSocket?.connected&&zonePlayerReady){zoneSocket.emit('npc:specialist',{npcId});return;}
- const medic=npc.role==='медик',cost=medic?75:100;
+ if(npc.role==='техник'){openRepairWorkshop(npcId);return;}
+ const cost=75;
  if(g.money<cost)return alert(`Нужно ${cost} ₽ за услугу.`);
- if(medic){if(g.hp>=100)return alert('Здоровье уже в порядке.');g.money-=cost;g.hp=Math.min(100,g.hp+35);log(`${npc.name} оказал медицинскую помощь. Здоровье восстановлено.`);}
- else{const armor=(g.items||[]).find(x=>x.name===g.equipment?.suit&&x.type==='Броня');if(!armor)return alert('Сначала надень броню, которую нужно отремонтировать.');if(Number(armor.condition??100)>=100)return alert('Броня уже полностью исправна.');g.money-=cost;armor.condition=Math.min(100,Number(armor.condition??70)+35);log(`${npc.name} отремонтировал броню: ${armor.name}.`);}
- save();
+ if(g.hp>=100)return alert('Здоровье уже в порядке.');
+ g.money-=cost;g.hp=Math.min(100,g.hp+35);log(`${npc.name} оказал медицинскую помощь. Здоровье восстановлено.`);save();
+}
+function repairableGear(){
+ return (g.items||[]).filter(x=>['Оружие','Броня','Детектор'].includes(x.type)&&Number(x.condition??100)<100&&Number(x.qty||1)>0);
+}
+function repairCost(item,npc){
+ const missing=100-Math.max(0,Math.min(100,Number(item.condition??100)));
+ const base=Math.max(1,Number(item.value)||100);
+ const multiplier=(npc && npc.id==='azot') ? 0.92 : 1;
+ const reputationDiscount=Math.min(.12,Math.max(0,Number(g.rep)||0)/5000);
+ return Math.max(10,Math.ceil(base*(missing/100)*.72*multiplier*(1-reputationDiscount)));
+}
+function openRepairWorkshop(npcId){
+ const npc=npcBy(npcId);if(!npc||npc.role!=='техник')return alert('Здесь нет техника, который может выполнить ремонт.');
+ const gear=repairableGear();
+ const old=document.getElementById('repairWorkshopOverlay');if(old)old.remove();
+ const overlay=document.createElement('div');overlay.id='repairWorkshopOverlay';overlay.className='repair-overlay';
+ const rows=gear.map(x=>{const cost=repairCost(x,npc),condition=Math.max(0,Math.min(100,Number(x.condition??100)));return `<div class="repair-row"><div class="repair-item-art">${x.type==='Оружие'?'⌁':'▤'}</div><div class="repair-item-info"><b>${escapeHtml(x.name)}</b><small>${escapeHtml(x.type)} · ${condition}% прочности</small><div class="repair-meter"><i style="width:${condition}%"></i></div></div><div class="repair-price"><b>${cost.toLocaleString('ru-RU')} RU</b><button onclick="repairGearItem('${escapeHtml(npc.id)}','${escapeHtml(x.id)}')">Починить</button></div></div>`;}).join('');
+ overlay.innerHTML=`<div class="repair-window"><header class="repair-head"><div><small>МАСТЕРСКАЯ / ОБСЛУЖИВАНИЕ СНАРЯЖЕНИЯ</small><h2>${escapeHtml(npc.name)}</h2><p>${escapeHtml(npc.desc||'Техник Зоны')}</p></div><button class="repair-close" onclick="document.getElementById('repairWorkshopOverlay')?.remove()">×</button></header><div class="repair-body"><section class="repair-list-panel"><div class="repair-section-title">ПРЕДМЕТЫ, ТРЕБУЮЩИЕ РЕМОНТА</div>${rows||'<div class="repair-empty">Всё снаряжение исправно. Пока ремонтировать нечего.</div>'}</section><aside class="repair-summary"><div class="repair-summary-icon">⚙</div><b>Сервисное обслуживание</b><p>Стоимость зависит от цены предмета и степени износа. Ремонт восстанавливает прочность до 100%.</p><div class="repair-wallet">ТВОИ СРЕДСТВА <strong>${Number(g.money||0).toLocaleString('ru-RU')} RU</strong></div><button class="repair-all" onclick="repairAllGear('${escapeHtml(npc.id)}')" ${gear.length?'':'disabled'}>Отремонтировать всё</button><small>Скидка учитывает репутацию. У Азота действует специальный тариф.</small></aside></div><footer class="repair-foot">ZONE ONLINE · ТЕХНИЧЕСКАЯ СЛУЖБА ЗОНЫ</footer></div>`;
+ overlay.addEventListener('click',e=>{if(e.target===overlay)overlay.remove();});document.body.append(overlay);
+}
+function repairGearItem(npcId,itemId){
+ const npc=npcBy(npcId),item=g.items.find(x=>x.id===itemId);if(!npc||!item)return;
+ const cost=repairCost(item,npc);if(Number(item.condition??100)>=100)return alert('Предмет уже полностью исправен.');
+ if((Number(g.money)||0)<cost)return alert(`Не хватает ${cost-(Number(g.money)||0)} RU.`);
+ g.money-=cost;item.condition=100;log(`${npc.name} отремонтировал ${item.name} до 100%. Потрачено ${cost} RU.`);save();openRepairWorkshop(npcId);
+}
+function repairAllGear(npcId){
+ const npc=npcBy(npcId);if(!npc)return;
+ const gear=repairableGear(),total=gear.reduce((sum,x)=>sum+repairCost(x,npc),0);
+ if(!gear.length)return alert('Всё снаряжение исправно.');
+ if((Number(g.money)||0)<total)return alert(`Для полного ремонта нужно ${total.toLocaleString('ru-RU')} RU. Не хватает ${(total-(Number(g.money)||0)).toLocaleString('ru-RU')} RU.`);
+ g.money-=total;for(const item of gear)item.condition=100;
+ log(`${npc.name} полностью обслужил снаряжение. Отремонтировано предметов: ${gear.length}. Потрачено ${total} RU.`);save();openRepairWorkshop(npcId);
 }
 let lastNpcApproach=null;
 function showNpcApproach(data){const n=npcBy(data?.npcId);if(!n)return;lastNpcApproach=data.npcId;const el=$('npcApproachFeed');if(!el)return;el.innerHTML=`<div class="npc-approach-card">${portraitMarkup(n)}<div><b>${escapeHtml(n.name)} подошёл к тебе</b><p>${escapeHtml(data.text||'Сталкер хочет поговорить.')}</p><button onclick="meet('${n.id}')">Поговорить</button></div></div>`;}
@@ -533,7 +567,7 @@ function renderInventory(){
  $("gearStats").innerHTML=stat('Защита костюма',suit?.defense||0)+stat('Состояние',suit?(suit.condition??100)+'%':'—')+stat('Урон оружия',weapon?.damage||'—')+stat('Вес комплекта',weight.toFixed(1)+' кг');
  $("equipment").innerHTML=`<div>Костюм · ${escapeHtml(g.equipment.suit||"Не установлено")}</div><div>Оружие · ${escapeHtml(g.equipment.weapon||"Не установлено")}</div><div>Детектор · ${escapeHtml(g.equipment.tool||"Не установлено")}</div>`;
 }
-function inspectInventoryItem(id){const x=g.items.find(i=>i.id===id);if(!x)return;const actions=[];if(['Медицина','Еда'].includes(x.type))actions.push(`<button onclick="useItem('${x.id}')">Применить</button>`);if(['Оружие','Броня','Детектор'].includes(x.type))actions.push(`<button onclick="equipItem('${x.id}')">${Object.values(g.equipment||{}).includes(x.name)?'Экипировано':'Экипировать'}</button>`);actions.push(`<button class="quiet-action" onclick="sell('${x.id}')">Продать · ${Math.floor(x.value*.65)} ₽</button>`);const panel=document.createElement('div');panel.className='inventory-inspect';panel.innerHTML=`<div class="inventory-inspect-card"><button class="inspect-close" onclick="this.closest('.inventory-inspect').remove()">×</button><div class="inspect-art">${itemGlyph(x)}</div><b>${escapeHtml(x.name)}</b><small>${escapeHtml(x.type)} · ${x.weight} кг · ×${x.qty}</small><p>${escapeHtml(x.desc||'Полевой предмет.')}</p><strong>${x.value} ₽</strong><div class="rightbuttons">${actions.join('')}</div></div>`;panel.addEventListener('click',e=>{if(e.target===panel)panel.remove()});document.body.append(panel)}
+function inspectInventoryItem(id){const x=g.items.find(i=>i.id===id);if(!x)return;const actions=[];if(['Медицина','Еда'].includes(x.type))actions.push(`<button onclick="useItem('${x.id}')">Применить</button>`);if(['Оружие','Броня','Детектор'].includes(x.type))actions.push(`<button onclick="equipItem('${x.id}')">${Object.values(g.equipment||{}).includes(x.name)?'Экипировано':'Экипировать'}</button>`);actions.push(`<button class="quiet-action" onclick="sell('${x.id}')">Продать · ${Math.floor(x.value*.65)} ₽</button>`);const panel=document.createElement('div');panel.className='inventory-inspect';panel.innerHTML=`<div class="inventory-inspect-card"><button class="inspect-close" onclick="this.closest('.inventory-inspect').remove()">×</button><div class="inspect-art">${itemGlyph(x)}</div><b>${escapeHtml(x.name)}</b><small>${escapeHtml(x.type)} · ${x.weight} кг · ×${x.qty}</small>${x.condition!=null?`<div class="inspect-condition"><span>Прочность</span><b>${Math.round(x.condition)}%</b><i><em style="width:${Math.max(0,Math.min(100,Number(x.condition)||0))}%"></em></i></div>`:''}<p>${escapeHtml(x.desc||'Полевой предмет.')}</p><strong>${x.value} ₽</strong><div class="rightbuttons">${actions.join('')}</div></div>`;panel.addEventListener('click',e=>{if(e.target===panel)panel.remove()});document.body.append(panel)}
 
 let tradeCategory='all';
 function setTradeCategory(category){tradeCategory=category;renderTrade()}
@@ -898,7 +932,7 @@ function combatLog(text){if(!battle)return;battle.log.unshift(text);battle.log=b
 function renderCombat(){if(!battle)return;const e=battle.enemy;$('enemyName').textContent=e.name;$('enemyIcon').textContent=e.icon;$('enemyDesc').textContent=e.desc;$('enemyHpText').textContent=Math.max(0,e.hp)+' / '+e.maxHp;$('enemyHpBar').style.width=Math.max(0,e.hp/e.maxHp*100)+'%';$('playerHpText').textContent=g.hp+'%';$('playerHpBar').style.width=g.hp+'%';const w=equippedWeapon();$('combatWeapon').textContent=w?`${w.name} · сила ${weaponPower(w)} · состояние ${w.condition??'—'}%`:'Нет оружия · сила 8';}
 function finishCombat(result){if(!battle)return;const name=battle.enemy.name;if(result==='win'&&battle.npcId){const target=npcBy(battle.npcId);if(target){target.alive=false;target.health=0;target.action='dead';target.deathCause=`погиб в столкновении со сталкером ${g.name}`;}if(zoneSocket?.connected)zoneSocket.emit('npc:combat:kill',{npcId:battle.npcId});serverWorld?.npcState?.[battle.npcId]&&(serverWorld.npcState[battle.npcId].alive=false,serverWorld.npcState[battle.npcId].health=0,serverWorld.npcState[battle.npcId].action='dead');}if(result==='win'){ const reward=60+Math.floor(Math.random()*100),xp=18+Math.floor(Math.random()*16);g.money+=reward;g.xp+=xp;log(`Столкновение завершено: ${name}. Награда ${reward} ₽ и ${xp} опыта.`);news('Сводка столкновения',`${g.name} пережил встречу с угрозой в районе «${here().name}».`);}else if(result==='escape'){log('Ты отступил и избежал дальнейшего столкновения.');g.stamina=Math.max(0,g.stamina-8);}else{g.hp=15;log('Столкновение завершилось неудачно. Ты смог отойти, но потерял часть здоровья.');}
  battle=null;$('combatOverlay').classList.remove('show');save();}
-function enemyTurn(){if(!battle)return;const baseDamage=battle.enemy.power+Math.floor(Math.random()*5);const armor=g.items.find(x=>x.name===g.equipment?.suit&&x.type==='Броня');const defense=armor?Math.round((Number(armor.condition??70)/100)*(Number(armor.defense)||4)):0;const damage=Math.max(2,baseDamage-defense-(battle.guard?Math.round(baseDamage*.65):0));battle.guard=false;g.hp=Math.max(0,g.hp-damage);combatLog(`${battle.enemy.name} наносит условный урон: −${damage} здоровья.`);if(g.hp<=0){g.hp=15;finishCombat('loss');return;}renderCombat();}
+function enemyTurn(){if(!battle)return;const baseDamage=battle.enemy.power+Math.floor(Math.random()*5);const armor=g.items.find(x=>x.name===g.equipment?.suit&&x.type==='Броня');const defense=armor?Math.round((Number(armor.condition??70)/100)*(Number(armor.defense)||4)):0;const damage=Math.max(2,baseDamage-defense-(battle.guard?Math.round(baseDamage*.65):0));battle.guard=false;g.hp=Math.max(0,g.hp-damage);if(armor&&damage>0)armor.condition=Math.max(0,Number(armor.condition??100)-Math.max(1,Math.ceil(damage/12)));combatLog(`${battle.enemy.name} наносит условный урон: −${damage} здоровья. Броня: ${armor?Math.round(armor.condition)+'%':'не надета'}.`);if(g.hp<=0){g.hp=15;finishCombat('loss');return;}renderCombat();}
 function combatAction(action){if(!battle)return;
  if(action==='retreat'){if(Math.random()<.68){finishCombat('escape');return;}combatLog('Отступление не удалось: противник не даёт пройти.');enemyTurn();return;}
  if(action==='guard'){battle.guard=true;combatLog('Ты занял защитную позицию. Следующий ответный урон будет снижен.');enemyTurn();return;}

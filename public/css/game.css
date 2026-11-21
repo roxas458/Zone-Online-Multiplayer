@@ -508,3 +508,40 @@ button,input,select{touch-action:manipulation}
 .pda-ency-foot{display:flex;justify-content:space-between;gap:10px;padding:8px 5px 1px;color:#777780;font:9px monospace;letter-spacing:.4px}
 .pda-ency-empty{padding:12px;color:#777780;font:11px Georgia,serif}
 @media(max-width:760px){.pda-ency-layout{grid-template-columns:minmax(0,1fr);min-height:0}.pda-ency-tree{max-height:32vh}.pda-ency-page{min-height:390px}.pda-ency-article{max-height:52vh}.pda-ency-head{align-items:flex-start;flex-direction:column}.pda-ency-search{min-width:0;width:100%}.pda-ency-foot{flex-direction:column}.pda-ency-symbol{flex-basis:60px;width:60px;height:58px;font-size:30px}}
+
+
+/* ZONE ONLINE 4.33.16 — technician repair workshop */
+.inspect-condition{display:grid;grid-template-columns:1fr auto;gap:5px 10px;margin:10px 0;color:#b9b5a9;font-size:11px}
+.inspect-condition i{grid-column:1/-1;height:5px;background:#292a28;border:1px solid #55534c;display:block}
+.inspect-condition em{display:block;height:100%;background:#b58a45}
+.repair-overlay{position:fixed;inset:0;z-index:1200;background:#050606e8;display:grid;place-items:center;padding:18px;color:#d7d3c8}
+.repair-window{width:min(980px,96vw);max-height:92vh;overflow:auto;background:linear-gradient(135deg,#252724,#101211 55%,#1c1d1b);border:5px solid #55564f;box-shadow:0 0 0 2px #171817,0 20px 80px #000;border-radius:5px}
+.repair-head{display:flex;justify-content:space-between;gap:16px;padding:18px 22px;background:linear-gradient(90deg,#292b29,#151716);border-bottom:1px solid #55564f}
+.repair-head small,.repair-section-title,.repair-foot{font-size:10px;letter-spacing:1.5px;color:#aaa99e}
+.repair-head h2{margin:5px 0;color:#e4dfd1;font-size:22px}
+.repair-head p{margin:0;color:#9c9b91;font-size:12px}
+.repair-close{align-self:flex-start;background:#242624;border:1px solid #77766b;color:#eee;font-size:24px;line-height:1;padding:5px 12px}
+.repair-body{display:grid;grid-template-columns:minmax(0,1fr) 250px;gap:14px;padding:16px}
+.repair-list-panel,.repair-summary{background:#111312;border:1px solid #484a45;padding:12px}
+.repair-section-title{padding:2px 0 12px;border-bottom:1px solid #3d3f3a}
+.repair-row{display:grid;grid-template-columns:44px minmax(0,1fr) auto;gap:12px;align-items:center;padding:12px 2px;border-bottom:1px solid #30322f}
+.repair-item-art{width:42px;height:42px;display:grid;place-items:center;background:#292b28;border:1px solid #55574e;color:#c3ad7e;font-size:25px}
+.repair-item-info{min-width:0;display:grid;gap:5px}
+.repair-item-info b{color:#e0dccf;font-size:13px}
+.repair-item-info small{color:#aaa99e;font-size:11px}
+.repair-meter{height:6px;background:#292b28;border:1px solid #454740}
+.repair-meter i{display:block;height:100%;background:linear-gradient(90deg,#9b3932,#b58c42,#81945c)}
+.repair-price{display:grid;justify-items:end;gap:7px;color:#d7c69d;font-size:12px}
+.repair-price button,.repair-all{background:linear-gradient(#55564e,#30322e);border:1px solid #77776b;color:#eee2c6;padding:7px 10px}
+.repair-summary{display:flex;flex-direction:column;align-items:flex-start;gap:10px}
+.repair-summary-icon{width:58px;height:58px;display:grid;place-items:center;border:2px solid #65665d;background:#252723;color:#c5ae7c;font-size:31px}
+.repair-summary b{color:#e2ddcf}
+.repair-summary p{margin:0;color:#aaa99e;font-size:12px;line-height:1.5}
+.repair-wallet{margin-top:auto;width:100%;padding:12px 0;border-top:1px solid #44463f;color:#a9a89e;font-size:10px;letter-spacing:1px}
+.repair-wallet strong{display:block;margin-top:5px;color:#e0c98e;font-size:18px;letter-spacing:0}
+.repair-all{width:100%;font-weight:700}
+.repair-all:disabled{opacity:.35;cursor:not-allowed}
+.repair-summary>small{color:#85857d;font-size:10px;line-height:1.4}
+.repair-empty{padding:30px 10px;text-align:center;color:#aaa99e;font-size:13px}
+.repair-foot{padding:10px 18px;border-top:1px solid #454740;text-align:center}
+@media(max-width:680px){.repair-overlay{padding:5px}.repair-window{width:100%;max-height:96vh}.repair-body{grid-template-columns:1fr;padding:9px}.repair-summary{display:grid;grid-template-columns:52px 1fr;align-items:center}.repair-summary-icon{grid-row:span 2;width:48px;height:48px}.repair-summary p,.repair-wallet,.repair-all,.repair-summary>small{grid-column:1/-1}.repair-wallet{margin-top:4px}.repair-row{grid-template-columns:36px minmax(0,1fr);gap:8px}.repair-item-art{width:34px;height:38px}.repair-price{grid-column:2;display:flex;justify-content:space-between;align-items:center}.repair-head{padding:12px}.repair-head h2{font-size:18px}}

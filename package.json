@@ -1,8 +1,8 @@
 {
   "name": "zone-online",
-  "version": "4.33.15",
+  "version": "4.33.16",
   "private": true,
-  "description": "ZONE ONLINE — PDA stalker and faction rankings",
+  "description": "ZONE ONLINE — PDA, living rankings, faction relations and technician repair system",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",

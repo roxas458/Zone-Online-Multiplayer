@@ -88,3 +88,15 @@ The browser now connects to the configured Render multiplayer service by default
 - Added expanded sections for training, wildlife and mutants, anomalies, locations and points of interest, artifacts, Zone history, societies, characters, weapons and armor.
 - Added article search, selected-entry highlighting, category counts, field-note metadata and responsive mobile layout.
 - Entries are generated from the current game world where appropriate, so discovered locations, NPCs, factions and equipment remain connected to the active save.
+
+
+## Build 4.33.16 — мастерская ремонта
+
+- Добавлены техники Кардан (Затон) и Азот (Юпитер / станция Янов).
+- В диалоге с техником и в карточке персонажа доступна мастерская.
+- Ремонтируются оружие, броня и детекторы; стоимость зависит от цены предмета и износа.
+- Полный ремонт восстанавливает прочность до 100%, ремонт можно выполнять по одному предмету или всему снаряжению.
+- Репутация даёт скидку; у Азота действует отдельный тариф.
+- Прочность оружия снижается при атаках, прочность брони — при получении урона.
+- Состояние предметов хранится в локальном сохранении и работает без мультиплеерного сервера.
+- Проверки: `npm run check` и `npm test` — 117 тестов пройдены.
