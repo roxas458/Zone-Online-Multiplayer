@@ -1,4 +1,4 @@
-// ZONE ONLINE 4.33.21 browser client. IMMERSIVE TITLE SCREEN / SURVIVAL / MULTIPLAYER.
+// ZONE ONLINE 4.33.22 browser client. IMMERSIVE TITLE SCREEN / SURVIVAL / MULTIPLAYER.
 const clone=o=>JSON.parse(JSON.stringify(o));
 const base={
  name:"Новичок",money:1450,hp:100,radiation:0,radiationProtectionUntil:0,stamina:85,hunger:18,thirst:20,rep:10,day:1,hour:9,loc:"cordon",faction:"Одиночки",xp:0,meetings:0,completed:0,flags:{metSid:false,metWolf:false,heardBar:false,foundArtifact:false,helpedWolf:false},
@@ -459,18 +459,23 @@ function portraitMarkup(n,large=false){
  const seed=String(n.id||n.name||'npc').split('').reduce((a,c)=>((a*31)+c.charCodeAt(0))>>>0,7),portrait=(seed%16)+1,src=`/assets/portraits/stalker-${String(portrait).padStart(2,'0')}.webp`;
  return `<div class="npc-portrait ${large?'portrait-xl':''}" style="--portrait-hue:${seed%360}"><img src="${src}" alt="Портрет ${escapeHtml(n.name||'сталкера')}" loading="lazy"><span class="portrait-faction">${factionIconMarkup(n.faction)}</span></div>`;
 }
-function openMainMenu(){
- const overlay=$('mainMenuOverlay');if(!overlay)return;
- $('menuProfileLine').textContent=`${g.name} · ${g.faction} · ${here().name}`;
- $('menuLargeText').checked=!!g.options?.largeText;$('menuReduceMotion').checked=!!g.options?.reduceMotion;$('menuCompact').checked=!!g.options?.compactUI;
- overlay.classList.add('show');overlay.setAttribute('aria-hidden','false');
+function returnToTitleScreen(){
+ if(!g.characterCreated)return openTitleScreen();
+ save();
+ closeTalk?.();
+ $('combatOverlay')?.classList.remove('show');
+ $('characterSetup')?.classList.remove('show');
+ closeTitleOptions();
+ openTitleScreen();
 }
-function closeMainMenu(){const overlay=$('mainMenuOverlay');overlay?.classList.remove('show');overlay?.setAttribute('aria-hidden','true');}
-function menuGo(id){closeMainMenu();view(id);render();}
+// Legacy entry point now returns to the actual title screen instead of opening the old quick-access popup.
+function openMainMenu(){returnToTitleScreen();}
+function closeMainMenu(){closeTitleOptions();}
+function menuGo(id){view(id);render();}
 function setGameOption(key,value){
  g.options||={};g.options[key]=!!value;document.body.classList.toggle('large-text',!!g.options.largeText);document.body.classList.toggle('reduce-motion',!!g.options.reduceMotion);document.body.classList.toggle('compact-ui',!!g.options.compactUI);
- const pairs={largeText:'settingLargeText',reduceMotion:'settingReduceMotion',compactUI:'settingCompact'},menuPairs={largeText:'menuLargeText',reduceMotion:'menuReduceMotion',compactUI:'menuCompact'};
- if($(pairs[key]))$(pairs[key]).checked=!!value;if($(menuPairs[key]))$(menuPairs[key]).checked=!!value;save();
+ const pairs={largeText:'settingLargeText',reduceMotion:'settingReduceMotion',compactUI:'settingCompact'},titlePairs={largeText:'titleLargeText',reduceMotion:'titleReduceMotion',compactUI:'titleCompact'};
+ if($(pairs[key]))$(pairs[key]).checked=!!value;if($(titlePairs[key]))$(titlePairs[key]).checked=!!value;save();
 }
 function applyGameOptions(){for(const [key,value] of Object.entries(g.options||{})){document.body.classList.toggle(key==='largeText'?'large-text':key==='reduceMotion'?'reduce-motion':'compact-ui',!!value);}}
 function npcServerAction(npcId,action){
@@ -1295,10 +1300,11 @@ if($('mpMessage'))$('mpMessage').addEventListener('keydown',e=>{if(e.key==='Ente
 connectZone();
 function openTitleScreen(){
  document.body.classList.add('title-screen-active');
+ if($('titleScreen'))$('titleScreen').hidden=false;
+ closeTitleOptions();
  const hasSave=!!localStorage.getItem('zoneExpandedSave')&&!!g.characterCreated;
- const resume=$('titleContinue'),load=$('titleLoad');
+ const resume=$('titleContinue');
  if(resume){resume.disabled=!hasSave;resume.querySelector('small').textContent=hasSave?`${g.name} · ${g.faction} · ${here()?.name||'Зона'}`:'Сохранение не найдено';}
- if(load)load.disabled=!hasSave;
 }
 function continueZoneGame(){
  $('titleCredits')?.setAttribute('hidden','');
@@ -1314,8 +1320,13 @@ function beginNewZoneGame(){
  $('titleScreen')?.setAttribute('hidden','');
  openCharacterSetup();
 }
-function enterZoneOnline(){continueZoneGame();if(typeof menuGo==='function')menuGo('multiplayer');}
-function openTitleOptions(){continueZoneGame();if(typeof menuGo==='function')menuGo('settings');}
+function enterZoneOnline(){continueZoneGame();}
+function openTitleOptions(){
+ const panel=$('titleOptionsPanel');if(!panel)return;
+ $('titleLargeText').checked=!!g.options?.largeText;$('titleReduceMotion').checked=!!g.options?.reduceMotion;$('titleCompact').checked=!!g.options?.compactUI;
+ if($('titleMenuPanel'))$('titleMenuPanel').hidden=true;panel.hidden=false;
+}
+function closeTitleOptions(){const panel=$('titleOptionsPanel');if(panel)panel.hidden=true;if($('titleMenuPanel'))$('titleMenuPanel').hidden=false;}
 function showTitleCredits(){$('titleCredits')?.removeAttribute('hidden');}
 function hideTitleCredits(){$('titleCredits')?.setAttribute('hidden','');}
 if(!g.characterCreated)openTitleScreen();else openTitleScreen();

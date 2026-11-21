@@ -691,7 +691,7 @@ button,input,select{touch-action:manipulation}
 }
 
 
-/* ZONE ONLINE 4.33.21 — immersive title screen */
+/* ZONE ONLINE 4.33.22 — immersive title screen */
 .title-screen{position:fixed;inset:0;z-index:10000;display:none;overflow:hidden;color:#e8e7d9;background:#080b09;isolation:isolate}
 body.title-screen-active .title-screen{display:block}
 body.title-screen-active>header,body.title-screen-active>main,body.title-screen-active>footer{display:none!important}
@@ -739,4 +739,32 @@ body.title-screen-active #characterSetup{z-index:10010}
  .title-menu-panel{top:53%;width:calc(100vw - 24px);padding-left:9px;padding-right:9px}
  .title-action{min-height:45px}.title-panel-top{font-size:8px}
  .title-bottom-left{font-size:7px;letter-spacing:.06em}.title-version{font-size:7px}
+}
+
+/* 4.33.22 — title-screen settings and clean wordmark */
+.title-brand{left:clamp(24px,5vw,82px);gap:0}
+.title-name{font-size:clamp(27px,3.5vw,46px);letter-spacing:.19em}
+.title-options-panel{position:absolute;left:clamp(24px,5vw,82px);top:50%;transform:translateY(-45%);width:min(390px,calc(100vw - 40px));padding:16px 18px 14px;border:1px solid #737b65;background:linear-gradient(145deg,rgba(43,52,42,.97),rgba(11,17,14,.98));box-shadow:0 18px 55px #000b,inset 0 0 0 4px rgba(5,8,6,.45);color:#e7e5d8}
+.title-options-panel[hidden]{display:none}
+.title-options-panel h2{position:relative;margin:14px 4px 5px;font:800 23px Georgia,serif;color:#e5e2d2}
+.title-options-intro{margin:0 4px 14px;color:#b6b9a9;font-size:12px;line-height:1.5}
+.title-options-panel label{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:13px 7px;border-top:1px solid #92977b38;cursor:pointer}
+.title-options-panel label span{display:grid;gap:4px}
+.title-options-panel label b{font:700 14px Georgia,serif}
+.title-options-panel label small{font-size:10px;color:#aeb3a2}
+.title-options-panel input{width:20px;height:20px;accent-color:#a7a16a;flex:0 0 auto}
+.title-options-actions{display:flex;justify-content:flex-end;margin-top:10px;border-top:1px solid #92977b38;padding-top:8px}
+.title-options-actions .title-action{width:auto;min-width:150px}
+.title-menu-panel[hidden]{display:none}
+.title-action:disabled{opacity:.42;cursor:not-allowed;transform:none}
+@media(max-width:700px){
+ .title-brand{left:20px;top:max(20px,env(safe-area-inset-top))}
+ .title-name{font-size:clamp(25px,7vw,34px);letter-spacing:.13em}
+ .title-options-panel{left:50%;top:52%;transform:translate(-50%,-45%);width:min(430px,calc(100vw - 28px));padding:13px 14px}
+ .title-options-panel h2{font-size:21px}
+ .title-options-panel label{padding:12px 5px}
+}
+@media(max-height:620px){
+ .title-menu-panel,.title-options-panel{top:54%;max-height:calc(100dvh - 120px);overflow:auto}
+ .title-action{min-height:42px;padding-top:6px;padding-bottom:6px}
 }

@@ -227,13 +227,17 @@ test('4.13 NPC direct messages are removed; NPC contact uses dialogue and approa
   assert.doesNotMatch(dialogue,/поправляет снаряжение и оглядывается/);
 });
 
-test('4.11 main menu and accessibility settings are functional', () => {
+test('4.33.22 in-game menu returns to title screen and title settings are functional', () => {
   const { context, elements } = bootClient();
   context.openMainMenu();
-  assert.ok(elements.get('mainMenuOverlay').classList);
+  assert.ok(elements.get('titleScreen'));
+  context.openTitleOptions();
   context.setGameOption('largeText', true);
   assert.equal(elements.get('settingLargeText').checked, true);
-  assert.equal(elements.get('menuLargeText').checked, true);
+  assert.equal(elements.get('titleLargeText').checked, true);
+  assert.equal(elements.get('titleOptionsPanel').hidden, false);
+  context.closeTitleOptions();
+  assert.equal(elements.get('titleOptionsPanel').hidden, true);
   context.menuGo('people');
 });
 
@@ -435,8 +439,8 @@ test('4.25 field PDA keeps long-page filters and map controls reachable', () => 
 test('4.33 build labels are consistent', () => {
   const html = fs.readFileSync(path.join(root, 'public/index.html'), 'utf8');
   const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
-  assert.equal(pkg.version, '4.33.21');
-  assert.match(html, /BUILD 4\.33\.21/);
+  assert.equal(pkg.version, '4.33.22');
+  assert.match(html, /BUILD 4\.33\.22/);
   assert.match(html, /ZONE ONLINE 4\.33/);
 });
 
