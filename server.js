@@ -547,7 +547,7 @@ io.on('connection', socket=>{
     const p=online.get(socket.data.playerId);if(!p)return;
     const npcId=String(input?.npcId||'').slice(0,48),npc=world.npcState?.[npcId];
     if(!npc||npc.alive===false||npc.location!==p.location||!isHostileFaction(p.faction,npc.faction,world.diplomacy)||!inRange(p,npcWorldPosition(npc),COMBAT_RADIUS)){
-      socket.emit('npc:combat:result',{ok:false,message:'Цель вне радиуса боя (112 м), недоступна или не является противником.'});return;
+      socket.emit('npc:combat:result',{ok:false,message:'Цель вне радиуса боя (18 м), недоступна или не является противником.'});return;
     }
     npc.alive=false;npc.health=0;npc.action='dead';npc.deathCause=`погиб в столкновении со сталкером ${p.name}`;npc.diedAt=Date.now();
     world.npcMemorial||=[];world.npcMemorial.unshift({id:`mem_${npc.id}_${npc.diedAt}`,name:npc.name,faction:npc.faction,role:npc.role,location:npc.location,cause:npc.deathCause,diedAt:npc.diedAt});world.npcMemorial=world.npcMemorial.slice(0,100);

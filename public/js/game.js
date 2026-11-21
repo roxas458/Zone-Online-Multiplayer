@@ -1,4 +1,4 @@
-// ZONE ONLINE 4.33.26 browser client. IMMERSIVE TITLE SCREEN / SURVIVAL / MULTIPLAYER.
+// ZONE ONLINE 4.33.27 browser client. IMMERSIVE TITLE SCREEN / SURVIVAL / MULTIPLAYER.
 const clone=o=>JSON.parse(JSON.stringify(o));
 const base={
  name:"Новичок",money:1450,hp:100,radiation:0,radiationProtectionUntil:0,stamina:85,hunger:18,thirst:20,rep:10,day:1,hour:9,loc:"cordon",faction:"Одиночки",xp:0,meetings:0,completed:0,flags:{metSid:false,metWolf:false,heardBar:false,foundArtifact:false,helpedWolf:false},
@@ -389,7 +389,7 @@ function nearbyNpcs(){syncNpcRosterToClient();return here().people.map(npcBy).fi
 function addQuest(id){let q=g.quests.find(q=>q.id===id);if(q&&!q.accepted&&!q.done){q.accepted=true;log("Получено задание: "+q.title);news("Новое задание",q.title+" — "+q.desc)}}
 function showNpcDialogue(){const overlay=$('npcDialogueOverlay');if(overlay){overlay.classList.add('open');overlay.setAttribute('aria-hidden','false');document.body.classList.add('dialogue-open');}}
 function dialogueTarget(){return $('dialogueBox')}
-function meet(id){let n=npcBy(id);if(!n||n.loc!==g.loc)return;if(!npcInInteractionRange(n))return alert('Подойди ближе к NPC. Радиус взаимодействия — 52 м.');activeNpc=id;g.meetings++;
+function meet(id){let n=npcBy(id);if(!n||n.loc!==g.loc)return;if(!npcInInteractionRange(n))return alert('Подойди ближе к NPC. Радиус взаимодействия — 8 м.');activeNpc=id;g.meetings++;
 log("Встреча: "+n.name+".");view("people");renderPeople();startTalk(id);save()}
 
 function renderCopDialogue(n, message, choices){
@@ -406,7 +406,7 @@ function renderCopDialogue(n, message, choices){
  choiceBox.innerHTML=(choices||[]).map((t,i)=>`<button type="button" onclick="topic('${escapeHtml(n.id)}',${i})">${escapeHtml(t[0])}</button>`).join('')+(n.role==='техник'?`<button type="button" class="dialogue-trade-action" onclick="openRepairWorkshop('${escapeHtml(n.id)}')">⚙ Мастерская: ремонт оружия и брони</button>`:'')+`<button type="button" class="dialogue-trade-action" onclick="closeTalk();openNpcTrade('${escapeHtml(n.id)}')">Торговать</button>`;
 }
 function startTalk(id){
- let n=npcBy(id);if(!n)return;if(!npcInInteractionRange(n))return alert('Ты слишком далеко. Чтобы поговорить, подойди на расстояние 52 м.');
+ let n=npcBy(id);if(!n)return;if(!npcInInteractionRange(n))return alert('Ты слишком далеко. Чтобы поговорить, подойди на расстояние 8 м.');
  const live=serverWorld?.npcState?.[id];
  if(live?.dialogue){
   if(live.generated){n.greeting=live.dialogue.greeting;n.topics=live.dialogue.topics;}
@@ -420,7 +420,7 @@ function startTalk(id){
  renderQuick();
 }
 function topic(id,i){
- const npc=npcBy(id);if(npc&&!npcInInteractionRange(npc))return alert('Ты отошёл слишком далеко от сталкера. Подойди ближе (52 м).');
+ const npc=npcBy(id);if(npc&&!npcInInteractionRange(npc))return alert('Ты отошёл слишком далеко от сталкера. Подойди ближе (8 м).');
  if(zoneSocket?.connected){zoneSocket.emit("npc:interact",{npcId:id,action:"topic",topicIndex:i});return;}
  let n=npcBy(id),t=n?.topics?.[i];if(!n||!t)return;
  let result=t[1];
@@ -480,7 +480,7 @@ function setGameOption(key,value){
 }
 function applyGameOptions(){for(const [key,value] of Object.entries(g.options||{})){document.body.classList.toggle(key==='largeText'?'large-text':key==='reduceMotion'?'reduce-motion':'compact-ui',!!value);}}
 function npcServerAction(npcId,action){
- const npc=npcBy(npcId);if(!npc)return;if(!npcInInteractionRange(npc))return alert('Подойди ближе к сталкеру. Радиус взаимодействия — 52 м.');
+ const npc=npcBy(npcId);if(!npc)return;if(!npcInInteractionRange(npc))return alert('Подойди ближе к сталкеру. Радиус взаимодействия — 8 м.');
  if(zoneSocket?.connected&&zonePlayerReady){zoneSocket.emit('npc:interact',{npcId,action});return;}
  // Offline fallback keeps NPC rumor interaction playable even when the online world is unavailable.
  const rumors=['На старой дороге заметили свежий патруль. Не суйся туда без разведки.','Торговцы ждут караван с медикаментами. Говорят, он задержался у Свалки.','На Янтаре вырос фон. Учёные просят не приближаться к старому корпусу.','На севере ищут проводника, который знает обход вокруг блокпоста.','У костра шепчутся, что один из тайников недавно вскрыли.'];
@@ -513,7 +513,7 @@ function repairWorkshopItemCard(item,npc,selectedId){
 }
 let repairSelectedItemId=null;
 function openRepairWorkshop(npcId){
- const npc=npcBy(npcId);if(npc&&!npcInInteractionRange(npc))return alert('Подойди к технику ближе. Радиус обслуживания — 52 м.');if(!npc||npc.role!=='техник')return alert('Здесь нет техника, который может выполнить ремонт.');
+ const npc=npcBy(npcId);if(npc&&!npcInInteractionRange(npc))return alert('Подойди к технику ближе. Радиус обслуживания — 8 м.');if(!npc||npc.role!=='техник')return alert('Здесь нет техника, который может выполнить ремонт.');
  if(npc.loc!==g.loc)return alert('Техник должен находиться в текущей локации.');
  if(npc.id.startsWith('faction-tech-')&&npc.faction!==g.faction)return alert(`Этот техник служит группировке «${npc.faction}». Ремонт у него доступен только своим.`);
  const gear=repairableGear();const selected=gear.find(x=>x.id===repairSelectedItemId)||gear.find(x=>x.name===g.equipment?.weapon)||gear.find(x=>x.name===g.equipment?.suit)||gear[0]||null;repairSelectedItemId=selected?.id||null;
@@ -740,15 +740,18 @@ const MAP_REGIONS=[
  {name:'Тёмная Лощина',id:'darkhollow',x:700,y:1640,w:230,h:180}
 ];
 const MAP_SCALE=1;
-function mapRegionMarkup(){return MAP_REGIONS.map(r=>`<g class="map-region map-region-linked" data-location="${r.id}" role="button" tabindex="0" aria-label="${escapeHtml(r.name)}" onclick="selectLocation('${r.id}')"><rect x="${r.x}" y="${r.y}" width="${r.w}" height="${r.h}" rx="8"/></g>`).join('')}
+function mapRegionMarkup(){return MAP_REGIONS.map(r=>`<g class="map-region map-region-linked" data-location="${r.id}" role="button" tabindex="0" aria-label="${escapeHtml(r.name)}" onclick="handleMapSectorSelect('${r.id}')"><rect x="${r.x}" y="${r.y}" width="${r.w}" height="${r.h}" rx="8"/></g>`).join('')}
 function currentMapView(){const me=playerWorldPosition();if(zoneMapMode==='zone'){const w=1000/zoneMapZoom,h=2000/zoneMapZoom,c=zoneMapCenter||{x:me.x,y:me.y};return {x:Math.max(0,Math.min(1000-w,c.x-w/2)),y:Math.max(0,Math.min(2000-h,c.y-h/2)),w,h};}const size=470/zoneMapZoom,c=zoneMapCenter||{x:me.x,y:me.y};return {x:Math.max(0,Math.min(1000-size,c.x-size/2)),y:Math.max(0,Math.min(2000-size,c.y-size/2)),w:size,h:size};}
 function mapZoom(step){const v=currentMapView();zoneMapCenter={x:v.x+v.w/2,y:v.y+v.h/2};zoneMapZoom=step===0?1:Math.max(.55,Math.min(4,zoneMapZoom+step*.25));zoneMapDirty=true;renderZoneMap()}
 function mapPointerDown(ev){if(ev.button!==undefined&&ev.button!==0)return;if(ev.target?.closest?.('.world-marker,.map-region,.map-sector,.map-entity-card'))return;const svg=$('zoneMapSvg');if(!svg)return;const v=currentMapView();zoneMapPointer={id:ev.pointerId,x:ev.clientX,y:ev.clientY,lastX:ev.clientX,lastY:ev.clientY,moved:false,view:v};svg.setPointerCapture?.(ev.pointerId);}
 function mapPointerMove(ev){const d=zoneMapPointer;if(!d||d.id!==ev.pointerId)return;const dx=ev.clientX-d.lastX,dy=ev.clientY-d.lastY;if(Math.hypot(ev.clientX-d.x,ev.clientY-d.y)>5)d.moved=true;if(d.moved){const el=$('zoneMapSvg'),r=el?.getBoundingClientRect();if(r){zoneMapCenter={x:d.view.x+d.view.w/2-(ev.clientX-d.x)*d.view.w/r.width,y:d.view.y+d.view.h/2-(ev.clientY-d.y)*d.view.h/r.height};const v=currentMapView();el.setAttribute('viewBox',`${v.x} ${v.y} ${v.w} ${v.h}`);}}d.lastX=ev.clientX;d.lastY=ev.clientY;}
 function mapPointerUp(ev){const d=zoneMapPointer;if(!d||d.id!==ev.pointerId)return;zoneMapPointer=null;if(d.moved){zoneMapSuppressClick=true;setTimeout(()=>zoneMapSuppressClick=false,0);const v=currentMapView();const coords=$('mapCoordinates');if(coords)coords.textContent=`${zoneMapMode==='zone'?'ВСЯ ЗОНА':'ЛОКАЦИЯ: '+(here()?.name||'—')} · ${Math.round(zoneMapZoom*100)}% · ОБЗОР КАРТЫ`;return;}mapPointer(ev);}
-function toggleMapFullscreen(){const frame=$('zoneMapFrame');if(!frame)return;if(document.fullscreenElement){document.exitFullscreen?.();return;}frame.requestFullscreen?.().catch?.(()=>updateMoveOrderStatus('Полноэкранный режим недоступен в этом браузере.'));}
+function toggleMapFullscreen(force=false){const frame=$('zoneMapFrame');if(!frame)return;if(document.fullscreenElement===frame||frame.classList.contains('map-fullscreen-fallback')){if(force)return;document.exitFullscreen?.();frame.classList.remove('map-fullscreen-fallback');return;}if(frame.requestFullscreen){frame.requestFullscreen().then(()=>frame.classList.remove('map-fullscreen-fallback')).catch(()=>frame.classList.add('map-fullscreen-fallback'));}else frame.classList.add('map-fullscreen-fallback');}
 
-function setMapMode(mode){zoneMapDirty=true;zoneMapMode=mode==='local'?'local':'zone';zoneMapCenter=null;$('mapModeZone')?.classList.toggle('active',zoneMapMode==='zone');$('mapModeLocal')?.classList.toggle('active',zoneMapMode==='local');$('mapHint').textContent=zoneMapMode==='local'?'Поставь метку на свободном месте. Персонаж самостоятельно и медленно пойдёт к ней.':'Общая карта: выбери сектор, чтобы открыть его подробную карту.';renderZoneMap()}
+function setMapMode(mode){zoneMapDirty=true;zoneMapMode=mode==='local'?'local':'zone';zoneMapCenter=null;$('mapModeZone')?.classList.toggle('active',zoneMapMode==='zone');$('mapModeLocal')?.classList.toggle('active',zoneMapMode==='local');$('mapHint').textContent=zoneMapMode==='local'?'Поставь метку на свободном месте. Персонаж самостоятельно и медленно пойдёт к ней.':'Общая карта: выбери сектор, чтобы подтвердить переход.';renderZoneMap();if(zoneMapMode==='zone')toggleMapFullscreen(true)}
+function handleMapSectorSelect(id){if(!id||id===g.loc){selectLocation(id||g.loc);return;}selectLocation(id);const l=g.locations.find(x=>x.id===id);if(!l)return;const ok=confirm(`Начать переход в сектор «${l.name}»?
+
+Маршрут будет проложен через соседние сектора. Текущая локация изменится после прибытия.`);if(!ok)return;const dest=$('expeditionDestination');if(dest)dest.value=id;if(zoneSocket?.connected){startExpedition();updateMoveOrderStatus(`Переход в «${l.name}» подтверждён. Ожидай прибытия.`);}else{travel(id);updateMoveOrderStatus(`Ты прибыл в сектор «${l.name}».`);}}
 function sectorCenter(id){return zoneSectorCoords[id]||[500,1000]}
 function playerWorldPosition(){if(g.mapCoordinateVersion!==2||!g.worldPosition||!Number.isFinite(g.worldPosition.x)||!Number.isFinite(g.worldPosition.y)){const c=sectorCenter(g.loc);g.worldPosition={x:c[0],y:c[1]+24};g.mapCoordinateVersion=2;}return g.worldPosition}
 function playerDotMarkup(p){return `<g id="playerMapMarker" class="world-marker marker-self" transform="translate(${p.x} ${p.y})" aria-label="Твоё положение"><circle class="marker-pulse" r="3.2"/><circle class="marker-dot" r="1.8"/><circle class="marker-center" r=".8"/></g>`}
@@ -769,8 +772,8 @@ function npcMapPosition(n,index=0){
 }
 function npcInteractionPosition(n){const p=npcMapPosition(n);return {x:p[0],y:p[1]};}
 function npcDistance(n){const p=playerWorldPosition(),q=npcInteractionPosition(n);return Math.hypot(p.x-q.x,p.y-q.y);}
-function npcInInteractionRange(n){return !!n&&(n.loc||n.location)===g.loc&&npcDistance(n)<=52;}
-function npcInCombatRange(n){return !!n&&(n.loc||n.location)===g.loc&&npcDistance(n)<=112;}
+function npcInInteractionRange(n){return !!n&&(n.loc||n.location)===g.loc&&npcDistance(n)<=8;}
+function npcInCombatRange(n){return !!n&&(n.loc||n.location)===g.loc&&npcDistance(n)<=18;}
 function showMapNpcRadius(id){const n=npcBy(id);if(!n)return;mapRadiusTarget=id;zoneMapMode=(n.loc||n.location)===g.loc?'local':'zone';const p=npcMapPosition(n);zoneMapCenter={x:p[0],y:p[1]};zoneMapDirty=true;renderZoneMap();}
 function driftNpcMapPositions(){
  for(const n of (g.npcs||[])){if(n.alive===false||Number.isFinite(n.x)&&Number.isFinite(n.y))continue;const p=npcMapPosition(n);const state=npcMapPositions.get(String(n.id||n.name));if(!state)continue;state.phase+=.22;const c=zoneSectorCoords[state.loc]||zoneSectorCoords.cordon;const radius=Math.hypot(state.x-c[0],state.y-c[1]);const angle=Math.atan2(state.y-c[1],state.x-c[0])+.035;const r=Math.max(24,Math.min(145,radius+Math.sin(state.phase)*1.4));state.x=c[0]+Math.cos(angle)*r;state.y=c[1]+Math.sin(angle)*r;}
@@ -798,7 +801,7 @@ function renderZoneMap(){
  const moveRoute=playerMoveTarget?`<path class="player-waypoint-route" d="M${me.x} ${me.y} L${playerMoveTarget.x} ${playerMoveTarget.y}"/><g class="player-waypoint" transform="translate(${playerMoveTarget.x} ${playerMoveTarget.y})"><circle r="8"/><path d="M-4 0H4M0 -4V4"/></g>`:'';
  const meDot=playerDotMarkup(me);
  const v=currentMapView(),view=`${v.x} ${v.y} ${v.w} ${v.h}`;
- $('zoneMap').innerHTML=`<svg id="zoneMapSvg" viewBox="${view}" preserveAspectRatio="xMidYMid meet" onwheel="event.preventDefault();mapZoom(event.deltaY<0?1:-1)" onpointerdown="mapPointerDown(event)" onpointermove="mapPointerMove(event)" onpointerup="mapPointerUp(event)" onpointercancel="mapPointerUp(event)" aria-label="${zoneMapMode==='zone'?'Карта Зоны':'Карта '+(here()?.name||'локации')}"><image href="/assets/zone-master-map.jpg" x="0" y="0" width="1000" height="2000" preserveAspectRatio="none"/><rect x="0" y="0" width="1000" height="2000" fill="#10170f" opacity=".08"/><g class="map-region-layer">${regions}</g>${edges}${npcRoutes}${moveRoute}<g class="map-marker-layer">${mapRadiusTarget&&npcBy(mapRadiusTarget)?(()=>{const q=npcMapPosition(npcBy(mapRadiusTarget));return `<circle class="npc-range-combat" cx="${q[0]}" cy="${q[1]}" r="112"/><circle class="npc-range-talk" cx="${q[0]}" cy="${q[1]}" r="52"/>`;})():''}${overlays}${meDot}</g><g class="map-compass" transform="translate(920 110)"><circle r="28"/><path d="M0 -20L7 7 0 2 -7 7Z"/><text y="-38" text-anchor="middle">N</text></g></svg><div id="mapEntityCard" class="map-entity-card" hidden></div>${mapRadiusTarget?'<div class="map-range-legend"><span>52 м · разговор</span><span>112 м · бой</span><button onclick="mapRadiusTarget=null;renderZoneMap()">Скрыть радиус</button></div>':''}`;
+ $('zoneMap').innerHTML=`<svg id="zoneMapSvg" viewBox="${view}" preserveAspectRatio="xMidYMid meet" onwheel="event.preventDefault();mapZoom(event.deltaY<0?1:-1)" onpointerdown="mapPointerDown(event)" onpointermove="mapPointerMove(event)" onpointerup="mapPointerUp(event)" onpointercancel="mapPointerUp(event)" aria-label="${zoneMapMode==='zone'?'Карта Зоны':'Карта '+(here()?.name||'локации')}"><image href="/assets/zone-master-map.jpg" x="0" y="0" width="1000" height="2000" preserveAspectRatio="none"/><rect x="0" y="0" width="1000" height="2000" fill="#10170f" opacity=".08"/><g class="map-region-layer">${regions}</g>${edges}${npcRoutes}${moveRoute}<g class="map-marker-layer">${mapRadiusTarget&&npcBy(mapRadiusTarget)?(()=>{const q=npcMapPosition(npcBy(mapRadiusTarget));return `<circle class="npc-range-combat" cx="${q[0]}" cy="${q[1]}" r="18"/><circle class="npc-range-talk" cx="${q[0]}" cy="${q[1]}" r="8"/>`;})():''}${overlays}${meDot}</g><g class="map-compass" transform="translate(920 110)"><circle r="28"/><path d="M0 -20L7 7 0 2 -7 7Z"/><text y="-38" text-anchor="middle">N</text></g></svg><div id="mapEntityCard" class="map-entity-card" hidden></div>${mapRadiusTarget?'<div class="map-range-legend"><span>8 м · разговор</span><span>18 м · бой</span><button onclick="mapRadiusTarget=null;renderZoneMap()">Скрыть радиус</button></div>':''}`;
  $('mapCoordinates').textContent=`${zoneMapMode==='zone'?'ВСЯ ЗОНА':'ЛОКАЦИЯ: '+(here()?.name||'—')} · ${Math.round(zoneMapZoom*100)}% · X ${Math.round(me.x)} / Y ${Math.round(me.y)}`;zoneMapHasRendered=true;zoneMapDirty=false;
 }
 function showMapSquad(squadId){
@@ -821,11 +824,11 @@ function updatePlayerMapMarker(){
  if(svg&&!zoneMapCenter){const v=currentMapView();svg.setAttribute('viewBox',`${v.x} ${v.y} ${v.w} ${v.h}`);}
  const coords=$('mapCoordinates');if(coords)coords.textContent=`${zoneMapMode==='zone'?'ВСЯ ЗОНА':'ЛОКАЦИЯ: '+(here()?.name||'—')} · ${Math.round(zoneMapZoom*100)}% · X ${Math.round(p.x)} / Y ${Math.round(p.y)}`;
 }
-function mapPointer(ev){if(zoneMapSuppressClick||ev.target?.closest?.('.world-marker,.map-sector,.map-region'))return;const svg=$('zoneMapSvg');if(!svg)return;const pt=svg.createSVGPoint();pt.x=ev.clientX;pt.y=ev.clientY;const p=pt.matrixTransform(svg.getScreenCTM().inverse()),x=Math.max(8,Math.min(992,p.x)),y=Math.max(8,Math.min(1992,p.y));if(zoneMapMode==='zone'){const nearest=Object.entries(zoneSectorCoords).map(([id,c])=>({id,d:Math.hypot(c[0]-x,c[1]-y)})).sort((a,b)=>a.d-b.d)[0];if(nearest&&nearest.id!==g.loc){const dest=$('expeditionDestination');if(dest)dest.value=nearest.id;if(zoneSocket?.connected){startExpedition();updateMoveOrderStatus(`Маршрут до сектора «${locationName(nearest.id)}» рассчитывается…`);}else updateMoveOrderStatus('Для перехода в другой сектор подключись к серверу.');return;}}const center=sectorCenter(g.loc),target={x:Math.max(center[0]-245,Math.min(center[0]+245,x)),y:Math.max(center[1]-245,Math.min(center[1]+245,y))};pendingSectorExit=null;playerMoveTarget=target;walkTarget=target;zoneMapCenter=null;zoneMapDirty=true;renderZoneMap();if(zoneSocket?.connected){zoneSocket.emit('player:move-order',{x:target.x,y:target.y,location:g.loc});updateMoveOrderStatus('Приказ отправлен серверу…');}else{startWalking();updateMoveOrderStatus('Локальный режим: движение без синхронизации сервера');}}
+function mapPointer(ev){if(zoneMapSuppressClick||ev.target?.closest?.('.world-marker,.map-sector,.map-region'))return;const svg=$('zoneMapSvg');if(!svg)return;const pt=svg.createSVGPoint();pt.x=ev.clientX;pt.y=ev.clientY;const p=pt.matrixTransform(svg.getScreenCTM().inverse()),x=Math.max(8,Math.min(992,p.x)),y=Math.max(8,Math.min(1992,p.y));if(zoneMapMode==='zone'){const nearest=Object.entries(zoneSectorCoords).map(([id,c])=>({id,d:Math.hypot(c[0]-x,c[1]-y)})).sort((a,b)=>a.d-b.d)[0];if(nearest&&nearest.id!==g.loc){handleMapSectorSelect(nearest.id);return;}}const center=sectorCenter(g.loc),target={x:Math.max(center[0]-245,Math.min(center[0]+245,x)),y:Math.max(center[1]-245,Math.min(center[1]+245,y))};pendingSectorExit=null;playerMoveTarget=target;walkTarget=target;zoneMapCenter=null;zoneMapDirty=true;renderZoneMap();if(zoneSocket?.connected){zoneSocket.emit('player:move-order',{x:target.x,y:target.y,location:g.loc});updateMoveOrderStatus('Приказ отправлен серверу…');}else{startWalking();updateMoveOrderStatus('Локальный режим: движение без синхронизации сервера');}}
 function startExpedition(){const destination=$('expeditionDestination')?.value,mode=$('expeditionMode')?.value||'safe';if(!destination){updateMoveOrderStatus('Выбери пункт назначения');return;}if(!zoneSocket?.connected){updateMoveOrderStatus('Для межсекторного перехода требуется подключение к серверу');return;}zoneSocket.emit('player:expedition-order',{destination,mode});updateMoveOrderStatus('КПК рассчитывает маршрут…');}
 function cancelMoveOrder(){if(zoneSocket?.connected)zoneSocket.emit('player:move-cancel');if(walkTimer){clearInterval(walkTimer);walkTimer=null;}walkTarget=null;playerMoveTarget=null;playerMoving=false;updateMoveOrderStatus('Нет активного маршрута');renderZoneMap()}
 function updateMoveOrderStatus(text){const el=$('mapOrderStatus');if(el){const b=el.querySelector('b');if(b)b.textContent=text||'Маршрут активен';}}
-function blockedAt(x,y){const r=9;return x<r||y<r||x>1000-r||y>2000-r||WORLD_OBSTACLES.some(o=>x+r>o.x&&x-r<o.x+o.w&&y+r>o.y&&y-r<o.y+o.h)}
+function blockedAt(x,y){const r=5;return x<r||y<r||x>1000-r||y>2000-r;}
 function syncWalkPosition(){const p=playerWorldPosition(),now=performance.now();if(now-lastPositionSync>1000){lastPositionSync=now;localStorage.setItem('zoneExpandedSave',JSON.stringify(g));}}
 function startWalking(){if(walkTimer||zoneSocket?.connected)return;let last=performance.now();walkTimer=setInterval(()=>{const now=performance.now(),dt=Math.min(.08,(now-last)/1000);last=now;const p=playerWorldPosition();if(!walkTarget){clearInterval(walkTimer);walkTimer=null;playerMoving=false;return;}let dx=walkTarget.x-p.x,dy=walkTarget.y-p.y,d=Math.hypot(dx,dy);if(d<3){walkTarget=null;playerMoveTarget=null;playerMoving=false;clearInterval(walkTimer);walkTimer=null;updateMoveOrderStatus('Ты достиг отмеченной точки');renderZoneMap();return;}dx/=d;dy/=d;const step=2.5*dt,nx=p.x+dx*step,ny=p.y+dy*step;if(!blockedAt(nx,p.y))p.x=nx;if(!blockedAt(p.x,ny))p.y=ny;g.worldPosition=p;playerMoving=true;syncWalkPosition();updatePlayerMapMarker()},100)}
 
@@ -1020,6 +1023,7 @@ function startRandomEncounter(force=false){
 function startNpcEncounter(id){
  if(battle)return;const n=npcBy(id);if(!n||n.alive===false)return alert('Этот сталкер больше не представляет угрозы.');
  if((n.loc||n.location)!==g.loc)return alert('Противник должен находиться в текущем секторе.');
+ if(!npcInCombatRange(n))return alert('Слишком далеко для начала боя. Подойди на расстояние 18 м.');
  if(!isHostileNpcFaction(n.faction))return alert('Этот сталкер не является твоим врагом.');
  const hp=Math.max(35,Math.round(Number(n.health)||80));
  const squadMembers=(activePlayerSquad?.members||[]).filter(m=>m.id!==zonePlayerId);const enemySquad=Object.values(serverWorld?.npcState||{}).filter(x=>x.alive&&x.location===n.location&&x.squadId&&x.squadId===n.squadId&&x.id!==n.id);battle={npcId:id,allies:squadMembers.map(m=>({...m,hp:100})),enemySupport:enemySquad,enemy:{name:n.name,icon:n.icon||'♟',hp,maxHp:hp,power:8+Math.floor(Math.random()*6),desc:`Враждебный сталкер группировки «${n.faction}» вступил в бой. ${squadMembers.length?`Твой отряд поддерживает тебя: ${squadMembers.length} бойца.`:''} ${enemySquad.length?`Рядом поддержка противника: ${enemySquad.length} бойца.`:''}`},guard:false,log:[],turn:1};

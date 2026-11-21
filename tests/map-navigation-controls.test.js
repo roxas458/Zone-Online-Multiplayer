@@ -19,3 +19,12 @@ test('online and offline walking use a slower movement speed', () => {
   assert.match(client, /const step=2\.5\*dt/);
   assert.match(server, /createMoveOrder\(p,\{x:tx,y:ty\},Date\.now\(\),2\.5\)/);
 });
+
+test('4.33.27 confirms sector travel, routes sector clicks, and opens the whole-Zone map fullscreen', () => {
+  assert.match(client, /function handleMapSectorSelect\(id\)/);
+  assert.match(client, /confirm\(`Начать переход в сектор/);
+  assert.match(client, /onclick=\"handleMapSectorSelect/);
+  assert.match(client, /toggleMapFullscreen\(true\)/);
+  assert.match(client, /function blockedAt\(x,y\)\{const r=5;return x<r\|\|y<r\|\|x>1000-r\|\|y>2000-r;/);
+  assert.match(css, /map-fullscreen-fallback/);
+});

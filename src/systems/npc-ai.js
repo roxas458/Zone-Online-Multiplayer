@@ -168,7 +168,7 @@ function interactWithNpc(npc, player, action, now = Date.now(), context = {}) {
   if (!npc || !npc.alive) return { ok:false, reason:'Этот сталкер больше не может ответить.' };
   if (!player || player.location !== npc.location) return { ok:false, reason:'Нужно находиться в одном секторе со сталкером.' };
   const playerPosition=player.position||player;
-  if(!inRange(playerPosition,npcWorldPosition(npc),52)) return {ok:false,reason:'Ты слишком далеко. Подойди ближе к сталкеру (радиус разговора — 52 м).'};
+  if(!inRange(playerPosition,npcWorldPosition(npc),8)) return {ok:false,reason:'Ты слишком далеко. Подойди ближе к сталкеру (радиус разговора — 52 м).'};
   if (!['greet','ask','trade','help','topic'].includes(action)) return { ok:false, reason:'Неизвестное действие.' };
   npc.relationships ||= {}; const current = Number(npc.relationships[player.id]) || 0;
   const delta = action === 'help' ? 5 : action === 'greet' ? 2 : action === 'trade' ? 1 : 0;
