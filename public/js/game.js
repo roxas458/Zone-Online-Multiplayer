@@ -1,4 +1,4 @@
-// ZONE ONLINE 4.33.18 single-player browser client. SURVIVAL / EXPEDITIONS / REPAIR WORKSHOP / DYNAMIC ECOLOGY.
+// ZONE ONLINE 4.33.19 single-player browser client. SURVIVAL / EXPEDITIONS / REPAIR WORKSHOP / DYNAMIC ECOLOGY.
 const clone=o=>JSON.parse(JSON.stringify(o));
 const base={
  name:"Новичок",money:1450,hp:100,radiation:0,radiationProtectionUntil:0,stamina:85,hunger:18,thirst:20,rep:10,day:1,hour:9,loc:"cordon",faction:"Одиночки",xp:0,meetings:0,completed:0,flags:{metSid:false,metWolf:false,heardBar:false,foundArtifact:false,helpedWolf:false},
@@ -305,10 +305,29 @@ function news(t,b){const c=realClock();g.news.unshift({day:c.day,hour:c.time,tit
 function addItem(id,name,type,desc,weight,value,qty=1){let x=g.items.find(i=>i.id===id);if(x)x.qty+=qty;else g.items.push({id,name,type,desc,weight,value,qty})}
 function count(id){return g.items.find(i=>i.id===id)?.qty||0}
 function take(id,n){let x=g.items.find(i=>i.id===id);if(!x||x.qty<n)return false;x.qty-=n;if(x.qty<=0)g.items=g.items.filter(i=>i.id!==id);return true}
-function view(id){if(id!=="people"&&$("npcDialogueOverlay")?.classList.contains("open"))closeTalk();document.querySelectorAll(".view").forEach(v=>v.classList.toggle("active",v.id===id));document.querySelectorAll("[data-v]").forEach(b=>b.classList.toggle("active",b.dataset.v===id));document.querySelector("main>aside.panel")?.classList.remove("mobile-open");if(id==="war")renderWar();if(id==="encyclopedia")renderEncyclopedia();if(id==="stories")renderStories();if(id==="people")renderPeople();if(id==="squads")renderSquads();if(id==="profile")renderProfile();if(id==="inventory")renderInventory();if(id==="trade")renderTrade();if(id==="settings")applyGameOptions();if(id==="world")renderMap();if(id==="ranks"){renderStalkerLeaderboard();renderFactionLeaderboard()}}
+function view(id){
+ const target=document.getElementById(id);
+ if(!target?.classList.contains('view')){console.warn('ZONE ONLINE: неизвестная вкладка КПК',id);return false;}
+ if(id!=="people"&&$("npcDialogueOverlay")?.classList.contains("open"))closeTalk();
+ document.querySelectorAll(".view").forEach(v=>v.classList.toggle("active",v.id===id));
+ document.querySelectorAll("[data-v]").forEach(b=>b.classList.toggle("active",b.dataset.v===id));
+ document.querySelector("main>aside.panel")?.classList.remove("mobile-open");
+ const renderers={
+  home:()=>{renderAtmosphere();renderQuick();}, world:renderMap, people:renderPeople, squads:renderSquads,
+  quests:renderQuests, ranks:()=>{renderStalkerLeaderboard();renderFactionLeaderboard();},
+  stories:renderStories, encyclopedia:renderEncyclopedia, archive:renderArchive,
+  factions:renderFactions, living:renderLivingZone, war:renderWar, diplomacy:renderDiplomacy,
+  achievements:renderAchievements, journal:renderNews, craft:renderCraft, profile:renderProfile,
+  inventory:renderInventory, armory:renderArmory, trade:renderTrade, settings:renderSettings
+ };
+ try{(renderers[id]||(()=>{}))();}
+ catch(error){console.error(`ZONE ONLINE: ошибка открытия вкладки «${id}»`,error);const message=target.querySelector('[data-tab-error]')||document.createElement('div');message.dataset.tabError='true';message.className='mutedbox small';message.textContent='Не удалось обновить содержимое раздела. Проверь консоль браузера.';if(!message.parentNode)target.prepend(message);}
+ return true;
+}
 function toggleMobileMenu(){document.querySelector("main>aside.panel")?.classList.toggle("mobile-open")}
 document.addEventListener("keydown",e=>{if(e.key==="Escape"&&$("npcDialogueOverlay")?.classList.contains("open"))closeTalk();});
-document.querySelectorAll("[data-v]").forEach(b=>b.onclick=()=>{view(b.dataset.v);if(b.dataset.v==="armory")renderArmory();if(b.dataset.v==="inventory")renderInventory()});
+// Delegated navigation survives content refreshes and works for desktop and mobile PDA controls.
+document.addEventListener('click',e=>{const button=e.target.closest('button[data-v]');if(!button)return;e.preventDefault();view(button.dataset.v);});
 
 function localLeaderboardFallback(){
  const roster=(serverWorld?.npcState?Object.values(serverWorld.npcState):(g.npcs||[])).filter(n=>n&&n.name);
@@ -455,6 +474,11 @@ function setGameOption(key,value){
  g.options||={};g.options[key]=!!value;document.body.classList.toggle('large-text',!!g.options.largeText);document.body.classList.toggle('reduce-motion',!!g.options.reduceMotion);document.body.classList.toggle('compact-ui',!!g.options.compactUI);
  const pairs={largeText:'settingLargeText',reduceMotion:'settingReduceMotion',compactUI:'settingCompact'},menuPairs={largeText:'menuLargeText',reduceMotion:'menuReduceMotion',compactUI:'menuCompact'};
  if($(pairs[key]))$(pairs[key]).checked=!!value;if($(menuPairs[key]))$(menuPairs[key]).checked=!!value;save();
+}
+function renderSettings(){
+ const state=$('settingsStatus');if(state)state.textContent=`Локальное сохранение · ${g.name} · ${g.faction} · ${here().name}`;
+ const large=$('settingLargeText'),motion=$('settingReduceMotion'),compact=$('settingCompact');
+ if(large)large.checked=!!g.options?.largeText;if(motion)motion.checked=!!g.options?.reduceMotion;if(compact)compact.checked=!!g.options?.compactUI;
 }
 function applyGameOptions(){for(const [key,value] of Object.entries(g.options||{})){document.body.classList.toggle(key==='largeText'?'large-text':key==='reduceMotion'?'reduce-motion':'compact-ui',!!value);}}
 function npcServerAction(npcId,action){

@@ -25,3 +25,19 @@ test('Render config has no database dependency', () => {
   assert.match(render, /healthCheckPath: \/health/);
   assert.doesNotMatch(render, /DATABASE_URL|postgres/i);
 });
+
+
+test('every PDA navigation button points to a real view and has a renderer', () => {
+  const html = read('public/index.html');
+  const client = read('public/js/game.js');
+  const viewIds = new Set([...html.matchAll(/class=["']view(?:\s+active)?["'][^>]*\bid=["']([^"']+)["']/g)].map(m => m[1]));
+  const navIds = [...html.matchAll(/data-v=["']([^"']+)["']/g)].map(m => m[1]);
+  assert.ok(navIds.length > 0, 'PDA navigation should exist');
+  for (const id of navIds) assert.ok(viewIds.has(id), `navigation target ${id} must exist`);
+  const renderMap = {encyclopedia:'renderEncyclopedia',archive:'renderArchive',factions:'renderFactions',living:'renderLivingZone',war:'renderWar',diplomacy:'renderDiplomacy',achievements:'renderAchievements',journal:'renderNews',craft:'renderCraft',profile:'renderProfile',settings:'renderSettings'};
+  for (const [id, renderer] of Object.entries(renderMap)) {
+    assert.ok(viewIds.has(id), `view ${id} must exist`);
+    assert.match(client, new RegExp('\\b' + id + ':' + renderer + '\\b'), `view ${id} must be refreshed when opened`);
+  }
+  assert.match(client, /document\.addEventListener\('click',[\s\S]*?button\.dataset\.v/);
+});
