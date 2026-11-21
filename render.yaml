@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: zone-online-multiplayer
+    name: zone-online-singleplayer
     runtime: node
     plan: free
     buildCommand: npm install
@@ -11,5 +11,3 @@ services:
         value: 22.16.0
       - key: NODE_ENV
         value: production
-      - key: DATABASE_URL
-        sync: false
