@@ -23,3 +23,22 @@ test('desktop connection prefers polling before websocket upgrade with bounded h
   assert.match(js, /maxWaitMs=1800/);
   assert.match(js, /transports:\['polling','websocket'\]/);
 });
+
+test('self marker nearby panel includes NPC conversation-radius discovery', () => {
+  assert.match(js, /const npcs=\(g\.npcs\|\|\[\]\)[\s\S]*?filter\(x=>x\.d<=8\)/);
+  assert.match(js, /NPC рядом · до 8 м/);
+  assert.match(js, /startTalk\('\$\{String\(n\.id\)/);
+});
+
+test('player trade opens a dedicated player offer sheet instead of the NPC merchant screen', () => {
+  assert.match(js, /function openMapPlayerTrade\(id\)[\s\S]*?ОБМЕН С ИГРОКОМ/);
+  assert.match(js, /function sendMapPlayerTrade\(id\)[\s\S]*?trade:offer/);
+  assert.doesNotMatch(js, /function openMapPlayerTrade\(id\)[^}]*view\('trade'\)/);
+});
+
+
+test('player trade uses exact coordinate distance instead of rounded display meters', () => {
+  assert.match(js, /function playerDistanceExact\(player\)/);
+  assert.match(js, /exactDistance>8/);
+  assert.match(js, /exactDistance<=8/);
+});

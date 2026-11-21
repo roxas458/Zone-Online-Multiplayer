@@ -29,16 +29,18 @@ let world = { diplomacy: {}, events: [], revision: 1, npcPositions: {}, coOpQues
 let npcTickRunning = false;
 
 const NPC_RICH_TRADERS = new Set(['sid','barman','scout','prof','scientist','beard']);
-const NPC_STARTING_STOCK = Object.freeze(Object.keys(SHOP).slice(0, 18));
+const NPC_WEAPON_STOCK = new Set(['weapon_pm','weapon_aks74u','weapon_toz34','weapon_ak74','weapon_vintar']);
+const NPC_STARTING_STOCK = Object.freeze(Object.keys(SHOP));
 function npcEconomyFor(npc) {
   world.npcEconomy ||= {};
   const id=String(npc.id);
+  const isRich=NPC_RICH_TRADERS.has(id)||String(npc.role||'').toLowerCase().includes('торгов');
   let account=world.npcEconomy[id];
   if(!account) {
     account={
       balance:NPC_RICH_TRADERS.has(id)||String(npc.role||'').toLowerCase().includes('торгов')?10000000:5000,
-      stock:Object.fromEntries(NPC_STARTING_STOCK.map(item=>[item,Math.max(1,(SHOP[item]?.qty||1)*3)])),
-      maxStock:Object.fromEntries(NPC_STARTING_STOCK.map(item=>[item,Math.max(3,(SHOP[item]?.qty||1)*10)])),
+      stock:Object.fromEntries(NPC_STARTING_STOCK.map(item=>[item,NPC_WEAPON_STOCK.has(item)&&!isRich?0:Math.max(2,(SHOP[item]?.qty||1)*5)])),
+      maxStock:Object.fromEntries(NPC_STARTING_STOCK.map(item=>[item,NPC_WEAPON_STOCK.has(item)&&!isRich?0:Math.max(8,(SHOP[item]?.qty||1)*16)])),
       restockedAt:Date.now(),
       history:[]
     };
@@ -47,13 +49,17 @@ function npcEconomyFor(npc) {
   account.balance=Math.max(0,Math.min(999999999,Math.floor(Number(account.balance)||0)));
   account.stock ||= {};
   account.maxStock ||= {};
+  if(isRich&&!account.capitalBoosted){account.balance=Math.max(Number(account.balance)||0,250000);account.capitalBoosted=true;}
+  for(const item of NPC_STARTING_STOCK){const goods=SHOP[item],weaponLocked=NPC_WEAPON_STOCK.has(item)&&!isRich;account.stock[item]??=(weaponLocked?0:Math.max(2,(goods?.qty||1)*5));account.maxStock[item]??=(weaponLocked?0:Math.max(8,(goods?.qty||1)*16));}
   account.history ||= [];
   const now=Date.now(), elapsed=now-(Number(account.restockedAt)||now);
   if(elapsed>=300000) {
     const cycles=Math.min(12,Math.floor(elapsed/300000));
     for(const item of Object.keys(account.stock)) {
       if(!SHOP[item])continue;
-      const max=Math.max(1,Math.min(99,Number(account.maxStock[item])||((SHOP[item].qty||1)*10)));
+      const configuredMax=Number(account.maxStock[item]);
+      const max=Number.isFinite(configuredMax)?Math.max(0,Math.min(99,configuredMax)):Math.max(1,Math.min(99,(SHOP[item].qty||1)*10));
+      if(max===0){account.stock[item]=0;continue;}
       account.stock[item]=Math.min(max,Math.max(0,Number(account.stock[item])||0)+cycles*(SHOP[item].qty||1));
     }
     account.restockedAt=now;
@@ -152,7 +158,7 @@ function recordStalkerKill(player,npc){
 }
 
 function publicNpcRoster(){
-  const fields=['id','name','faction','role','location','alive','generated','supportSpecialist','icon','personality','mood','action','behavior','duty','guardPost','homeLocation','health','morale','supplies','biography','friends','rivals','squadId','squadName','dialogueVersion','relationships','equipment'];
+  const fields=['id','name','faction','role','location','x','y','alive','generated','supportSpecialist','icon','personality','mood','action','behavior','duty','guardPost','homeLocation','health','morale','supplies','biography','friends','rivals','squadId','squadName','dialogueVersion','relationships','equipment'];
   return Object.fromEntries(Object.entries(world.npcState||{}).map(([id,n])=>[id,Object.fromEntries(fields.filter(k=>n[k]!==undefined).map(k=>[k,n[k]]))]));
 }
 function publicWorldSnapshot(){
@@ -367,7 +373,7 @@ io.on('connection', socket=>{
     if(!p||!npc||npc.alive===false||npc.location!==p.location||!inRange(p,npcWorldPosition(npc),INTERACTION_RADIUS)||!npc.dialogue||!goods){
       socket.emit('npc:trade:result',{ok:false,message:'Этот сталкер сейчас не может торговать или находится не рядом.'});return;
     }
-    const account=npcEconomyFor(npc);account.stock[itemId]??=goods.qty*3;account.maxStock[itemId]??=goods.qty*10;const available=Math.max(0,Math.floor(Number(account.stock[itemId])||0));
+    const account=npcEconomyFor(npc);if(NPC_WEAPON_STOCK.has(itemId)&&!(NPC_RICH_TRADERS.has(String(npc.id))||String(npc.role||'').toLowerCase().includes('торгов'))){socket.emit('npc:trade:result',{ok:false,message:'Оружие продают только крупные торговцы Зоны.'});return;}account.stock[itemId]??=goods.qty*3;account.maxStock[itemId]??=goods.qty*10;const available=Math.max(0,Math.floor(Number(account.stock[itemId])||0));
     if(available<goods.qty){socket.emit('npc:trade:result',{ok:false,message:'У сталкера временно закончился этот товар. Запасы пополняются автоматически.',economy:{balance:account.balance,stock:account.stock}});return;}
     if(st.money<goods.price){socket.emit('npc:trade:result',{ok:false,message:'Недостаточно рублей.'});return;}
     // Buying transfers player money out of the player's wallet only.
@@ -455,7 +461,7 @@ io.on('connection', socket=>{
     const fromId=socket.data.playerId, from=online.get(fromId), toId=String(input?.to||'');
     const to=online.get(toId), itemId=String(input?.item||''), qty=Math.floor(Number(input?.qty)||0), rawPrice=Number(input?.price), price=Number.isFinite(rawPrice)?Math.floor(rawPrice):-1;
     if(!from||!to||fromId===toId||!TRADE_ITEM_IDS.has(itemId)||qty<1||qty>99||price<0||price>1000000){socket.emit('trade:result',{ok:false,message:'Некорректное предложение обмена.'});return;}
-    if(from.location!==to.location){socket.emit('trade:result',{ok:false,message:'Для торговли вы должны находиться в одном секторе Зоны.'});return;}
+    if(from.location!==to.location||!inRange(from,to,INTERACTION_RADIUS)){socket.emit('trade:result',{ok:false,message:'Для торговли подойди к игроку на расстояние не более 8 метров.'});return;}
     const pending=(world.events||[]).filter(x=>x.type==='trade'&&x.offer?.status!=='accepted'&&x.offer?.status!=='declined'&&x.offer?.expiresAt>Date.now()&&(x.offer?.from===fromId||x.offer?.to===fromId));
     if(pending.length>=5){socket.emit('trade:result',{ok:false,message:'Слишком много активных предложений. Заверши или дождись отмены старых.'});return;}
     const state=safeState(from.state).state, item=state.items?.find(x=>x.id===itemId);
@@ -474,7 +480,7 @@ io.on('connection', socket=>{
     if(Number(offer.expiresAt||0)<=Date.now()){offer.status='expired';socket.emit('trade:result',{ok:false,message:'Время предложения истекло.',offerId});io.to(offer.from).emit('trade:result',{ok:false,message:'Время предложения обмена истекло.',offerId});persistWorld().catch(()=>{});return;}
     const from=online.get(offer.from), to=online.get(toId);
     if(!from||!to){socket.emit('trade:result',{ok:false,message:'Один из игроков отключился.',offerId});return;}
-    if(from.location!==to.location){socket.emit('trade:result',{ok:false,message:'Игроки больше не находятся в одном секторе.',offerId});return;}
+    if(from.location!==to.location||!inRange(from,to,INTERACTION_RADIUS)){offer.status='declined';socket.emit('trade:result',{ok:false,message:'Игроки должны находиться рядом — не дальше 8 метров.',offerId});io.to(offer.from).emit('trade:result',{ok:false,message:'Сделка отменена: игроки отошли дальше 8 метров.',offerId});persistWorld().catch(()=>{});return;}
     if(!accept){offer.status='declined';const syncEvent=appendWorldEvent(world,'trade_declined',{offerId:offer.id,by:to.name});io.emit('world:event',syncEvent);io.to(offer.from).emit('trade:result',{ok:true,message:`${to.name} отклонил обмен.`,offerId});socket.emit('trade:result',{ok:true,message:'Обмен отклонён.',offerId});await persistWorld();return;}
     offer.status='processing';
     try{
@@ -728,7 +734,7 @@ setInterval(async()=>{
     world.onlineMetrics ||= {totalJoins:0,totalMoves:0,lastTickAt:0}; world.onlineMetrics.lastTickAt=now;
     const tickEvent=appendWorldEvent(world,'world_tick',{npcEvents:events.length,activeNpcs:Object.values(world.npcState||{}).filter(n=>n.alive).length},now);
     io.emit('world:event',tickEvent);
-    for(const event of [...events,...ecoEvents,...soulEvents]){const ev=appendWorldEvent(world,event.type,{...event},now);io.emit('world:event',ev);io.emit('world:npc-event',event);if(['npc_skirmish','mutant_migration','anomaly_migration','convoy_ambush','convoy_started'].includes(event.type))systemMessage(event.text);}
+    for(const event of [...events,...ecoEvents,...soulEvents]){const ev=appendWorldEvent(world,event.type,{...event},now);io.emit('world:event',ev);io.emit('world:npc-event',event);if(['npc_skirmish','mutant_npc_combat','mutant_migration','anomaly_migration','convoy_ambush','convoy_started'].includes(event.type))systemMessage(event.text);}
     await persistWorld(); io.emit('world:npcs',world.npcPositions);
     emitNpcState();io.emit('world:leaderboard',leaderboardPayload());io.emit('world:ecosystem',world.ecosystem);
     io.emit('world:status',publicWorldStatus(world,online.size));

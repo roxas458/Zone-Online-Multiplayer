@@ -899,7 +899,7 @@ body.title-screen-active .survival-hud{display:none}
 .camp-section-nav button{font-size:12px;padding:7px 10px}
 
 
-/* 4.33.31 — compact clickable player markers and field interaction cards */
+/* 4.33.32 — compact clickable player markers and field interaction cards */
 .zone-map .map-player-hit{cursor:pointer;pointer-events:all}
 .zone-map .map-player-hit .marker-hit-area{fill:transparent;stroke:none;pointer-events:all}
 .zone-map .map-player-hit:focus .marker-dot,.zone-map .map-player-hit:hover .marker-dot{stroke:#fff4b7;stroke-width:5}
@@ -909,3 +909,14 @@ body.title-screen-active .survival-hud{display:none}
 .map-player-row>span{display:flex;flex-direction:column;gap:3px;min-width:0}.map-player-row small{font-size:10px;color:#b8b69d}.map-player-row em{font-size:11px;color:#e5d49a;font-style:normal;white-space:nowrap}
 .map-player-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin-top:10px}.map-player-actions button{min-height:40px;padding:7px;font-size:11px}
 @media(max-width:520px){.map-player-actions{grid-template-columns:1fr}.map-player-row{min-height:48px}}
+
+/* 4.33.32 — dedicated player-to-player trade sheet (separate from NPC shop). */
+.map-player-trade-fields{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:9px 0}
+.map-player-trade-fields label{display:grid;gap:4px;color:#d6d0b8;font-size:11px}
+.map-player-trade-fields input,.map-entity-card select{width:100%;min-width:0}
+.map-trade-submit{width:100%;margin:8px 0;background:#65764b;border-color:#9aa978;color:#fff}
+.map-entity-card h4{margin:12px 0 5px;color:#d9c99a;font-size:11px;letter-spacing:.08em;text-transform:uppercase}
+.map-entity-card .map-player-row{flex-wrap:wrap}
+.map-entity-card .map-player-row>button{margin-left:auto;min-height:32px;padding:5px 8px}
+.npc-trade-window .npc-stock{max-height:340px;overflow:auto;overscroll-behavior:contain}
+@media(max-width:520px){.map-player-trade-fields{grid-template-columns:1fr 1fr}.map-entity-card .map-player-row>button{width:100%;margin:4px 0 0}}

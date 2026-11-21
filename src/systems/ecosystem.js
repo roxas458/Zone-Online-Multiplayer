@@ -22,8 +22,10 @@ function initEcosystem(world){
 function addEcoEvent(world,type,text,now=Date.now()){const e=initEcosystem(world);const event={id:crypto.randomUUID(),type,text,at:now};e.events.unshift(event);e.events=e.events.slice(0,40);e.revision++;return event;}
 function tickEcosystem(world,random=Math.random,now=Date.now()){
  const e=initEcosystem(world),events=[];
- for(const pack of e.mutantPacks){if(random()<.38){const from=pack.location;pack.location=ZONES[Math.floor(random()*ZONES.length)];if(from!==pack.location)events.push(addEcoEvent(world,'mutant_migration',`Следы группы «${pack.species}» замечены: ${from} → ${pack.location}.`,now));}
+ for(const pack of e.mutantPacks){if(random()<.24){const from=pack.location;pack.location=ZONES[Math.floor(random()*ZONES.length)];if(from!==pack.location)events.push(addEcoEvent(world,'mutant_migration',`Следы группы «${pack.species}» замечены: ${from} → ${pack.location}.`,now));}
   if(random()<.12){pack.count=Math.max(1,Math.min(12,pack.count+(random()<.55?1:-1)));pack.aggression=Math.max(10,Math.min(100,pack.aggression+(random()<.5?5:-4)));}
+  const nearbyNpcs=Object.values(world.npcState||{}).filter(n=>n.alive!==false&&n.location===pack.location&&now-(Number(n.lastMutantAttackAt)||0)>90000);
+  if(nearbyNpcs.length&&pack.count>0&&now-(Number(pack.lastAttackAt)||0)>90000&&random()<.16){const target=nearbyNpcs[Math.floor(random()*nearbyNpcs.length)],damage=4+Math.floor(random()*9);target.lastMutantAttackAt=now;pack.lastAttackAt=now;target.health=Math.max(0,(Number(target.health)||100)-damage);target.action='combat';target.behavior='combat';target.mood='в бою';pack.count=Math.max(0,pack.count-(random()<.22?1:0));if(target.health<=0){target.alive=false;target.action='dead';target.deathCause=`погиб в схватке с мутантами (${pack.species})`;target.diedAt=now;target.combatDeaths=(Number(target.combatDeaths)||0)+1;}events.push(addEcoEvent(world,'mutant_npc_combat',`Группа «${pack.species}» атаковала ${target.name} в секторе ${pack.location}. ${target.alive===false?'Сталкер погиб.':`Здоровье сталкера: ${Math.round(target.health)}%.`}`,now));}
   pack.updatedAt=now;
  }
  // Anomaly fields are not fixed map decorations: unstable fields can drift between nearby expeditions.

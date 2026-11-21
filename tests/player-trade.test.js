@@ -72,3 +72,39 @@ test('player trade rejects an item stack overflow without changing either profil
   assert.equal(seller.items[0].qty, 2);
   assert.equal(buyer.items[0].qty, 9999);
 });
+
+test('player trade offer and acceptance both require players to be within the interaction radius', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const server = fs.readFileSync(path.join(__dirname, '..', 'server.js'), 'utf8');
+  const offer = server.slice(server.indexOf("socket.on('trade:offer'"), server.indexOf("socket.on('trade:respond'"));
+  const accept = server.slice(server.indexOf("socket.on('trade:respond'"), server.indexOf("socket.on('squad:"));
+  assert.match(offer, /!inRange\(from,to,INTERACTION_RADIUS\)/);
+  assert.match(accept, /!inRange\(from,to,INTERACTION_RADIUS\)/);
+});
+
+test('server shop includes new survival foods and weapons for NPC traders', () => {
+  const { SHOP, TRADE_ITEM_IDS } = require('../src/shared/game-data');
+  for (const id of ['energy_drink','chocolate','nuts','smoked_meat','weapon_pm','weapon_aks74u','weapon_toz34','weapon_ak74','weapon_vintar']) {
+    assert.ok(SHOP[id], `missing shop item ${id}`);
+    assert.ok(TRADE_ITEM_IDS.has(id), `missing trade permission ${id}`);
+  }
+});
+
+
+test('NPC weapon stock is restricted to major traders', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const server = fs.readFileSync(path.join(__dirname, '..', 'server.js'), 'utf8');
+  assert.match(server, /NPC_WEAPON_STOCK = new Set/);
+  assert.match(server, /weaponLocked=NPC_WEAPON_STOCK\.has\(item\)&&!isRich/);
+  assert.match(server, /Оружие продают только крупные торговцы Зоны/);
+});
+
+
+test('zero weapon stock remains locked after NPC restocking', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const server = fs.readFileSync(path.join(__dirname, '..', 'server.js'), 'utf8');
+  assert.match(server, /if\(max===0\)\{account\.stock\[item\]=0;continue;\}/);
+});

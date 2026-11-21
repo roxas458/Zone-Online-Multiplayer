@@ -37,7 +37,11 @@ window.ZONE_CONTENT = {
     condensed:{satiety:20,hydration:0,stamina:12},
     water:{satiety:0,hydration:42,stamina:2},
     tea:{satiety:2,hydration:30,stamina:8},
-    ration:{satiety:42,hydration:8,stamina:5}
+    ration:{satiety:42,hydration:8,stamina:5},
+    energy_drink:{satiety:4,hydration:18,stamina:22},
+    chocolate:{satiety:14,hydration:0,stamina:18},
+    nuts:{satiety:22,hydration:0,stamina:10},
+    smoked_meat:{satiety:38,hydration:0,stamina:3}
   },
   npcs: [
     {id:"renegade_leader",name:"Грач",role:"Главарь ренегатов",loc:"swamps",faction:"Ренегаты",icon:"☠",desc:"Держит небольшую группу мародёров на окраине болот.",greeting:"Не стой на тропе. Здесь чужие долго не задерживаются.",topics:[["Кто такие ренегаты?","Те, кто не захотел подчиняться ни военным, ни группировкам. На болотах каждый сам себе закон."],["Что на болотах?","Топи меняются после каждого сильного дождя. И не все следы на воде оставлены людьми."]] },
