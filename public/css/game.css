@@ -770,7 +770,7 @@ body.title-screen-active #characterSetup{z-index:10010}
 }
 
 
-/* ZONE ONLINE 4.33.23 — desktop full-viewport layout and CoP-style survival HUD */
+/* ZONE ONLINE 4.33.24 — desktop full-viewport layout and CoP-style survival HUD */
 html,body{width:100%;min-height:100%;margin:0}
 body{overflow-x:hidden}
 header{width:100%;min-width:0}
@@ -835,3 +835,28 @@ main>.right{min-width:0;align-content:start}
  .hud-weapon-copy strong{font-size:9px}
 }
 body.title-screen-active .survival-hud{display:none}
+
+/* 4.33.24 — readable faction and mutant map markers + tap details */
+.zone-map .world-squad-marker,.zone-map .marker-mutant{cursor:pointer;pointer-events:all}
+.zone-map .world-squad-marker:focus,.zone-map .marker-mutant:focus{outline:none;filter:drop-shadow(0 0 5px #fff2b0)}
+.zone-map .world-squad-marker .squad-count{font:bold 10px Tahoma,Arial,sans-serif;fill:#10150f;stroke:#f5edce;stroke-width:.45px;paint-order:stroke;pointer-events:none}
+.zone-map .marker-mutant{color:#ed5148}
+.zone-map .marker-mutant .marker-dot{fill:#e34e43;stroke:#ffd0c8;stroke-width:2}
+.zone-map .marker-mutant text{font:bold 11px Tahoma,Arial,sans-serif;fill:#fff2e9;stroke:#5b1714;stroke-width:1.5px;paint-order:stroke}
+.map-entity-card{position:relative;z-index:4;margin:8px 0 0;padding:12px;background:linear-gradient(145deg,#242a22f5,#111710f8);border:1px solid #8b8663;box-shadow:0 8px 22px #0009;color:#e8e2c9}
+.map-entity-card[hidden]{display:none}
+.map-entity-head{display:flex;align-items:center;justify-content:space-between;gap:12px;font:700 11px monospace;letter-spacing:1px;color:#e5d49a}
+.map-entity-head button{min-width:36px;min-height:34px;background:#34392d;border:1px solid #777253;color:#f4e9c4;font-size:20px}
+.map-entity-meta{font-size:11px;color:#aaa98f;margin:5px 0 9px}
+.map-entity-members{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+.map-entity-member{display:flex;align-items:center;gap:8px;min-width:0;padding:8px;background:#343a2d;border:1px solid #686b4e}
+.map-entity-member>span:nth-child(2){display:flex;flex:1;min-width:0;flex-direction:column}
+.map-entity-member b{font-size:12px;overflow-wrap:anywhere}
+.map-entity-member small{font-size:10px;color:#b8b69d}
+.map-entity-member em{font-size:10px;color:#d9d0a7;font-style:normal}
+.map-entity-dot{width:9px;height:9px;flex:none;border-radius:50%;background:#e7c34f;box-shadow:0 0 8px currentColor}
+.map-entity-dot.marker-friendly{background:#70c66b}.map-entity-dot.marker-enemy{background:#e34e43}.map-entity-dot.marker-neutral{background:#e7c34f}
+.map-entity-action{margin-top:9px;width:100%;min-height:40px}
+.map-mutant-count{display:flex;align-items:baseline;gap:10px;padding:8px 0;color:#f08a78}
+.map-mutant-count strong{font-size:30px;font-family:monospace}.map-mutant-count span{font-size:12px;color:#c2bba3}
+@media(max-width:650px){.map-entity-members{grid-template-columns:1fr}.map-entity-card{padding:10px}.map-entity-member{min-height:42px}}

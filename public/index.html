@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>ZONE ONLINE 4.33.23 — MAIN MENU</title>
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>ZONE ONLINE 4.33.24 — MAIN MENU</title>
 <link rel="stylesheet" href="/css/game.css"></head><body>
 <div class="title-screen" id="titleScreen" aria-label="Главное меню ZONE ONLINE">
   <div class="title-atmosphere"></div><div class="title-grain"></div>
@@ -15,7 +15,7 @@
     <div class="title-panel-bottom"><span>ЗОНА АКТИВНА</span><span>НЕ ТЕРЯЙ БДИТЕЛЬНОСТЬ</span></div>
   </section>
   <div class="title-bottom-left"><span class="title-status-led"></span> СИСТЕМА КПК · ОФЛАЙН / ОНЛАЙН</div>
-  <div class="title-version">ZONE ONLINE · VER. 4.33.23</div>
+  <div class="title-version">ZONE ONLINE · VER. 4.33.24</div>
   <section class="title-options-panel" id="titleOptionsPanel" hidden aria-label="Настройки игры">
     <div class="title-panel-top"><span>ПОЛЕВОЙ ТЕРМИНАЛ / ПАРАМЕТРЫ</span><span>ЛИЧНЫЕ НАСТРОЙКИ</span></div>
     <h2>Настройки</h2>
@@ -25,7 +25,7 @@
     <label><span><b>Компактный интерфейс</b><small>Уменьшить отступы и плотнее расположить панели</small></span><input type="checkbox" id="titleCompact" onchange="setGameOption('compactUI',this.checked)"></label>
     <div class="title-options-actions"><button class="title-action title-primary" onclick="closeTitleOptions()"><span>Назад в меню</span></button></div>
   </section>
-  <div class="title-credit-pop" id="titleCredits" hidden><div class="title-credit-card"><button class="title-credit-close" onclick="hideTitleCredits()">×</button><div class="eyebrow">ПОЛЕВОЙ ТЕРМИНАЛ</div><h2>ZONE ONLINE</h2><p>Авторский браузерный симулятор жизни в Зоне. Исследуй локации, вступай в группировки, выполняй задания и взаимодействуй с другими сталкерами.</p><p class="muted small">Версия 4.33.23 · Независимый фанатский проект.</p><button onclick="hideTitleCredits()">Закрыть</button></div></div>
+  <div class="title-credit-pop" id="titleCredits" hidden><div class="title-credit-card"><button class="title-credit-close" onclick="hideTitleCredits()">×</button><div class="eyebrow">ПОЛЕВОЙ ТЕРМИНАЛ</div><h2>ZONE ONLINE</h2><p>Авторский браузерный симулятор жизни в Зоне. Исследуй локации, вступай в группировки, выполняй задания и взаимодействуй с другими сталкерами.</p><p class="muted small">Версия 4.33.24 · Независимый фанатский проект.</p><button onclick="hideTitleCredits()">Закрыть</button></div></div>
 </div>
 \n<div class="overlay" id="characterSetup"><div class="dialog-card"><div class="eyebrow">СОЗДАНИЕ ПЕРСОНАЖА / НОВЫЙ СТАЛКЕР</div><h2>Добро пожаловать в Зону</h2><p class="muted small">Выбери сторону и позывной. Это будет отображаться в профиле и у других игроков.</p><label class="small">Позывной</label><input class="field" id="setupCallsign" maxlength="24" placeholder="Например, Север" style="width:100%;margin:5px 0 12px"><div class="section">Выбери группировку</div><div class="setup-grid" id="setupFactions"></div><div class="mutedbox small" id="factionDescription">Выбери группировку, чтобы прочитать её описание.</div><div class="mutedbox small" id="setupSpawnInfo">Точка появления будет выбрана по группировке.</div><div class="rightbuttons" style="justify-content:flex-end;margin-top:14px"><button onclick="confirmCharacter()">Начать игру</button></div></div></div>
 <div class="overlay" id="combatOverlay"><div class="dialog-card"><div class="eyebrow">ТАКТИЧЕСКАЯ СИТУАЦИЯ / СТОЛКНОВЕНИЕ</div><div class="combat-head"><h2 id="combatTitle">Контакт</h2><span class="tag" id="combatRisk">Опасность</span></div><div class="combat-card"><div class="enemy-art" id="enemyIcon">☣</div><b id="enemyName">Противник</b><div class="desc" id="enemyDesc">Непредвиденная встреча в Зоне.</div><div class="small">Состояние противника: <b id="enemyHpText">100%</b></div><div class="combat-meter"><i id="enemyHpBar" style="width:100%"></i></div><div class="small">Твоё здоровье: <b id="playerHpText">100%</b></div><div class="combat-meter"><i id="playerHpBar" style="width:100%;background:#8fa96b"></i></div><div class="small">Снаряжение: <b id="combatWeapon">—</b></div></div><div class="combat-actions"><button class="battle-button" onclick="combatAction('attack')">⚔ Действовать</button><button onclick="combatAction('guard')">▣ Укрыться</button><button onclick="combatAction('med')">✚ Аптечка</button><button onclick="combatAction('retreat')">↩ Отступить</button></div><div class="section">Ход столкновения</div><div class="combat-log" id="combatLog"></div><p class="muted small">Боевая система условная и пошаговая: исход зависит от характеристик игрового снаряжения, состояния персонажа и случайности.</p></div></div>
@@ -49,7 +49,7 @@
     </div>
   </div>
 </section>
-<header><div class="logo">S.T.A.L.K.E.R. // ZONE ONLINE<small>FIELD PDA · LIVING WORLD · BUILD 4.33.23</small></div><div class="header-actions"><button class="fullscreen-trigger" type="button" onclick="toggleGameFullscreen()" aria-label="Переключить полноэкранный режим" title="Полноэкранный режим">⛶ <span>ЭКРАН</span></button><button class="main-menu-trigger" type="button" onclick="returnToTitleScreen()" aria-label="Вернуться в главное меню">☰ <span>МЕНЮ</span></button></div><div class="topstats"><span>₽ <b id="topMoney">—</b></span><span>♥ <b id="topHp">—</b></span><span>Голод <b id="topHunger">—</b></span><span>Жажда <b id="topThirst">—</b></span><span>☢ Радиация <b id="topRadiation">0%</b></span><span>☼ <b id="topDay">—</b></span><span>⌖ <b id="topLoc">—</b></span></div></header>
+<header><div class="logo">S.T.A.L.K.E.R. // ZONE ONLINE<small>FIELD PDA · LIVING WORLD · BUILD 4.33.24</small></div><div class="header-actions"><button class="fullscreen-trigger" type="button" onclick="toggleGameFullscreen()" aria-label="Переключить полноэкранный режим" title="Полноэкранный режим">⛶ <span>ЭКРАН</span></button><button class="main-menu-trigger" type="button" onclick="returnToTitleScreen()" aria-label="Вернуться в главное меню">☰ <span>МЕНЮ</span></button></div><div class="topstats"><span>₽ <b id="topMoney">—</b></span><span>♥ <b id="topHp">—</b></span><span>Голод <b id="topHunger">—</b></span><span>Жажда <b id="topThirst">—</b></span><span>☢ Радиация <b id="topRadiation">0%</b></span><span>☼ <b id="topDay">—</b></span><span>⌖ <b id="topLoc">—</b></span></div></header>
 <div class="mobile-dock" aria-label="Быстрая навигация">
 <button data-v="home"><span>⌂</span>Обзор</button><button data-v="world"><span>▦</span>Карта</button><button data-v="people"><span>☻</span>Люди</button><button data-v="squads"><span>⚑</span>Отряды</button><button data-v="quests"><span>☷</span>Задания</button><button type="button" onclick="toggleMobileMenu()"><span>☰</span>Ещё</button>
 </div>
@@ -136,4 +136,4 @@ window.loadZoneSocketClient = async function loadZoneSocketClient() {
 window.zoneSocketClientReady = window.loadZoneSocketClient();
 </script>
 <script src="/js/content.js"></script><script src="/js/stories.js"></script><script src="/js/survival.js?v=4.33.12"></script>
-<script src="/js/game.js?v=4.33.23" defer></script></body></html>
+<script src="/js/game.js?v=4.33.24" defer></script></body></html>

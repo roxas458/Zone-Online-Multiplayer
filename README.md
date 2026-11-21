@@ -1,4 +1,4 @@
-# ZONE ONLINE 4.33.23
+# ZONE ONLINE 4.33.24
 
 Обновление главного меню: атмосферный стартовый экран, продолжение и загрузка локального сохранения, запуск новой игры с выбором группировки и позывного, переход к сетевой игре и опциям. Адаптивная компоновка для мобильных экранов.
 
@@ -7,7 +7,7 @@
 Новая игра заменяет текущее локальное сохранение после подтверждения. Продолжение использует сохранение браузера.
 
 
-## 4.33.23 — Full-viewport layout and survival HUD
+## 4.33.24 — Full-viewport layout and survival HUD
 
 - Desktop game layout now expands to the full browser viewport instead of being constrained to a narrow centered canvas.
 - Added an optional browser Fullscreen API control in the game header.
