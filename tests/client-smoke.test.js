@@ -415,8 +415,8 @@ test('4.25 field PDA keeps long-page filters and map controls reachable', () => 
 test('4.33 build labels are consistent', () => {
   const html = fs.readFileSync(path.join(root, 'public/index.html'), 'utf8');
   const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
-  assert.equal(pkg.version, '4.33.9');
-  assert.match(html, /BUILD 4\.33\.9/);
+  assert.equal(pkg.version, '4.33.10');
+  assert.match(html, /BUILD 4\.33\.10/);
   assert.match(html, /ZONE ONLINE 4\.33/);
 });
 
@@ -578,7 +578,7 @@ test('4.33 survival and expedition features are wired into the game and server',
   const client=fs.readFileSync(path.join(root,'public/js/game.js'),'utf8');
   const server=fs.readFileSync(path.join(root,'server.js'),'utf8');
   const data=fs.readFileSync(path.join(root,'src/shared/game-data.js'),'utf8');
-  assert.match(html,/survival\.js\?v=4\.33\.9/);
+  assert.match(html,/survival\.js\?v=4\.33\.10/);
   assert.match(html,/Подготовить рюкзак/);
   assert.match(html,/Охота на мутантов/);
   assert.match(client,/function tickSurvival\(/);
@@ -625,3 +625,5 @@ test('4.33.9 persists the last player state on disconnect and flushes state duri
   assert.match(server, /await Promise\.all\(\[\.\.\.online\.values\(\)\]/);
   assert.match(server, /await persistWorld\(\)/);
 });
+
+test('hunger and thirst display helper rounds percentages to whole numbers',()=>{const {context}=bootClient();assert.equal(context.needPercent(58.034012666666655),58);assert.equal(context.needPercent(99.8),100);assert.equal(context.needPercent(-3),0);assert.equal(context.needPercent(120),100);});

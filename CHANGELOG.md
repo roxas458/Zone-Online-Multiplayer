@@ -1,3 +1,8 @@
+## 4.33.10
+- Reworked generated NPC callsigns and migrated existing non-story NPC names.
+- Rounded hunger/thirst display to whole percentages without changing simulation precision.
+- Bumped client asset cache versions.
+
 # Changelog
 
 ## 4.33.9 — Multiplayer target and stalker callsigns
