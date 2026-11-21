@@ -26,3 +26,13 @@ test('all supported faction leaderboard emblems exist as local assets', () => {
     assert.ok(fs.existsSync(path.join(assets, file)), `missing faction emblem ${file}`);
   }
 });
+
+
+test('faction leaderboard is rendered inside the Factions tab, not the Ranks tab', () => {
+  const html = fs.readFileSync(path.join(root, 'public/index.html'), 'utf8');
+  const ranks = html.slice(html.indexOf('id="ranks"'), html.indexOf('id="stories"'));
+  const factions = html.slice(html.indexOf('id="factions"'), html.indexOf('id="living"'));
+  assert.doesNotMatch(ranks, /factionLeaderboard|Рейтинг группировок/);
+  assert.match(factions, /factionLeaderboard/);
+  assert.match(factions, /factionRankDetail/);
+});

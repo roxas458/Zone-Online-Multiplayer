@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { LOCATIONS, FACTIONS, NPC_HOME, COOP_TEMPLATES, TRADE_ITEM_IDS, SHOP, TERRITORY_START } = require('../src/shared/game-data');
+const { LOCATIONS, FACTIONS, NPC_HOME, COOP_TEMPLATES, TRADE_ITEM_IDS, SHOP, TERRITORY_START, createFactionDiplomacy } = require('../src/shared/game-data');
 const { clean, validId, createSafeState } = require('../src/server/validation');
 const { initSharedWorld, initDiplomacy } = require('../src/server/world');
 
@@ -47,6 +47,27 @@ test('safeState handles null, arrays and malformed numeric values safely', () =>
   assert.equal(safeState({ money: 'NaN', hp: '-5', xp: '1e99' }).state.money, 0);
   assert.equal(safeState({ money: 'NaN', hp: '-5', xp: '1e99' }).state.hp, 0);
   assert.equal(safeState({ money: 'NaN', hp: '-5', xp: '1e99' }).state.xp, 1e7);
+});
+
+test('canon faction diplomacy is symmetric and gives Monolith hostility toward every faction', () => {
+  const relations = createFactionDiplomacy([...FACTIONS]);
+  for (const a of FACTIONS) for (const b of FACTIONS) if (a !== b) {
+    assert.equal(relations[a][b], relations[b][a], `${a} / ${b} must be symmetric`);
+    if (b !== 'Монолит') assert.equal(relations['Монолит'][b], -60);
+  }
+  for (const enemy of ['Долг','Бандиты','Военные','Наёмники','Монолит','Ренегаты']) assert.ok(relations['Свобода'][enemy] <= -25);
+  assert.ok(relations['Учёные']['Одиночки'] >= 0);
+});
+
+test('old world diplomacy migrates once to canon defaults and preserves later changes', () => {
+  const world = { diplomacy: {'Одиночки': {'Долг': 55}}, revision: 1 };
+  initDiplomacy(world, FACTIONS);
+  assert.equal(world.diplomacy['Свобода']['Монолит'], -60);
+  assert.equal(world.diplomacy['Свобода']['Наёмники'], -45);
+  assert.equal(world.diplomacy['Одиночки']['Долг'], 10);
+  world.diplomacy['Одиночки']['Долг'] = 22;
+  initDiplomacy(world, FACTIONS);
+  assert.equal(world.diplomacy['Одиночки']['Долг'], 22);
 });
 
 test('world bootstrap creates NPC positions, quests and diplomacy', () => {
@@ -194,7 +215,7 @@ test('NPC warfare creates server-side battles and convoy events between hostile 
   const world = { npcPositions: { duty:'cordon', freedom:'cordon' }, npcState: {
     duty:{id:'duty',name:'Долговец',faction:'Долг',location:'cordon',alive:true,health:100,morale:60,supplies:60},
     freedom:{id:'freedom',name:'Свободовец',faction:'Свобода',location:'cordon',alive:true,health:100,morale:60,supplies:60}
-  }, npcEvents:[], zoneEvents:[], diplomacy:{'Долг':{'Свобода':0},'Свобода':{'Долг':0}} };
+  }, npcEvents:[], zoneEvents:[] };
   const events = tickNpcWorld(world, ['cordon','dump'], () => 0.1, 1000000);
   assert.ok(events.some(e => e.type === 'npc_skirmish'));
   assert.equal(world.battlefronts.length, 1);

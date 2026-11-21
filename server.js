@@ -612,8 +612,10 @@ io.on('connection', socket=>{
     const state=safeState(p.state);if(state.money<costs[action]){socket.emit('diplomacy:result',{ok:false,message:'Недостаточно рублей.'});return;}
     state.state.money=state.money-costs[action];state.state.rep=(Number(state.state.rep)||0)+1;
     world.diplomacy[p.faction] ||= {};world.diplomacy[target] ||= {};
-    world.diplomacy[p.faction][target]=Math.min(60,(world.diplomacy[p.faction][target]||0)+delta[action]);
-    world.diplomacy[target][p.faction]=Math.min(60,(world.diplomacy[target][p.faction]||0)+Math.floor(delta[action]/2));
+    if (p.faction === 'Монолит' || target === 'Монолит') { socket.emit('diplomacy:result',{ok:false,message:'Отношения с Монолитом не поддаются дипломатическому изменению.'}); return; }
+    const updated=Math.min(60,(world.diplomacy[p.faction][target]||0)+delta[action]);
+    world.diplomacy[p.faction][target]=updated;
+    world.diplomacy[target][p.faction]=updated;
     const syncEvent=appendWorldEvent(world,'diplomacy_changed',{from:p.faction,to:target,action,delta:delta[action]});
     p.state=state.state;await persistPlayer(p.id,p.state);await persistWorld(); io.emit('world:event',syncEvent);
     io.emit('world:update',{world,notice:`${p.name} провёл дипломатическую миссию между «${p.faction}» и «${target}».`});
@@ -653,7 +655,7 @@ setInterval(async()=>{
       if(order.encounterAt&&!order.encounterChecked&&before>0&&Math.hypot(order.x-p.x,order.y-p.y)<=order.distance*(1-order.encounterAt)){
         order.encounterChecked=true;
         const groups=(world.npcGroups||[]).filter(g=>g.location===p.location&&g.faction!==p.faction&&g.members?.length>=2);
-        const hostile=groups.find(g=>{const hostileMap={'Долг':['Свобода','Бандиты','Монолит'],'Свобода':['Долг','Бандиты','Монолит'],'Одиночки':['Бандиты','Монолит'],'Бандиты':['Одиночки','Долг','Свобода','Военные'],'Военные':['Бандиты','Монолит'],'Наёмники':['Монолит'],'Монолит':['Одиночки','Долг','Свобода','Военные','Наёмники']};return (hostileMap[p.faction]||[]).includes(g.faction);});
+        const hostile=groups.find(g=>isHostileFaction(p.faction,g.faction,world.diplomacy));
         const type=hostile?'hostile_squad':'mutants';const label=hostile?`замечен отряд «${hostile.name}» (${hostile.faction})`:'обнаружены следы мутантов и движение в кустах';
         p.travelEncounter={type,groupId:hostile?.id||null,at:Date.now()};io.to(p.id).emit('player:travel-event',{type,npcId:hostile?.members?.[0]||null,groupId:hostile?.id||null,message:`На маршруте: ${label}. Движение остановлено. Продолжить путь или отступить?`});
       }

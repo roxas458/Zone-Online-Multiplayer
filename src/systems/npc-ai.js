@@ -10,11 +10,14 @@ const NPC_FACTIONS = Object.freeze({
 const ROLES = Object.freeze({ sid:'торговец', wolf:'сталкер', fanatic:'сталкер', scout:'разведчик', bandit:'бандит', barman:'торговец', seriy:'сталкер', scientist:'учёный', merc:'наёмник', prof:'учёный', freedom:'боец', guide:'проводник', loner:'сталкер', lebedev:'командир', novikov:'техник', cold:'боец', renegade_leader:'главарь ренегатов', renegade_scout:'разведчик ренегатов', lukash:'командир', voronin:'командир', sultan:'главарь', beard:'торговец', charon:'командир', wolfhound:'боец', archivist:'учёный', kravtsov:'военный', monolith_scout:'разведчик' });
 const { TERRITORY_ADJACENCY, homeForFaction, nearestFriendlyLocation, canEnterTerritory } = require('./territories');
 const { buildDialogue, interactDialogue } = require('./npc-dialogue');
+const { createFactionDiplomacy, FACTIONS } = require('../shared/game-data');
+const DEFAULT_DIPLOMACY = createFactionDiplomacy([...FACTIONS]);
 function isHostileFaction(a,b,diplomacy={}) {
-  if(!a||!b||a===b||a==='Учёные'||b==='Учёные') return false;
-  const enemies={ 'Долг':['Свобода','Бандиты','Монолит'], 'Свобода':['Долг','Бандиты','Монолит'], 'Одиночки':['Бандиты','Монолит'], 'Бандиты':['Одиночки','Долг','Свобода','Военные'], 'Военные':['Бандиты','Монолит'], 'Наёмники':['Монолит'], 'Монолит':['Одиночки','Долг','Свобода','Военные','Наёмники'], 'Ренегаты':['Одиночки','Долг','Свобода','Военные','Учёные','Чистое небо'] };
-  if((enemies[a]||[]).includes(b)) return true;
-  return Number(diplomacy?.[a]?.[b])<=-25;
+  if (!a || !b || a === b) return false;
+  if (a === 'Монолит' || b === 'Монолит') return true;
+  const canonical = Number(DEFAULT_DIPLOMACY[a]?.[b]);
+  const current = diplomacy?.[a]?.[b];
+  return Number.isFinite(Number(current)) ? Number(current) <= -25 : canonical <= -25;
 }
 const NPC_DISPLAY = {sid:'Сидорович',wolf:'Волк',fanatic:'Фанатик',scout:'Разведчик',bandit:'Бандит',barman:'Бармен',seriy:'Серый',scientist:'Учёный',merc:'Наёмник',prof:'Профессор Сахаров',freedom:'Свободовец',guide:'Проводник',loner:'Одиночка',lebedev:'Николай Лебедев',novikov:'Новиков',cold:'Холод',renegade_leader:'Грач',renegade_scout:'Шило',lukash:'Лукаш',voronin:'Генерал Воронин',sultan:'Султан',beard:'Борода',charon:'Харон',wolfhound:'Вольфхаунд',archivist:'Архивист',kravtsov:'Командир Кравцов',monolith_scout:'Монолитовский разведчик'};
 function createNpcRoster(npcHome, now = Date.now()) {

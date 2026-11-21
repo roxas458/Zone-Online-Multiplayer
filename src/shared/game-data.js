@@ -1,6 +1,31 @@
 // Shared game data: canonical IDs and static definitions used by server modules.
 const LOCATIONS = new Set(['chaes','zaton','pripyat','jupiter','limansk','red','radar','army','wild','bar','yantar','dump','agro','dark','cordon','swamps','darkhollow']);
 const FACTIONS = new Set(['Одиночки','Долг','Свобода','Бандиты','Военные','Учёные','Наёмники','Монолит','Чистое небо','Ренегаты']);
+
+// Canonical starting diplomacy for the trilogy-inspired sandbox. Values are symmetric:
+// -60 = open hostility, 0 = neutrality, +60 = close cooperation.
+const FACTION_RELATION_PAIRS = Object.freeze({
+  'Одиночки': {'Долг':10,'Свобода':10,'Бандиты':-45,'Военные':-35,'Учёные':30,'Наёмники':-15,'Монолит':-60,'Чистое небо':25,'Ренегаты':-50},
+  'Долг': {'Свобода':-60,'Бандиты':-55,'Военные':-40,'Учёные':30,'Наёмники':-45,'Монолит':-60,'Чистое небо':15,'Ренегаты':-50},
+  'Свобода': {'Бандиты':-45,'Военные':-50,'Учёные':25,'Наёмники':-45,'Монолит':-60,'Чистое небо':25,'Ренегаты':-55},
+  'Бандиты': {'Военные':-45,'Учёные':-20,'Наёмники':0,'Монолит':-60,'Чистое небо':-45,'Ренегаты':15},
+  'Военные': {'Учёные':45,'Наёмники':-40,'Монолит':-60,'Чистое небо':0,'Ренегаты':-45},
+  'Учёные': {'Наёмники':0,'Монолит':-60,'Чистое небо':35,'Ренегаты':-50},
+  'Наёмники': {'Монолит':-60,'Чистое небо':0,'Ренегаты':-15},
+  'Монолит': {'Чистое небо':-60,'Ренегаты':-60},
+  'Чистое небо': {'Ренегаты':-55}
+});
+function createFactionDiplomacy(factions) {
+  const result = Object.fromEntries(factions.map(name => [name, {}]));
+  for (const [a, relations] of Object.entries(FACTION_RELATION_PAIRS)) {
+    for (const [b, value] of Object.entries(relations)) {
+      if (result[a] && result[b]) { result[a][b] = value; result[b][a] = value; }
+    }
+  }
+  for (const a of factions) for (const b of factions) if (a !== b && result[a][b] === undefined) result[a][b] = 0;
+  return result;
+}
+
 const TERRITORY_START = Object.freeze({chaes:{owner:'Монолит',control:91},zaton:{owner:'Одиночки',control:52},pripyat:{owner:'Монолит',control:91},jupiter:{owner:'Свобода',control:58},limansk:{owner:'Наёмники',control:39},red:{owner:'Свобода',control:48},radar:{owner:'Монолит',control:84},army:{owner:'Свобода',control:67},wild:{owner:'Наёмники',control:42},bar:{owner:'Долг',control:78},yantar:{owner:'Учёные',control:88},dump:{owner:'Бандиты',control:61},agro:{owner:'Военные',control:72},dark:{owner:'Бандиты',control:63},cordon:{owner:'Одиночки',control:55},swamps:{owner:'Чистое небо',control:58},darkhollow:{owner:'Ренегаты',control:46}});
 const NPC_HOME = { sid:'cordon', wolf:'cordon', fanatic:'cordon', scout:'cordon', bandit:'dump', barman:'cordon', seriy:'cordon', scientist:'yantar', merc:'limansk', prof:'yantar', freedom:'army', guide:'cordon', loner:'zaton', lebedev:'swamps', novikov:'swamps', cold:'swamps', renegade_leader:'swamps', renegade_scout:'swamps', lukash:'army', voronin:'bar', sultan:'dump', beard:'zaton', charon:'pripyat', wolfhound:'limansk', monolith_scout:'radar', archivist:'yantar', kravtsov:'agro' };
 const TRADE_ITEM_IDS = new Set(['med','bread','bolt','scrap','bandage','anti_rad','artifact','canned','sausage','condensed','water','tea','ration','artifact_medusa','artifact_flower','artifact_dummy','artifact_meat','artifact_flash','artifact_nightstar','artifact_soul','artifact_goldfish','armor_leather','armor_stalker','armor_zarya','armor_seva','armor_bulat','armor_exo','mutant_trophy']);
@@ -17,4 +42,4 @@ const ZONE_EVENTS=[
  {title:'Сводка группировок',body:'На нескольких территориях замечены новые патрули. Баланс сил может измениться.'}
 ];
 
-module.exports = { LOCATIONS, FACTIONS, TERRITORY_START, NPC_HOME, TRADE_ITEM_IDS, SHOP, SELL_VALUES, COOP_TEMPLATES, ZONE_EVENTS };
+module.exports = { LOCATIONS, FACTIONS, FACTION_RELATION_PAIRS, createFactionDiplomacy, TERRITORY_START, NPC_HOME, TRADE_ITEM_IDS, SHOP, SELL_VALUES, COOP_TEMPLATES, ZONE_EVENTS };

@@ -101,12 +101,24 @@ function migrateWorld(){
  g.locations=base.locations.map(def=>{const oldLoc=(g.locations||[]).find(x=>migrateLoc(x.id)===def.id);return oldLoc?{...clone(def),owner:oldLoc.owner||def.owner,control:oldLoc.control??def.control}:clone(def)});
  for(const f of g.factions){const b=base.factions.find(x=>x.name===f.name);if(b&& !f.icon)f.icon=b.icon;}
  g.achievements ||= {}; g.diplomacy ||= {};
+ const canonicalDiplomacy={
+  'Одиночки':{'Долг':10,'Свобода':10,'Бандиты':-45,'Военные':-35,'Учёные':30,'Наёмники':-15,'Монолит':-60,'Чистое небо':25,'Ренегаты':-50},
+  'Долг':{'Свобода':-60,'Бандиты':-55,'Военные':-40,'Учёные':30,'Наёмники':-45,'Монолит':-60,'Чистое небо':15,'Ренегаты':-50},
+  'Свобода':{'Бандиты':-45,'Военные':-50,'Учёные':25,'Наёмники':-45,'Монолит':-60,'Чистое небо':25,'Ренегаты':-55},
+  'Бандиты':{'Военные':-45,'Учёные':-20,'Наёмники':0,'Монолит':-60,'Чистое небо':-45,'Ренегаты':15},
+  'Военные':{'Учёные':45,'Наёмники':-40,'Монолит':-60,'Чистое небо':0,'Ренегаты':-45},
+  'Учёные':{'Наёмники':0,'Монолит':-60,'Чистое небо':35,'Ренегаты':-50},
+  'Наёмники':{'Монолит':-60,'Чистое небо':0,'Ренегаты':-15},
+  'Монолит':{'Чистое небо':-60,'Ренегаты':-60},'Чистое небо':{'Ренегаты':-55}
+ };
+ if(Number(g.diplomacyVersion||0)<2){g.diplomacy={};for(const a of Object.keys(canonicalDiplomacy)){g.diplomacy[a]={};for(const [b,v] of Object.entries(canonicalDiplomacy[a])){g.diplomacy[a][b]=v;(g.diplomacy[b]||={})[a]=v;}}g.diplomacyVersion=2;}
+ for(const f of g.factions){g.diplomacy[f.name]||={};for(const other of g.factions){if(f.name!==other.name&&(f.name==='Монолит'||other.name==='Монолит'))g.diplomacy[f.name][other.name]=-60;else if(f.name!==other.name&&!Number.isFinite(Number(g.diplomacy[f.name][other.name])))g.diplomacy[f.name][other.name]=0;}}
  const names=['Васян Глюк','Лёша Дворецкий','Максим Скелет','Влад Князь','Колька Глобус','Андрюха Француз','Сева Грубиян','Пётр Авторитет','Жора Стрелец','Влад Железный','Андрей Шутник'];
  const roles=["Одиночка","Разведчик","Торговец","Проводник","Охотник за артефактами","Научный помощник"];
  const icons=["◉","♟","⌖","▣","⚑","◈","✚","☼"];
  const factions=g.factions.map(x=>x.name);
  for(const l of g.locations){l.people ||= []; if(l.people.length<6){for(let j=0;j<Math.min(3,6-l.people.length);j++){let id="wander_"+l.id+"_"+j;if(!g.npcs.some(n=>n.id===id)){let name=names[(g.npcs.length+j*3)%names.length];let role=roles[(g.npcs.length+j)%roles.length];let n={id,name,role,loc:l.id,icon:icons[(g.npcs.length+j)%icons.length],desc:"Случайный сталкер. У него есть собственные слухи о районе.",greeting:"Здорово. В этих местах лучше держать ухо востро. Что хотел узнать?",topics:[["Что нового в округе?",`Говорят, в районе «${l.name}» меняется обстановка. Кто-то ищет работу, кто-то — надёжный маршрут.`],["Кто здесь главный?",`Здесь пересекаются интересы разных групп. Сейчас заметнее всего влияние: ${l.owner}.`],["Есть работа?","Пока только слухи. Загляни позже — возможно, появится поручение."]]};n.faction=factions[(g.npcs.length+j)%factions.length];n.mood="нейтральное";g.npcs.push(n);l.people.push(id);}}}}
- for(const f of g.factions){g.diplomacy[f.name] ||= {};for(const other of g.factions){if(f.name!==other.name&&g.diplomacy[f.name][other.name]===undefined)g.diplomacy[f.name][other.name]=Math.max(-60,Math.min(60,Math.round(((f.relation||0)+(other.relation||0))/2)));}}
+
  if(!g.items.some(x=>x.id==="pm"))g.items.push({id:"pm",name:"ПМм",type:"Оружие",desc:"Служебный пистолет. Состояние: 78%.",weight:.9,qty:1,value:850,icon:"▰",condition:78});
  if(!g.items.some(x=>x.id==="shotgun"))g.items.push({id:"shotgun",name:"Обрез",type:"Оружие",desc:"Старое двуствольное ружьё. Состояние: 62%.",weight:2.4,qty:1,value:1250,icon:"╾",condition:62});
  if(!g.items.some(x=>x.id==="suit"))g.items.push({id:"suit",name:"Комбинезон сталкера",type:"Броня",desc:"Полевой костюм с базовой защитой.",weight:4.2,qty:1,value:1700,icon:"▤",condition:84});
@@ -305,7 +317,7 @@ function news(t,b){const c=realClock();g.news.unshift({day:c.day,hour:c.time,tit
 function addItem(id,name,type,desc,weight,value,qty=1){let x=g.items.find(i=>i.id===id);if(x)x.qty+=qty;else g.items.push({id,name,type,desc,weight,value,qty})}
 function count(id){return g.items.find(i=>i.id===id)?.qty||0}
 function take(id,n){let x=g.items.find(i=>i.id===id);if(!x||x.qty<n)return false;x.qty-=n;if(x.qty<=0)g.items=g.items.filter(i=>i.id!==id);return true}
-function view(id){if(id!=="people"&&$("npcDialogueOverlay")?.classList.contains("open"))closeTalk();document.querySelectorAll(".view").forEach(v=>v.classList.toggle("active",v.id===id));document.querySelectorAll("[data-v]").forEach(b=>b.classList.toggle("active",b.dataset.v===id));document.querySelector("main>aside.panel")?.classList.remove("mobile-open");if(id==="war")renderWar();if(id==="encyclopedia")renderEncyclopedia();if(id==="stories")renderStories();if(id==="people")renderPeople();if(id==="squads")renderSquads();if(id==="profile")renderProfile();if(id==="inventory")renderInventory();if(id==="trade")renderTrade();if(id==="settings")applyGameOptions();if(id==="world")renderMap();if(id==="ranks"){renderStalkerLeaderboard();renderFactionLeaderboard()}}
+function view(id){if(id!=="people"&&$("npcDialogueOverlay")?.classList.contains("open"))closeTalk();document.querySelectorAll(".view").forEach(v=>v.classList.toggle("active",v.id===id));document.querySelectorAll("[data-v]").forEach(b=>b.classList.toggle("active",b.dataset.v===id));document.querySelector("main>aside.panel")?.classList.remove("mobile-open");if(id==="war")renderWar();if(id==="encyclopedia")renderEncyclopedia();if(id==="stories")renderStories();if(id==="people")renderPeople();if(id==="squads")renderSquads();if(id==="profile")renderProfile();if(id==="inventory")renderInventory();if(id==="trade")renderTrade();if(id==="settings")applyGameOptions();if(id==="world")renderMap();if(id==="ranks"){renderStalkerLeaderboard()}if(id==="factions"){renderFactions();renderFactionLeaderboard()}}
 function toggleMobileMenu(){document.querySelector("main>aside.panel")?.classList.toggle("mobile-open")}
 document.addEventListener("keydown",e=>{if(e.key==="Escape"&&$("npcDialogueOverlay")?.classList.contains("open"))closeTalk();});
 document.querySelectorAll("[data-v]").forEach(b=>b.onclick=()=>{view(b.dataset.v);if(b.dataset.v==="armory")renderArmory();if(b.dataset.v==="inventory")renderInventory()});
@@ -336,7 +348,7 @@ const factionEmblems={
  'Одиночки':'loners.svg','Долг':'duty.svg','Свобода':'freedom.svg','Бандиты':'bandits.svg','Военные':'military.svg','Учёные':'scientists.svg','Наёмники':'mercenaries.svg','Монолит':'monolith.svg','Чистое небо':'clear-sky.svg'
 };
 let selectedFactionRank='';
-function factionRelationValue(a,b){const v=g.diplomacy?.[a]?.[b];if(Number.isFinite(Number(v)))return Math.max(-60,Math.min(60,Number(v)));const fa=g.factions.find(x=>x.name===a),fb=g.factions.find(x=>x.name===b);return Math.max(-60,Math.min(60,Math.round(((Number(fa?.relation)||0)+(Number(fb?.relation)||0))/2)));}
+function factionRelationValue(a,b){if(a==='Монолит'||b==='Монолит')return -60;const v=g.diplomacy?.[a]?.[b];if(Number.isFinite(Number(v)))return Math.max(-60,Math.min(60,Number(v)));const fa=g.factions.find(x=>x.name===a),fb=g.factions.find(x=>x.name===b);return Math.max(-60,Math.min(60,Math.round(((Number(fa?.relation)||0)+(Number(fb?.relation)||0))/2)));}
 function factionRankRows(){
  const factions=g.factions||[], roster=serverWorld?.npcState?Object.values(serverWorld.npcState):(g.npcs||[]), locations=g.locations||[];
  return factions.map(f=>{
@@ -677,7 +689,7 @@ function factionIconMarkup(name){const map={'Одиночки':'loners','Дол�
 function renderFactions(){
  $("factionList").innerHTML=g.factions.map(f=>`<div class="item block"><div style="display:flex;justify-content:space-between;align-items:center"><div style="display:flex;gap:9px;align-items:center"><span class="faction-emblem">${factionIconMarkup(f.name)}</span><b>${f.name}</b></div><span class="tag">${f.territories} террит.</span></div><div class="desc">${f.style} · ${f.members} участников</div><div class="small">Влияние ${f.influence}%</div><div class="bar"><i style="width:${f.influence}%"></i></div></div>`).join("");
  $("factionLeaders").innerHTML=g.factions.map(f=>{const x=f.leader||{name:"Неизвестно",title:"Нет единого лидера",canon:"",bio:""};return `<div class="leader-card"><div class="eyebrow">${escapeHtml(f.name)}</div><b>${escapeHtml(x.name)}</b><div class="desc">${escapeHtml(x.title)}</div><p class="small">${escapeHtml(x.bio)}</p><small class="muted">${escapeHtml(x.canon)}</small></div>`}).join("");
- $("relations").innerHTML=g.factions.map(f=>`<div class="item"><span>${f.name}</span><b class="${f.relation<0?'red':'gold'}">${f.relation>0?"+":""}${f.relation}</b></div>`).join("");
+ $("relations").innerHTML=g.factions.filter(f=>f.name!==g.faction).map(f=>{const v=factionRelationValue(g.faction,f.name);const label=v<=-25?"Враждебность":v>=25?"Сотрудничество":"Нейтралитет";return `<div class="item"><span>${escapeHtml(f.name)} <small class="muted">· ${label}</small></span><b class="${v<0?'red':'gold'}">${v>0?"+":""}${v}</b></div>`}).join("");
 }
 function renderArchive(){
  const timeline=window.ZONE_CONTENT?.timeline||[];
@@ -728,8 +740,8 @@ function playerDotMarkup(p){return `<g id="playerMapMarker" class="world-marker 
 function npcHeading(n,index=0){const d=n.direction??n.facing??n.heading;const named={up:0,north:0,right:90,east:90,down:180,south:180,left:270,west:270};return Number.isFinite(Number(d))?Number(d):named[String(d||'').toLowerCase()]??((index*47)%360)}
 function mapPoint(x,y,cls,label,extra='',heading=0){const arrow=['marker-friendly','marker-neutral','marker-enemy'].includes(cls)?`<path class="marker-direction" transform="scale(.34) rotate(${heading})" d="M0 -9 L-2.7 -4 L0 -5.5 L2.7 -4 Z"/>`:``;return `<g class="world-marker ${cls||''}" transform="translate(${x} ${y}) scale(.42)" ${extra}><circle class="marker-pulse" r="7"/>${arrow}<circle class="marker-dot" r="3.2"/><title>${escapeHtml(label||'Отметка')}${arrow?' · направление НПС':''}</title></g>`}
 function mapSquadPoint(x,y,cls,label,count,extra='',heading=0,names=''){const arrow=`<path class="marker-direction" transform="scale(.34) rotate(${heading})" d="M0 -9 L-2.7 -4 L0 -5.5 L2.7 -4 Z"/>`;return `<g class="world-marker world-squad-marker ${cls||''}" transform="translate(${x} ${y}) scale(.48)" ${extra}><circle class="marker-pulse" r="8"/>${arrow}<circle class="marker-dot" r="5"/><text class="squad-count" x="0" y="2.1" text-anchor="middle">${count}</text><title>${escapeHtml(label)} · ${escapeHtml(names)}</title></g>`}
-function isHostileNpcFaction(faction){if(!faction||faction===g.faction||faction==='Учёные')return false;const matrix={'Долг':['Свобода','Бандиты','Монолит'],'Свобода':['Долг','Бандиты','Монолит'],'Одиночки':['Бандиты','Монолит'],'Бандиты':['Одиночки','Долг','Свобода','Военные'],'Военные':['Бандиты','Монолит'],'Наёмники':['Монолит'],'Монолит':['Одиночки','Долг','Свобода','Военные','Наёмники'],'Ренегаты':['Одиночки','Долг','Свобода','Военные','Учёные','Чистое небо']};return (matrix[g.faction]||[]).includes(faction)||Number(g.diplomacy?.[g.faction]?.[faction])<=-25}
-function npcMarkerClass(n){if(n.faction===g.faction)return 'marker-friendly';if(isHostileNpcFaction(n.faction))return 'marker-enemy';const f=(g.factions||[]).find(x=>x.name===n.faction);if(Number(n.relationship??0)<-10||Number(f?.relation??0)<-15)return 'marker-enemy';return 'marker-neutral'}
+function isHostileNpcFaction(faction){if(!faction||faction===g.faction)return false;if(faction==='Монолит'||g.faction==='Монолит')return true;return factionRelationValue(g.faction,faction)<=-25;}
+function npcMarkerClass(n){if(n.faction===g.faction)return 'marker-friendly';if(isHostileNpcFaction(n.faction))return 'marker-enemy';const f=(g.factions||[]).find(x=>x.name===n.faction);if(Number(n.relationship??0)<-10)return 'marker-enemy';return 'marker-neutral'}
 function sectorMarkerPosition(id,index=0){const q=zoneSectorCoords[id];if(!q)return null;const angle=index*2.399963;const radius=18+((index%3)*9);return [q[0]+Math.cos(angle)*radius,q[1]+Math.sin(angle)*radius]}
 function hashMapSeed(value){let h=2166136261;for(const ch of String(value||'')){h^=ch.charCodeAt(0);h=Math.imul(h,16777619)}return h>>>0}
 const npcMapPositions=new Map();
@@ -827,7 +839,7 @@ function renderAtmosphere(){
 function radiationLevel(){return Math.max(0,Math.min(100,Number(g.radiation)||0))}
 function tickRadiation(){const hazards={chaes:1.8,radar:1.5,pripyat:1.1,red:.65,yantar:.45,swamps:.35,darkhollow:.3,limansk:.25};if(Date.now()<(g.radiationProtectionUntil||0))return;const exposure=hazards[g.loc]||0;if(exposure){g.radiation=Math.min(100,radiationLevel()+exposure);if(g.radiation>=35&&Math.random()<.18)g.hp=Math.max(1,g.hp-1);if(g.radiation>=70&&Math.random()<.25)g.stamina=Math.max(0,g.stamina-2);save();}}
 setInterval(()=>{tickRadiation();tickSurvival();if($('inventory')?.classList.contains('active'))renderInventory();},60000);
-setInterval(()=>{if($('ranks')?.classList.contains('active')){renderStalkerLeaderboard();renderFactionLeaderboard();}},15000);
+setInterval(()=>{if($('ranks')?.classList.contains('active'))renderStalkerLeaderboard();if($('factions')?.classList.contains('active'))renderFactionLeaderboard();},15000);
 function needPercent(value){const n=Number(value);return Math.round(Math.max(0,Math.min(100,Number.isFinite(n)?n:0)));}
 function render(){let l=here();$("topMoney").textContent=g.money.toLocaleString("ru-RU");$("topHp").textContent=g.hp+"%";$("topHunger").textContent=needPercent(g.hunger)+"%";$("topThirst").textContent=needPercent(g.thirst)+"%";const radEl=$("topRadiation");if(radEl)radEl.textContent=Math.round(radiationLevel())+"%";$("topDay").textContent=realClock().stamp;$("topLoc").textContent=l.name;$("sMoney").textContent=g.money+" ₽";$("sHp").textContent=g.hp+"%";$("sRep").textContent=g.rep;$("sDay").textContent=g.day;
 $("nearby").innerHTML=nearbyNpcs().slice(0,3).map(n=>`<div class="item"><div><b>${n.icon} ${n.name}</b><div class="desc">${n.role} · ${n.desc}</div></div><button onclick="meet('${n.id}')">Подойти</button></div>`).join("")||'<div class="mutedbox">Поблизости никого нет.</div>';

@@ -1,5 +1,5 @@
 // Shared world bootstrap helpers.
-const { TERRITORY_START } = require('../shared/game-data');
+const { TERRITORY_START, createFactionDiplomacy } = require('../shared/game-data');
 const { createNpcRoster } = require('../systems/npc-ai');
 const { ensureRandomNpcs } = require('../systems/npc-roster');
 const { buildDialogue } = require('../systems/npc-dialogue');
@@ -29,17 +29,20 @@ function initSharedWorld(world, NPC_HOME, LOCATIONS, COOP_TEMPLATES) {
 }
 
 function initDiplomacy(world, FACTIONS) {
-  const names = [...FACTIONS];
-  const baseline = {
-    'Одиночки':15, 'Долг':0, 'Свобода':0, 'Бандиты':-25,
-    'Военные':-20, 'Учёные':10, 'Наёмники':-5, 'Монолит':-35, 'Чистое небо':8, 'Ренегаты':-18
-  };
-  for (const a of names) {
+  // One-time migration replaces the old averaged-reputation matrix with canon defaults.
+  // Later calls preserve in-game diplomatic changes, except Monolith's permanent hostility.
+  if (Number(world.diplomacyVersion || 0) < 2) {
+    world.diplomacy = createFactionDiplomacy([...FACTIONS]);
+    world.diplomacyVersion = 2;
+  }
+  const defaults = createFactionDiplomacy([...FACTIONS]);
+  world.diplomacy ||= {};
+  for (const a of FACTIONS) {
     world.diplomacy[a] ||= {};
-    for (const b of names) {
-      if (a !== b && !Number.isFinite(world.diplomacy[a][b])) {
-        world.diplomacy[a][b] = Math.max(-60, Math.min(60, ((baseline[a] || 0) + (baseline[b] || 0)) / 2));
-      }
+    for (const b of FACTIONS) {
+      if (a === b) continue;
+      if (a === 'Монолит' || b === 'Монолит') world.diplomacy[a][b] = -60;
+      else if (!Number.isFinite(Number(world.diplomacy[a][b]))) world.diplomacy[a][b] = defaults[a][b];
     }
   }
 }
