@@ -1,4 +1,4 @@
-ZONE ONLINE 4.49.0
+ZONE ONLINE 4.50.0
 
 # ZONE ONLINE 4.39.0
 
@@ -219,3 +219,13 @@ ZONE ONLINE 4.49.0
 - A legacy profile without a session marker can still be claimed once during migration; this compatibility window cannot prove historical ownership.
 - Configure `ZONE_SESSION_SECRET` with a stable random secret of at least 32 bytes in the hosting environment (for example, generate one with `openssl rand -hex 48`). If omitted, the server generates an ephemeral secret and warns that guest sessions will be invalidated after process restart.
 - When PostgreSQL is unavailable, profiles remain memory-fallback only; session signing does not create durable profile storage.
+
+
+## 4.50.0 — NPC map interaction and layout fixes
+
+- Selecting an NPC marker on the map now only opens its information card; it does not issue a movement order.
+- The player starts approaching an NPC only after pressing **«Подойти для разговора»** in that card.
+- Added a dedicated `approachNpcForConversation` action that rechecks the NPC's sector and current distance before issuing the movement order.
+- NPC marker pointer/click events stop propagation so they cannot be interpreted as clicks on the map background.
+- Reworked the NPC interaction card layout: action buttons are consistently full-width and vertically aligned, with long labels wrapping cleanly.
+- Existing talk radius remains 8 m; if the player is already within range, the explicit approach action opens dialogue directly.
