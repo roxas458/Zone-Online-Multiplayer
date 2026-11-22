@@ -9,6 +9,7 @@ const {
 } = require('./src/shared/game-data');
 const { clean, validId, createSafeState } = require('./src/server/validation');
 const { reconcilePlayerPosition } = require('./src/server/player-authority');
+const { mergeClientSaveState } = require('./src/server/player-save');
 const { applyPlayerTrade } = require('./src/server/player-trade');
 const safeState = createSafeState(FACTIONS, LOCATIONS);
 const { createMoveOrder, advanceMoveOrder } = require('./src/systems/player-orders');
@@ -199,6 +200,7 @@ async function initDb(){
     await pool.query(`CREATE TABLE IF NOT EXISTS zone_world (id INTEGER PRIMARY KEY CHECK (id=1), state JSONB NOT NULL, updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`);
     await pool.query(`CREATE TABLE IF NOT EXISTS zone_chat (id BIGSERIAL PRIMARY KEY, payload JSONB NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`);
     await pool.query(`CREATE TABLE IF NOT EXISTS zone_private_messages (id BIGSERIAL PRIMARY KEY, message_id TEXT UNIQUE NOT NULL, from_id TEXT NOT NULL, to_id TEXT NOT NULL, payload JSONB NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`);
+    await pool.query(`CREATE TABLE IF NOT EXISTS zone_trade_receipts (offer_id TEXT PRIMARY KEY, from_id TEXT NOT NULL, to_id TEXT NOT NULL, item_id TEXT NOT NULL, qty INTEGER NOT NULL, price INTEGER NOT NULL, completed_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`);
     await pool.query(`CREATE INDEX IF NOT EXISTS zone_private_messages_pair_idx ON zone_private_messages(from_id,to_id,id DESC)`);
     const wr=await pool.query('SELECT state FROM zone_world WHERE id=1');
     if(wr.rows[0]) world={...world,...wr.rows[0].state}; else await pool.query('INSERT INTO zone_world(id,state) VALUES(1,$1)',[world]);
@@ -301,7 +303,10 @@ io.on('connection', socket=>{
   });
   socket.on('player:save', async input=>{
     const id=socket.data.playerId, p=online.get(id); if(!id||!p)return;
-    const s=safeState(input);
+    const clientState=safeState(input);
+    const allowCharacterCreation=p.state?.characterCreated!==true&&clientState.state?.characterCreated===true;
+    const mergedState=mergeClientSaveState(p.state,clientState.state,{allowCharacterCreation});
+    const s=safeState(mergedState);
     const authoritativeEmission = publicEmissionState(world);
     s.state.emission = { ...authoritativeEmission, active: authoritativeEmission.phase === 'active', warning: authoritativeEmission.phase === 'warning' };
     s.state.survival ||= {};
@@ -319,6 +324,7 @@ io.on('connection', socket=>{
     try{ await persistPlayer(id,s.state); }catch(e){socket.emit('server:error',{message:'Не удалось сохранить профиль на сервере.'});console.error(e);}
     if(previousLocation!==p.location){ world.onlineMetrics ||= {totalJoins:0,totalMoves:0,lastTickAt:0}; world.onlineMetrics.totalMoves+=1; const ev=appendWorldEvent(world,'player_moved',{playerId:id,name:p.name,faction:p.faction,from:previousLocation,to:p.location}); io.to('zone-world').emit('world:event',ev); if(squad&&squad.leader===id)publishSquadMove(squad,previousLocation,p.location,p.name); await persistWorld(); }
     if(firstCharacter)socket.emit('player:spawned',{state:p.state,location:p.location});
+    socket.emit('player:save:ack',{state:p.state,position:{x:p.x,y:p.y},location:p.location});
     broadcastOnline();
   });
   socket.on('player:update', async input=>{
@@ -579,13 +585,18 @@ io.on('connection', socket=>{
         const client=await pool.connect();
         try{
           await client.query('BEGIN');
+          const receipt=await client.query('INSERT INTO zone_trade_receipts(offer_id,from_id,to_id,item_id,qty,price) VALUES($1,$2,$3,$4,$5,$6) ON CONFLICT(offer_id) DO NOTHING RETURNING offer_id',[offer.id,offer.from,offer.to,offer.item,offer.qty,offer.price]);
           const rows=await client.query('SELECT id,state FROM zone_players WHERE id = ANY($1::text[]) FOR UPDATE',[[offer.from,offer.to]]);
           const states=new Map(rows.rows.map(r=>[r.id,r.state]));
-          const result=applyPlayerTrade({sellerState:states.get(offer.from),buyerState:states.get(offer.to),itemId:offer.item,qty:offer.qty,price:offer.price,allowedItemIds:TRADE_ITEM_IDS});
-          if(!result.ok)throw new Error(result.message);
-          sellerState=result.sellerState;buyerState=result.buyerState;itemName=result.itemName;
-          await client.query('UPDATE zone_players SET state=$2,updated_at=NOW() WHERE id=$1',[offer.from,sellerState]);
-          await client.query('UPDATE zone_players SET state=$2,updated_at=NOW() WHERE id=$1',[offer.to,buyerState]);
+          if(!receipt.rowCount){
+            sellerState=states.get(offer.from);buyerState=states.get(offer.to);itemName=offer.itemName||offer.item;
+          } else {
+            const result=applyPlayerTrade({sellerState:states.get(offer.from),buyerState:states.get(offer.to),itemId:offer.item,qty:offer.qty,price:offer.price,allowedItemIds:TRADE_ITEM_IDS});
+            if(!result.ok)throw new Error(result.message);
+            sellerState=result.sellerState;buyerState=result.buyerState;itemName=result.itemName;
+            await client.query('UPDATE zone_players SET state=$2,updated_at=NOW() WHERE id=$1',[offer.from,sellerState]);
+            await client.query('UPDATE zone_players SET state=$2,updated_at=NOW() WHERE id=$1',[offer.to,buyerState]);
+          }
           await client.query('COMMIT');
         }catch(err){await client.query('ROLLBACK');throw err;}finally{client.release();}
       }else{

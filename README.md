@@ -1,4 +1,4 @@
-ZONE ONLINE 4.47.0
+ZONE ONLINE 4.48.0
 
 # ZONE ONLINE 4.39.0
 
@@ -181,7 +181,7 @@ ZONE ONLINE 4.47.0
 - Sectors tab lists nearby strategic sectors and opens their map details without leaving the map screen.
 - Added responsive styling for mobile and full-screen map layouts.
 
-## 4.47.0 — BUGFIX & CODE CLEANUP
+## 4.46.0 — BUGFIX & CODE CLEANUP
 
 - Fixed sector visit history and travel statistics: they now update on each confirmed expedition hop, including intermediate sectors.
 - Offline random encounters are scheduled after the expedition reaches its destination, not when the travel order is submitted.
@@ -197,16 +197,15 @@ ZONE ONLINE 4.47.0
 - Confirmed sector arrivals update server coordinates for leaders and squad followers.
 - Added regression tests for client teleport prevention and faction spawn initialization.
 
-
-## 4.47.0 — Multiplayer authority fixes
-
-- Player profile saves no longer control the server-owned sector or world coordinates.
-- `player:update` rejects direct client-side sector changes; confirmed expedition and squad travel remain server-driven.
-- Confirmed sector arrivals update server coordinates for leaders and squad followers.
-- Added regression tests for client teleport prevention and faction spawn initialization.
-
 ## Multiplayer audit — remaining risks
 
 - The guest profile handshake uses a browser-generated UUID without account authentication. Treat it as a guest identity, not a secure account credential.
-- `player:save` still accepts client-owned progression fields such as money, inventory, XP, and HP after basic normalization. Preventing tampering safely requires moving those progression mutations behind server-authoritative gameplay actions; this release intentionally does not silently discard legitimate client-side progression.
+- A brand-new guest profile is still bootstrapped from its first client payload so existing character creation and starter-loadout choices remain compatible. Guest UUIDs are not authenticated accounts, so this is not a full anti-cheat or account-security boundary.
 - Live multi-client and PostgreSQL integration tests still require installed dependencies and a configured database. The current automated suite validates the source contracts and isolated game systems, not a deployed multiplayer session.
+
+## 4.48.0 — server authority and economy
+
+- Generic online profile saves now preserve server-owned money, inventory, health, XP, reputation, quest/career progress, equipment, character identity, faction and discovered sectors. Client-side settings and non-protected presentation state can still be saved.
+- The server returns an authoritative save acknowledgement; the online client reconciles the protected fields instead of retaining locally forged economy/progression values.
+- PostgreSQL deployments create `zone_trade_receipts` and record each accepted trade offer ID inside the same transaction as the two profile updates. A retried offer after a restart cannot apply the same transfer twice.
+- This is a staged authority migration. Guest UUID identity is still not account authentication, and offline/local gameplay continues to use local saves.
