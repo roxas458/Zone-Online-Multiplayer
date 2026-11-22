@@ -11,3 +11,10 @@
 - Added PM, AKS-74U, TOZ-34, AK-74 and Vintar-BC to shop and NPC inventories.
 
 Validation: `npm run check`, `npm test`, archive integrity. Live Render multiplayer and visual UI behavior still require in-game confirmation.
+
+## 4.33.34 — Sector travel and live map movement
+- Sector selection on the Zone map now starts a route immediately without a blocking confirmation dialog.
+- The player marker interpolates continuously between connected sector centers during an expedition, with a visible route and destination waypoint.
+- The full-Zone map remains active during travel so the player can watch the marker move across the map.
+- Local-map mode no longer has invisible sector hit areas intercepting clicks; clicks can place a walking waypoint normally.
+- Added regression tests for click-to-travel and live marker interpolation.
