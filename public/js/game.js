@@ -1,4 +1,4 @@
-// ZONE ONLINE 4.47.0 browser client. ZONE REPORTS / STARTER LOADOUT / SQUAD PAGE RESTORE.
+// ZONE ONLINE 4.48.0 browser client. ZONE REPORTS / STARTER LOADOUT / SQUAD PAGE RESTORE.
 const clone=o=>JSON.parse(JSON.stringify(o));
 const base={
  name:"Новичок",money:1450,hp:100,radiation:0,radiationProtectionUntil:0,stamina:85,hunger:18,thirst:20,rep:10,day:1,hour:9,loc:"cordon",faction:"Одиночки",xp:0,meetings:0,completed:0,flags:{metSid:false,metWolf:false,heardBar:false,foundArtifact:false,helpedWolf:false},
@@ -1736,6 +1736,7 @@ async function connectZone(){
  zoneSocket.io.on('reconnect_attempt',()=>setOnlineConnectionState('connecting','Повторное подключение к серверу…'));
  zoneSocket.on('player:hello:error',data=>setOnlineConnectionState('offline',data?.message||'Не удалось завершить вход.'));
  zoneSocket.on('server:error',e=>{console.warn(e.message);setOnlineConnectionState('offline',e?.message||'Ошибка сервера.');});
+ zoneSocket.on('player:save:ack',data=>{if(!data?.state)return;const protectedFields=['money','items','hp','xp','rep','quests','careerStats','faction','characterCreated','visitedLocations','equipment','weaponSlots','armor','artifacts','skills','rank','reputation','stash','stashItems','tradeHistory','level','perks','achievements'];for(const key of protectedFields){if(Object.prototype.hasOwnProperty.call(data.state,key))g[key]=data.state[key];}if(data.position&&Number.isFinite(Number(data.position.x))&&Number.isFinite(Number(data.position.y)))g.worldPosition={x:Number(data.position.x),y:Number(data.position.y)};localStorage.setItem('zoneExpandedSave',JSON.stringify(g));renderInventory();});
  zoneSocket.on('player:ready',data=>{
   zonePlayerReady=true;
   if(zoneHelloReadyTimer){clearTimeout(zoneHelloReadyTimer);zoneHelloReadyTimer=null;}
