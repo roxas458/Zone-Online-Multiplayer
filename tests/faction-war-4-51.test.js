@@ -137,3 +137,62 @@ test('legacy whole-sector assault orders are retired during migration',()=>{
   assert.equal(world.npcState.a.missionOrder,null);
   assert.equal(world.npcState.a.behavior,'guard');
 });
+
+
+test('war squad completes a multi-sector route and captures an enemy objective without runtime errors',()=>{
+  const world={territoryOwners:Object.fromEntries(Object.entries(TERRITORY_START).map(([id,v])=>[id,v.owner])),territoryControl:Object.fromEntries(Object.entries(TERRITORY_START).map(([id,v])=>[id,v.control])),diplomacy:{'Долг':{'Наёмники':-45}},npcState:{a:{id:'a',name:'Ветер',faction:'Долг',location:'bar',alive:true},b:{id:'b',name:'Крот',faction:'Долг',location:'bar',alive:true},c:{id:'c',name:'Рысь',faction:'Долг',location:'bar',alive:true}},npcSquads:[{id:'s1',name:'Северный дозор',faction:'Долг',location:'bar',members:['a','b','c'],status:'war_moving',missionType:'faction_war',targetPointId:'wild_1',targetLocation:'wild',route:['bar','wild'],routeIndex:0,nextMoveAt:1000}]};
+  initFactionWar(world,500);
+  world.keyPoints.wild_1.owner='Наёмники';
+  const events=tickFactionWar(world,2000,()=>0.5);
+  assert.equal(world.npcSquads[0].status,'holding_objective');
+  assert.equal(world.npcState.a.location,'wild');
+  assert.equal(world.npcPositions.a,'wild');
+  assert.ok(events.some(e=>e.type==='faction_squad_route'));
+  let now=3000;
+  for(let i=0;i<12&&world.keyPoints.wild_1.owner!=='Долг';i++){tickFactionWar(world,now,()=>0.5);now+=60_000;}
+  assert.equal(world.keyPoints.wild_1.owner,'Долг');
+});
+
+test('returning faction squads advance home and become available for later missions',()=>{
+  const world={npcState:{a:{id:'a',name:'Ветер',faction:'Долг',location:'wild',alive:true},b:{id:'b',name:'Крот',faction:'Долг',location:'wild',alive:true}},npcSquads:[{id:'s1',name:'Северный дозор',faction:'Долг',location:'wild',members:['a','b'],status:'returning',route:['wild','bar'],routeIndex:0,nextMoveAt:1000,lastFactionMissionAt:0}]};
+  initFactionWar(world,500);
+  tickFactionWar(world,2000,()=>0.5);
+  assert.equal(world.npcSquads[0].location,'bar');
+  assert.equal(world.npcSquads[0].status,'camped');
+  assert.deepEqual(world.npcSquads[0].route,[]);
+  assert.equal(world.npcState.a.location,'bar');
+  assert.equal(world.npcState.a.duty,'base_guard');
+});
+
+
+test('public world HTTP endpoints use the same filtered serializers as socket synchronization',()=>{
+  const fs=require('node:fs');
+  const server=fs.readFileSync(require('node:path').join(__dirname,'../server.js'),'utf8');
+  assert.match(server,/app\.get\('\/api\/world\/snapshot',[\s\S]*?world:publicWorldSnapshot\(\)/);
+  assert.match(server,/app\.get\('\/api\/world\/events',[\s\S]*?publicWorldSync\(/);
+  assert.doesNotMatch(server,/app\.get\('\/api\/world\/snapshot',[^\n]*world\s*\}\s*\)\s*\)/);
+});
+
+
+test('full faction war lifecycle deploys, marches, captures, returns, and releases the squad',()=>{
+  const world={territoryOwners:Object.fromEntries(Object.entries(TERRITORY_START).map(([id,v])=>[id,v.owner])),territoryControl:Object.fromEntries(Object.entries(TERRITORY_START).map(([id,v])=>[id,v.control])),diplomacy:{'Долг':{'Наёмники':-60}},npcState:{a:{id:'a',name:'Ветер',faction:'Долг',location:'bar',alive:true},b:{id:'b',name:'Крот',faction:'Долг',location:'bar',alive:true},c:{id:'c',name:'Рысь',faction:'Долг',location:'bar',alive:true}},npcSquads:[{id:'s1',name:'Северный дозор',faction:'Долг',location:'bar',members:['a','b','c'],status:'camped',lastFactionMissionAt:0}]};
+  initFactionWar(world,1000);
+  // Ensure the candidate objective is hostile and can be reached from the squad sector.
+  world.keyPoints.wild_1.owner='Наёмники';
+  let now=1_000_000;
+  const deployed=tickFactionWar(world,now,()=>0);
+  assert.ok(deployed.some(e=>e.type==='faction_squad_deployed'));
+  const squad=world.npcSquads[0];
+  const target=squad.targetPointId;
+  assert.equal(squad.missionType,'faction_war');
+  for(let i=0;i<80&&(world.keyPoints[target]?.owner!=='Долг'||squad.status!=='camped');i++){
+    now=Math.max(now+60_000,Number(squad.nextMoveAt)||0);
+    tickFactionWar(world,now,()=>0.5);
+  }
+  assert.equal(world.keyPoints[target].owner,'Долг','the assigned enemy object must change owner');
+  assert.equal(squad.status,'camped','the squad must complete its return journey');
+  assert.equal(squad.missionType,null);
+  assert.equal(squad.location,'bar');
+  assert.ok(squad.lastFactionMissionAt>0);
+  assert.ok(world.factionWarHistory.some(entry=>entry.pointId===target&&entry.to==='Долг'));
+});

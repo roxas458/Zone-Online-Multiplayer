@@ -2,6 +2,7 @@
 
 const { TERRITORY_ADJACENCY, FACTION_HOME } = require('./territories');
 const { FACTIONS, TERRITORY_START } = require('../shared/game-data');
+const { SECTOR_COORDS } = require('./proximity');
 
 const FACTION_OBJECTIVES = Object.freeze({
   'Одиночки': { title: 'Свободные маршруты', description: 'Сохранять безопасные стоянки и открытые переходы для независимых сталкеров.', priorities: ['checkpoint','supply','trade','base'], posture: 'defensive' },
@@ -102,6 +103,7 @@ function initFactionWar(world, now=Date.now()){
   world.territoryOwners ||= Object.fromEntries(Object.entries(TERRITORY_START).map(([id,v])=>[id,v.owner]));
   world.territoryControl ||= Object.fromEntries(Object.entries(TERRITORY_START).map(([id,v])=>[id,v.control]));
   world.keyPoints ||= {};
+  world.npcPositions ||= {};
   for(const [location,defs] of Object.entries(POINT_DEFS)){
     for(let i=0;i<defs.length;i++){
       const [name,type,production]=defs[i],id=`${location}_${i+1}`;
@@ -209,14 +211,19 @@ function tickFactionWar(world,now=Date.now(),random=Math.random){
   tickFactionCommand(world,now,events);
   // Advance strategic squad routes independently from ordinary NPC roaming.
   for(const squad of world.npcSquads||[]){
-    if(squad.status==='war_moving'&&now>=(Number(squad.nextMoveAt)||0)){
+    // Both outbound and return legs must advance. Previously returning squads
+    // were never ticked and stayed locked forever after their first mission.
+    if(['war_moving','returning'].includes(squad.status)&&now>=(Number(squad.nextMoveAt)||0)){
+      const returning=squad.status==='returning';
       const next=squad.route?.[Number(squad.routeIndex||0)+1];
       if(next){const from=squad.location;squad.routeIndex=(Number(squad.routeIndex)||0)+1;squad.location=next;
-        for(const [memberIndex,id] of (squad.members||[]).entries()){const npc=world.npcState?.[id];if(!npc||npc.alive===false)continue;const center=SECTOR_COORDS[next]||SECTOR_COORDS.cordon;const angle=memberIndex*2.399963;const radius=8+(memberIndex%4)*5;npc.x=center[0]+Math.cos(angle)*radius;npc.y=center[1]+Math.sin(angle)*radius;npc.location=next;npc.action='travel';npc.behavior='faction_march';npc.duty='faction_assignment';npc.history||=[];npc.history.push({action:'faction_march',location:next,at:now});npc.history=npc.history.slice(-20);world.npcPositions[id]=next;}
-        squad.nextMoveAt=now+90_000+Math.floor(random()*45_000);
-        if(squad.routeIndex>=squad.route.length-1){squad.status='holding_objective';squad.objectiveStartedAt=now;squad.nextCaptureAt=now;for(const id of squad.members||[]){const npc=world.npcState?.[id];if(npc&&npc.alive!==false){npc.action='guard';npc.behavior='objective_guard';npc.duty='objective_guard';}}}
-        events.push({type:'faction_squad_route',location:next,from,faction:squad.faction,squadId:squad.id,text:`Отряд «${squad.name}» прибыл в сектор ${next} по стратегическому маршруту.`,at:now});
-      }
+        for(const [memberIndex,id] of (squad.members||[]).entries()){const npc=world.npcState?.[id];if(!npc||npc.alive===false)continue;const center=SECTOR_COORDS[next]||SECTOR_COORDS.cordon;const angle=memberIndex*2.399963;const radius=8+(memberIndex%4)*5;npc.x=center[0]+Math.cos(angle)*radius;npc.y=center[1]+Math.sin(angle)*radius;npc.location=next;npc.action='travel';npc.behavior=returning?'squad_return':'faction_march';npc.duty=returning?'return_to_base':'faction_assignment';npc.history||=[];npc.history.push({action:returning?'squad_return':'faction_march',location:next,at:now});npc.history=npc.history.slice(-20);world.npcPositions[id]=next;}
+        if(squad.routeIndex>=squad.route.length-1){
+          if(returning){squad.status='camped';squad.route=[];squad.routeIndex=0;squad.nextMoveAt=0;squad.lastFactionMissionAt=now;for(const id of squad.members||[]){const npc=world.npcState?.[id];if(npc&&npc.alive!==false){npc.action='guard';npc.behavior='guard';npc.duty='base_guard';npc.guardPost=true;}}}
+          else {squad.status='holding_objective';squad.objectiveStartedAt=now;squad.nextCaptureAt=now;for(const id of squad.members||[]){const npc=world.npcState?.[id];if(npc&&npc.alive!==false){npc.action='guard';npc.behavior='objective_guard';npc.duty='objective_guard';}}}
+        } else squad.nextMoveAt=now+90_000+Math.floor(random()*45_000);
+        events.push({type:returning?'faction_squad_return_route':'faction_squad_route',location:next,from,faction:squad.faction,squadId:squad.id,text:returning?`Отряд «${squad.name}» возвращается в сектор ${next}.`:`Отряд «${squad.name}» прибыл в сектор ${next} по стратегическому маршруту.`,at:now});
+      } else if(returning){squad.status='camped';squad.route=[];squad.routeIndex=0;squad.nextMoveAt=0;squad.lastFactionMissionAt=now;}
     }
     if(squad.status==='holding_objective'&&now>=(Number(squad.nextCaptureAt)||0)){
       const point=world.keyPoints?.[squad.targetPointId];

@@ -118,8 +118,8 @@ app.get('/health', (_req,res) => { res.set('Access-Control-Allow-Origin','*'); r
 app.get('/api/diagnostics', (_req,res) => { res.set('Access-Control-Allow-Origin','*'); res.set('Cache-Control','no-store'); res.json({ ok:true, version:require('./package.json').version, multiplayer:true, guestMode:true, database:dbReady?'postgres':'memory-fallback', online:online.size, socketPath:'/socket.io', transports:['websocket','polling'], transportMode:'websocket-first-with-polling-fallback', node:process.version, nodeMajor:Number(process.versions.node.split('.')[0]), timestamp:Date.now() }); });
 app.get('/api/status', (_req,res) => res.json({ ...publicWorldStatus(world, online.size), persistent:dbReady, service:`ZONE ONLINE ${require('./package.json').version} SURVIVAL & EXPEDITIONS` }));
 app.get('/api/leaderboard', (_req,res) => { res.set('Cache-Control','no-store'); res.json({ok:true,updatedAt:Date.now(),entries:buildStalkerLeaderboard(),hallOfFame:(world.stalkerHallOfFame||[]).slice(0,100),news:(world.stalkerNews||[]).slice(0,40)}); });
-app.get('/api/world/snapshot', (_req,res) => res.json({ status:publicWorldStatus(world, online.size), world }));
-app.get('/api/world/events', (req,res) => { const since=Number(req.query.since||0); const sync=buildWorldSync(world, Number.isSafeInteger(since)?since:0); res.json(sync); });
+app.get('/api/world/snapshot', (_req,res) => res.json({ status:publicWorldStatus(world, online.size), world:publicWorldSnapshot() }));
+app.get('/api/world/events', (req,res) => { const since=Number(req.query.since||0); res.json(publicWorldSync(Number.isSafeInteger(since)?since:0)); });
 
 function publicPlayer(p){ return { id:p.id, name:p.name, faction:p.faction, location:p.location, x:p.x, y:p.y, hp:p.hp, xp:p.xp, joinedAt:p.joinedAt, lastSeen:p.lastSeen }; }
 function onlineList(){ return [...online.values()].map(publicPlayer).sort((a,b)=>a.name.localeCompare(b.name,'ru')); }

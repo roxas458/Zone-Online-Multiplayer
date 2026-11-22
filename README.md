@@ -1,4 +1,12 @@
-# ZONE ONLINE 4.57.0
+# ZONE ONLINE 4.57.1
+
+## 4.57.1 — Faction War & Public Data Hotfix
+- Fixed missing sector-coordinate import that crashed strategic faction squad movement.
+- Added initialization for the public NPC position index before squad movement updates.
+- Implemented return-route advancement so completed squads return to camp and can be redeployed.
+- Routed public world snapshot and event HTTP endpoints through the public-data filters.
+- Added integration tests for outbound faction movement, objective capture, return travel, and redeployment readiness.
+
 
 ## 4.57.0 — Performance, Combat & Character Death
 
