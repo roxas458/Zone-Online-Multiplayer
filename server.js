@@ -791,7 +791,7 @@ setInterval(async()=>{
     world.onlineMetrics ||= {totalJoins:0,totalMoves:0,lastTickAt:0}; world.onlineMetrics.lastTickAt=now;
     const tickEvent=appendWorldEvent(world,'world_tick',{npcEvents:events.length,activeNpcs:Object.values(world.npcState||{}).filter(n=>n.alive).length},now);
     io.emit('world:event',tickEvent);
-    for(const event of [...events,...ecoEvents,...soulEvents,...aftermathEvents]){const ev=appendWorldEvent(world,event.type,{...event},now);io.emit('world:event',ev);io.emit('world:npc-event',event);if(['npc_skirmish','npc_casualty_report','npc_companion_mourning','npc_injury_recovery','mutant_npc_combat','mutant_squad_encounter','mutant_squad_retreat','mutant_squad_rescue','mutant_pack_defeated','mutant_migration','anomaly_migration','convoy_ambush','convoy_started'].includes(event.type))systemMessage(event.text);}
+    for(const event of [...events,...ecoEvents,...soulEvents,...aftermathEvents]){const ev=appendWorldEvent(world,event.type,{...event},now);io.emit('world:event',ev);io.emit('world:npc-event',event);if(['npc_skirmish','npc_casualty_report','npc_companion_mourning','npc_injury_recovery','npc_field_treatment','npc_medical_evacuation','mutant_npc_combat','mutant_squad_encounter','mutant_squad_retreat','mutant_squad_rescue','mutant_pack_defeated','mutant_migration','anomaly_migration','convoy_ambush','convoy_started'].includes(event.type))systemMessage(event.text);}
     await persistWorld(); io.emit('world:npcs',world.npcPositions);
     emitNpcState();io.emit('world:leaderboard',leaderboardPayload());io.emit('world:ecosystem',world.ecosystem);
     io.emit('world:status',publicWorldStatus(world,online.size));

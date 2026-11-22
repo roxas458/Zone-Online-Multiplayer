@@ -1,8 +1,8 @@
 {
   "name": "zone-online",
-  "version": "4.33.41",
+  "version": "4.33.42",
   "private": true,
-  "description": "ZONE ONLINE — persistent NPC recovery, casualty reports, companion memories and corpse scavenging",
+  "description": "ZONE ONLINE — NPC field medicine, emergency squad evacuation, casualty reports and corpse recovery",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",

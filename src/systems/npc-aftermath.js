@@ -21,6 +21,20 @@ function ensureCorpse(world,npc,now){
 function tickNpcAftermath(world,now=Date.now()){
   world.npcState ||= {};world.npcEvents ||= [];world.npcMemorial ||= [];world.npcCorpses ||= [];world.factionNotices ||= [];
   const events=[];const npcs=world.npcState;
+  // Critical injuries trigger a server-authoritative squad evacuation along the route already travelled.
+  for(const squad of world.npcSquads||[]){
+    if(!['travelling','scavenging'].includes(squad.status))continue;
+    const members=(squad.members||[]).map(id=>npcs[id]).filter(n=>n&&n.alive!==false);
+    const critical=members.find(n=>Number(n.health)<=18);
+    if(!critical||squad.medicalEvacuation?.active)continue;
+    const index=Math.max(0,Number(squad.routeIndex)||0);
+    const route=(squad.route||[]).slice(0,index+1).reverse();
+    if(route.length<2)continue;
+    squad.route=route;squad.routeIndex=0;squad.status='returning';squad.nextMoveAt=now+120000;squad.retreating=true;
+    squad.medicalEvacuation={active:true,patientId:critical.id,startedAt:now,from:squad.location,reason:'critical_injury'};
+    for(const member of members){member.action='retreat';member.behavior='medical_evacuation';member.mood=member.id===critical.id?'тяжело ранен':'эвакуирует раненого';}
+    events.push({type:'npc_medical_evacuation',squadId:squad.id,npcId:critical.id,location:squad.location,text:`Отряд «${squad.name}» прерывает вылазку: ${critical.name} тяжело ранен. Начата эвакуация к безопасной стоянке.`,at:now});
+  }
   for(const npc of Object.values(npcs)){
     if(!npc||!npc.generated)continue;
     if(npc.alive===false){
@@ -38,11 +52,16 @@ function tickNpcAftermath(world,now=Date.now()){
     }
     const safe=(npc.action==='camp'||npc.action==='rest'||npc.behavior==='camp'||npc.duty==='base_guard'||npc.duty==='rest_at_base');
     if(!safe||Number(npc.health)>=100||now-(Number(npc.lastRecoveryAt)||0)<5*60*1000)continue;
-    const supplies=Math.max(0,Number(npc.supplies)||0);if(supplies<2)continue;
-    const restored=Math.min(5,100-Number(npc.health));npc.health=clamp(Number(npc.health)+restored,0,100);npc.supplies=supplies-2;npc.lastRecoveryAt=now;
-    npc.memory ||= [];npc.memory.push({type:'recovered',amount:restored,location:npc.location,at:now});npc.memory=npc.memory.slice(-30);
-    if(npc.health>=70&&npc.mood==='ранен')npc.mood='спокоен';
-    events.push({type:'npc_injury_recovery',npcId:npc.id,location:npc.location,text:`${npc.name} восстановил ${restored} здоровья на безопасной стоянке.`,at:now});
+    const supplies=Math.max(0,Number(npc.supplies)||0);
+    const squad=(world.npcSquads||[]).find(s=>(s.members||[]).includes(npc.id));
+    const medic=squad?(squad.members||[]).map(id=>npcs[id]).find(n=>n&&n.id!==npc.id&&n.alive!==false&&n.location===npc.location&&Number(n.supplies)>=4&&['camp','rest'].includes(n.action)):null;
+    const assisted=Number(npc.health)<=50&&medic;
+    const cost=assisted?4:2;if(supplies<cost)continue;
+    const restored=Math.min(assisted?12:5,100-Number(npc.health));npc.health=clamp(Number(npc.health)+restored,0,100);npc.supplies=supplies-cost;npc.lastRecoveryAt=now;
+    if(assisted){medic.supplies=Math.max(0,Number(medic.supplies)-4);medic.lastMedicalAidAt=now;npc.lastMedicalAidAt=now;}
+    npc.memory ||= [];npc.memory.push({type:assisted?'field_treatment':'recovered',amount:restored,medicId:medic?.id||null,location:npc.location,at:now});npc.memory=npc.memory.slice(-30);
+    if(npc.health>=70&&['ранен','тяжело ранен'].includes(npc.mood))npc.mood='спокоен';
+    events.push({type:assisted?'npc_field_treatment':'npc_injury_recovery',npcId:npc.id,medicId:medic?.id||null,location:npc.location,text:assisted?`${medic.name} обработал раны ${npc.name} на стоянке: восстановлено ${restored} здоровья.`:`${npc.name} восстановил ${restored} здоровья на безопасной стоянке.`,at:now});
   }
   const before=world.npcCorpses.length;
   world.npcCorpses=world.npcCorpses.filter(c=>c&&Number(c.expiresAt)>now&&!c.looted);

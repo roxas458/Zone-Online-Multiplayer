@@ -12,3 +12,19 @@ test('server exposes corpse loot with authoritative location/range checks and cl
  const server=fs.readFileSync(path.join(root,'server.js'),'utf8');const html=fs.readFileSync(path.join(root,'public/index.html'),'utf8');const client=fs.readFileSync(path.join(root,'public/js/game.js'),'utf8');
  assert.match(server,/socket\.on\('npc:corpse:loot'/);assert.match(server,/lootCorpse\(world,p,String\(input\?\.corpseId/);assert.match(html,/id="corpseRecoveryList"/);assert.match(client,/function lootNpcCorpse\(/);assert.match(client,/npc:corpse:loot:result/);
 });
+
+test('a squad medic treats a seriously injured companion at a safe camp',()=>{
+ const w=baseWorld();const patient=w.npcState.friend;patient.health=40;patient.supplies=8;patient.action='camp';
+ const medic={id:'medic',name:'Медик',alive:true,generated:true,health:90,supplies:8,location:'cordon',action:'camp'};w.npcState.medic=medic;w.npcSquads[0].members.push('medic');
+ const events=tickNpcAftermath(w,600000);
+ assert.equal(patient.health,52);assert.equal(patient.supplies,4);assert.equal(medic.supplies,2);
+ assert.ok(events.some(e=>e.type==='npc_field_treatment'&&e.medicId==='medic'));
+});
+
+test('critically injured active squad reverses its travelled route for medical evacuation',()=>{
+ const w=baseWorld();const patient=w.npcState.friend;patient.health=15;patient.action='travel';
+ const squad=w.npcSquads[0];squad.status='travelling';squad.location='dump';squad.route=['cordon','dump','darkhollow'];squad.routeIndex=1;
+ const events=tickNpcAftermath(w,900000);
+ assert.equal(squad.status,'returning');assert.deepEqual(squad.route,['dump','cordon']);assert.equal(squad.routeIndex,0);
+ assert.equal(squad.medicalEvacuation.patientId,'friend');assert.ok(events.some(e=>e.type==='npc_medical_evacuation'));
+});
