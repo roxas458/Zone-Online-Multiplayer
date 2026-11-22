@@ -953,3 +953,9 @@ body.title-screen-active .survival-hud{display:none}
  .hud-condition-strip span{font-size:9px;padding:1px 3px}
 }
 body.title-screen-active .quick-use-bar{display:none}
+/* Selected NPC route is brighter than background sector links. */
+.npc-route-selected{stroke:#f4d47d;stroke-width:5;stroke-dasharray:12 7;opacity:1;filter:drop-shadow(0 0 4px rgba(244,212,125,.65))}
+.world-marker[role="button"]{cursor:pointer;pointer-events:all}
+.map-entity-member{width:100%;text-align:left;background:transparent;border:0;color:inherit;cursor:pointer}
+
+.zone-map .world-marker[role="button"] .marker-hit-area{fill:transparent;stroke:none;pointer-events:all}
