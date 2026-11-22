@@ -25,7 +25,30 @@ function tickEcosystem(world,random=Math.random,now=Date.now()){
  for(const pack of e.mutantPacks){if(random()<.24){const from=pack.location;pack.location=ZONES[Math.floor(random()*ZONES.length)];if(from!==pack.location)events.push(addEcoEvent(world,'mutant_migration',`Следы группы «${pack.species}» замечены: ${from} → ${pack.location}.`,now));}
   if(random()<.12){pack.count=Math.max(1,Math.min(12,pack.count+(random()<.55?1:-1)));pack.aggression=Math.max(10,Math.min(100,pack.aggression+(random()<.5?5:-4)));}
   const nearbyNpcs=Object.values(world.npcState||{}).filter(n=>n.alive!==false&&n.location===pack.location&&now-(Number(n.lastMutantAttackAt)||0)>90000);
-  if(nearbyNpcs.length&&pack.count>0&&now-(Number(pack.lastAttackAt)||0)>90000&&random()<.16){const target=nearbyNpcs[Math.floor(random()*nearbyNpcs.length)],damage=4+Math.floor(random()*9);target.lastMutantAttackAt=now;pack.lastAttackAt=now;target.health=Math.max(0,(Number(target.health)||100)-damage);target.action='combat';target.behavior='combat';target.mood='в бою';pack.count=Math.max(0,pack.count-(random()<.22?1:0));if(target.health<=0){target.alive=false;target.action='dead';target.deathCause=`погиб в схватке с мутантами (${pack.species})`;target.diedAt=now;target.combatDeaths=(Number(target.combatDeaths)||0)+1;}events.push(addEcoEvent(world,'mutant_npc_combat',`Группа «${pack.species}» атаковала ${target.name} в секторе ${pack.location}. ${target.alive===false?'Сталкер погиб.':`Здоровье сталкера: ${Math.round(target.health)}%.`}`,now));}
+  const activeSquads=(world.npcSquads||[]).filter(s=>['travelling','scavenging','returning'].includes(s.status)&&s.location===pack.location);
+  const squad=activeSquads.find(s=>s.members?.some(id=>nearbyNpcs.some(n=>n.id===id)));
+  if(squad&&pack.count>0&&now-(Number(pack.lastAttackAt)||0)>90000&&now-(Number(squad.lastMutantEncounterAt)||0)>90000&&random()<.5){
+    const members=squad.members.map(id=>(world.npcState||{})[id]).filter(n=>n&&n.alive!==false&&n.location===pack.location);
+    if(members.length){
+      const target=members[Math.floor(random()*members.length)];const damage=5+Math.floor(random()*11);target.lastMutantAttackAt=now;pack.lastAttackAt=now;squad.lastMutantEncounterAt=now;
+      target.health=Math.max(0,(Number(target.health)||100)-damage);target.action='combat';target.behavior='mutant_encounter';target.mood='в бою';target.needs ||= {hunger:0,thirst:0,fatigue:0,stress:0};target.needs.stress=Math.min(100,(Number(target.needs.stress)||0)+12);
+      const firepower=members.reduce((sum,n)=>sum+(n.alive!==false?(n.role==='охотник'?1.8:n.role==='разведчик'?1.35:1):0),0);
+      const packDamage=Math.max(1,Math.round(firepower*(3+random()*5)));pack.health=Math.max(0,(Number(pack.health)||100)-packDamage);
+      if(target.health<=0){target.alive=false;target.action='dead';target.deathCause=`погиб в схватке с мутантами (${pack.species})`;target.diedAt=now;target.combatDeaths=(Number(target.combatDeaths)||0)+1;}
+      const injured=members.find(n=>n.alive!==false&&n.health<35);const medic=members.find(n=>n!==injured&&n.alive!==false&&(Number(n.supplies)||0)>=8);
+      if(injured&&medic&&now-(Number(injured.lastRescueAt)||0)>180000){medic.supplies=Math.max(0,medic.supplies-8);injured.health=Math.min(100,injured.health+12);injured.lastRescueAt=now;injured.action='combat';events.push(addEcoEvent(world,'mutant_squad_rescue',`${medic.name} оказал помощь ${injured.name} во время нападения мутантов в ${pack.location}.`,now));}
+      let defeated=false;if(pack.health<=0){pack.count=Math.max(0,pack.count-1);pack.health=pack.count?65:0;defeated=true;}
+      const living=members.filter(n=>n.alive!==false);const critical=living.some(n=>n.health<18);let retreat=false;
+      if(critical&&squad.status!=='returning'){
+        const currentIndex=Math.max(0,Number(squad.routeIndex)||0);const route=(squad.route||[]).slice(0,currentIndex+1).reverse();
+        if(route.length>1){squad.route=route;squad.routeIndex=0;squad.status='returning';squad.nextMoveAt=now+120000;squad.retreating=true;retreat=true;for(const n of living){n.action='retreat';n.behavior='squad_retreat';n.mood='отступает';}events.push(addEcoEvent(world,'mutant_squad_retreat',`Отряд «${squad.name}» отступает из ${pack.location} после тяжёлого столкновения с мутантами.`,now));}
+      }
+      events.push(addEcoEvent(world,'mutant_squad_encounter',`Отряд «${squad.name}» столкнулся с группой «${pack.species}» (${pack.count}): ${target.name} получил ${damage} урона.${defeated?' Сталкеры отбросили часть мутантов.':''}${retreat?' Отряд начал организованное отступление.':''}`,now));
+      if(defeated&&pack.count===0)events.push(addEcoEvent(world,'mutant_pack_defeated',`Отряд «${squad.name}» уничтожил стаю «${pack.species}» в секторе ${pack.location}.`,now));
+    }
+  } else if(!squad&&nearbyNpcs.length&&pack.count>0&&now-(Number(pack.lastAttackAt)||0)>90000&&random()<.16){
+    const target=nearbyNpcs[Math.floor(random()*nearbyNpcs.length)],damage=4+Math.floor(random()*9);target.lastMutantAttackAt=now;pack.lastAttackAt=now;target.health=Math.max(0,(Number(target.health)||100)-damage);target.action='combat';target.behavior='combat';target.mood='в бою';pack.count=Math.max(0,pack.count-(random()<.22?1:0));if(target.health<=0){target.alive=false;target.action='dead';target.deathCause=`погиб в схватке с мутантами (${pack.species})`;target.diedAt=now;target.combatDeaths=(Number(target.combatDeaths)||0)+1;}events.push(addEcoEvent(world,'mutant_npc_combat',`Группа «${pack.species}» атаковала ${target.name} в секторе ${pack.location}. ${target.alive===false?'Сталкер погиб.':`Здоровье сталкера: ${Math.round(target.health)}%.`}`,now));
+  }
   pack.updatedAt=now;
  }
  // Anomaly fields are not fixed map decorations: unstable fields can drift between nearby expeditions.

@@ -1,4 +1,4 @@
-# ZONE ONLINE 4.33.39
+# ZONE ONLINE 4.33.40
 
 Обновление главного меню: атмосферный стартовый экран, продолжение и загрузка локального сохранения, запуск новой игры с выбором группировки и позывного, переход к сетевой игре и опциям. Адаптивная компоновка для мобильных экранов.
 
@@ -51,3 +51,14 @@
 - Existing squad records are reconciled safely: members who are not physically at the squad's camp are detached rather than forcibly moved.
 - Added automated tests for connected travel, no-teleport behavior, scavenging, bounded supplies, and return-state transitions.
 - Documentation is consolidated in this single `README.md`; no separate release-note Markdown files are shipped.
+
+
+## 4.33.40 — A-Life: mutant encounters and squad survival
+
+- Mutant packs can engage NPC squads that are travelling, scavenging, or returning through the same sector.
+- Each encounter applies bounded damage to a stalker and to the mutant pack; the event is stored in the shared ecosystem event history.
+- Squad members can spend supplies to treat a critically injured companion during an encounter.
+- If a squad member remains critically injured, the squad can switch to a retreat state and reverse only the route it has already travelled; no sector teleportation is used.
+- Existing solo NPC-versus-mutant encounters remain available when no active squad is present.
+- Added deterministic tests for squad combat, companion rescue, and route-based retreat.
+- Documentation remains consolidated in this single `README.md`; no separate Markdown release notes are shipped.
