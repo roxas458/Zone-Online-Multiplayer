@@ -1,5 +1,6 @@
 // Server-authoritative faction AI. Stationary life is the default; movement requires an order.
 const clamp = (n, min, max) => Math.max(min, Math.min(max, Number(n) || 0));
+function npcSeed(value){let h=2166136261;for(const ch of String(value||'')){h^=ch.charCodeAt(0);h=Math.imul(h,16777619);}return h>>>0;}
 const NPC_FACTIONS = Object.freeze({
   sid:'Одиночки', wolf:'Одиночки', fanatic:'Одиночки', scout:'Одиночки', bandit:'Бандиты',
   barman:'Одиночки', seriy:'Одиночки', scientist:'Учёные', merc:'Наёмники', prof:'Учёные',
@@ -64,9 +65,34 @@ function updateNpcNeeds(npc, now) {
 }
 function recordAction(npc,now){npc.lastActionAt=now;npc.history ||= [];npc.history.push({action:npc.action,location:npc.location,at:now});npc.history=npc.history.slice(-12);}
 function moveNpc(npc,to,now,events,reason='patrol'){
-  if(!to||to===npc.location)return false;
-  const from=npc.location;npc.location=to;npc.destination=null;npc.destinationPoint=null;const center=SECTOR_COORDS[to]||SECTOR_COORDS.cordon;npc.x=center[0];npc.y=center[1];npc.action='travel';npc.behavior=reason;npc.route=[from,to];npc.direction=(npc.direction||0)+90;
-  events.push({type:'npc_travel',npcId:npc.id,from,location:to,text:`${npc.name} переместился из сектора ${from} в сектор ${to}.`,at:now});return true;
+  if(!to||to===npc.location||npc.travelTo)return false;
+  const from=npc.location,center=SECTOR_COORDS[to]||SECTOR_COORDS.cordon;
+  if(!Number.isFinite(Number(npc.x))||!Number.isFinite(Number(npc.y))){const start=SECTOR_COORDS[from]||SECTOR_COORDS.cordon;npc.x=start[0];npc.y=start[1];}
+  npc.destination=null;npc.travelTo=to;npc.destinationPoint={x:center[0],y:center[1]};npc.action='travel';npc.behavior=reason;npc.route=[from,to];npc.direction=(npc.direction||0)+90;
+  events.push({type:'npc_travel',npcId:npc.id,from,location:to,text:`${npc.name} отправился из сектора ${from} в сектор ${to}.`,at:now});return true;
+}
+
+// Lightweight one-second movement step. Strategic decisions remain on the slower AI tick;
+// this function only advances already-authorized movement orders in world coordinates.
+function tickNpcMovement(world,now=Date.now(),speed=8){
+  const moved=[];
+  for(const npc of Object.values(world.npcState||{})){
+    if(!npc||npc.alive===false)continue;
+    if(!Number.isFinite(Number(npc.x))||!Number.isFinite(Number(npc.y))){const initial=npcWorldPosition(npc);npc.x=initial.x;npc.y=initial.y;}
+    // Ordinary stalkers periodically leave their post for short local patrols.
+    // Traders and named commanders remain at their authored positions unless ordered.
+    if(!npc.destinationPoint&&!npc.travelTo&&['camp','guard','patrol'].includes(npc.action)&&!['торговец','командир','главарь'].some(role=>String(npc.role||'').includes(role))){
+      npc.nextRoamAt ||= now+15000+(npcSeed(npc.id)%35000);
+      if(now>=npc.nextRoamAt){const center=SECTOR_COORDS[npc.location]||SECTOR_COORDS.cordon,seed=(npcSeed(npc.id+'|'+Math.floor(now/45000))>>>0),angle=(seed%10000)/10000*Math.PI*2,radius=28+((seed>>>8)%68);npc.destinationPoint={x:Math.max(4,Math.min(996,center[0]+Math.cos(angle)*radius)),y:Math.max(4,Math.min(1996,center[1]+Math.sin(angle)*radius))};npc.action='patrol';npc.behavior='patrol';npc.duty='sector_patrol';npc.guardPost=false;npc.nextRoamAt=now+45000+(seed%45000);}
+    }
+    if(!npc.destinationPoint)continue;
+    const dx=Number(npc.destinationPoint.x)-Number(npc.x),dy=Number(npc.destinationPoint.y)-Number(npc.y),distance=Math.hypot(dx,dy),step=Math.min(distance,Math.max(1,Number(speed)||8));
+    if(distance<=step+0.5){npc.x=Number(npc.destinationPoint.x);npc.y=Number(npc.destinationPoint.y);npc.destinationPoint=null;if(npc.travelTo){npc.location=npc.travelTo;npc.travelTo=null;}if(npc.action==='travel')npc.action='patrol';}
+    else{npc.x+=dx/distance*step;npc.y+=dy/distance*step;npc.action='travel';}
+    world.npcPositions ||= {};world.npcPositions[npc.id]=npc.location;
+    moved.push({id:npc.id,x:npc.x,y:npc.y,location:npc.location,travelTo:npc.travelTo||null,action:npc.action,behavior:npc.behavior});
+  }
+  return moved;
 }
 function tickNpcWorld(world, locations, random = Math.random, now = Date.now()) {
   world.npcState ||= {}; world.npcPositions ||= {};
@@ -82,10 +108,10 @@ function tickNpcWorld(world, locations, random = Math.random, now = Date.now()) 
     npc.behavior ||= 'camp'; npc.nextDecisionAt ||= now+60000;
     if(!npc.activityPaceUpdated){if(Number(npc.nextDecisionAt)>now+4*60000)npc.nextDecisionAt=now+30000;npc.activityPaceUpdated=true;}
     if(!Number.isFinite(Number(npc.x))||!Number.isFinite(Number(npc.y))){const initial=npcWorldPosition(npc);npc.x=initial.x;npc.y=initial.y;}
-    if(npc.destinationPoint){const dx=npc.destinationPoint.x-npc.x,dy=npc.destinationPoint.y-npc.y,dist=Math.hypot(dx,dy),step=Math.min(dist,5+random()*5);if(dist<=step+1){npc.x=npc.destinationPoint.x;npc.y=npc.destinationPoint.y;npc.destinationPoint=null;if(npc.action==='travel')npc.action='patrol';}else{npc.x+=dx/dist*step;npc.y+=dy/dist*step;npc.action='travel';npc.behavior='patrol';}}
     // No unauthorized faction migration: old-save NPCs return to their own nearest friendly sector.
     const activeSquad=(world.npcSquads||[]).find(s=>s.id===npc.squadId&&['travelling','scavenging','returning','war_moving','holding_objective'].includes(s.status));
     if(activeSquad){world.npcPositions[npc.id]=npc.location;continue;}
+    if(npc.destinationPoint){world.npcPositions[npc.id]=npc.location;continue;}
     const hasOrder=!!npc.missionOrder;
     const occupied=!!npc.occupationGarrison&&owners[npc.location]===npc.faction;
     if(Object.keys(owners).length&&!occupied&&!hasOrder&&!canEnterTerritory(npc.faction,npc.location,owners,world.territoryOrders||{})){
@@ -207,4 +233,4 @@ function interactWithNpc(npc, player, action, now = Date.now(), context = {}) {
   const result=interactDialogue(npc,player,action,context,now);npc.lastInteractionAt=now;
   return { ok:true, ...result, relationship:npc.relationships[player.id], npcId:npc.id };
 }
-module.exports = { NPC_FACTIONS, ROLES, createNpcRoster, tickNpcWorld, interactWithNpc, isHostileFaction, updateNpcNeeds, npcSleepWindow };
+module.exports = { NPC_FACTIONS, ROLES, createNpcRoster, tickNpcWorld, tickNpcMovement, interactWithNpc, isHostileFaction, updateNpcNeeds, npcSleepWindow };

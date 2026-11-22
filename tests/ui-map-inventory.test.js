@@ -14,7 +14,8 @@ test('inventory can be opened directly from the in-game header', () => {
 });
 
 test('full Zone map preserves its original aspect ratio instead of stretching', () => {
-  assert.match(client, /preserveAspectRatio=\"xMidYMid meet\"/);
+  assert.match(client, /preserveAspectRatio=\"\$\{[\s\S]*xMidYMid slice[\s\S]*xMidYMid meet/);
+  assert.match(client, /function openZoneMapFullscreen\(\)/);
   assert.match(css, /\.zone-map\{[^}]*width:100%[^}]*height:min\(76dvh,920px\)/s);
   assert.match(html, /onclick=\"toggleMapFullscreen\(\)\"/);
 });

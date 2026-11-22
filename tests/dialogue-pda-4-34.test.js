@@ -19,7 +19,7 @@ test('4.34 adds signature dialogue branches for Sidorovich, Wolf and Sultan', ()
 test('4.34 moves map access into the main header and removes it from left navigation', () => {
   const html = fs.readFileSync(path.join(root, 'public/index.html'), 'utf8');
   const nav = html.slice(html.indexOf('<nav class="nav">'), html.indexOf('</nav>'));
-  assert.match(html, /class="header-map-trigger"[^>]*onclick="view\('world'\)"/);
+  assert.match(html, /class="header-map-trigger"[^>]*onclick="openZoneMapFullscreen\(\)"/);
   assert.doesNotMatch(nav, /data-v="world"/);
   assert.doesNotMatch(html.slice(html.indexOf('<div class="mobile-dock"'), html.indexOf('</div>', html.indexOf('<div class="mobile-dock"'))), /data-v="world"/);
 });

@@ -1,14 +1,24 @@
-# ZONE ONLINE 4.52.1
+# ZONE ONLINE 4.52.2
+
+## 4.52.2 — Distributed Map Objects, Real-Time NPC Motion & Fullscreen Map
+
+- Repositioned the 170 strategic key points with a deterministic, sector-specific layout. The 10 objects in each sector are spread across the sector footprint with a minimum spacing target instead of being stacked in a small ring around the sector center.
+- The Zone overview now displays strategic objects from all sectors; the local map filters to the current sector. Selecting an object still opens its ownership/control details.
+- Added a dedicated fullscreen map action to the main header. It opens the map directly in fullscreen (or the fixed-position fallback when the browser blocks the Fullscreen API), hides the non-map PDA panels, and gives the map canvas the full viewport.
+- The fullscreen map uses a landscape viewport and supports vertical panning through the tall source map. The map's original portrait geography is not distorted; the initial fullscreen view is a navigable section rather than a squashed whole-map image.
+- Separated NPC locomotion from strategic decision-making. The server advances existing movement targets every second and broadcasts compact `world:npc-motion` deltas; the client interpolates those updates with animation frames for smooth visible movement.
+- Ordinary stalkers now periodically leave idle posts for short local patrols. Named traders and commanders retain their authored positions unless they receive a movement order.
+- NPCs travelling between sectors now move toward the destination sector before their authoritative location changes on arrival, rather than instantly appearing at the destination.
+- Added regression coverage for NPC movement interpolation inputs, local patrol scheduling, distributed strategic map pins, fullscreen map entry and compact motion broadcasts.
 
 ## 4.52.1 — Bugfix & UI Stability
 
 - Fixed player identity display: the real name and callsign now appear together as `Денис Шаман`; the callsign remains the canonical multiplayer name and can still be changed independently.
 - Fixed navigation from the fullscreen map to the full radio network, news journal and other PDA sections. Navigation exits native fullscreen and removes the CSS fallback fullscreen state before switching views.
 - Fixed NPC dialogue visibility in native fullscreen map mode by moving the dialogue overlay into the fullscreen map subtree and restoring it to its original DOM position on close or fullscreen exit.
-- Expanded map zoom from 4x to 24x with multiplicative zoom steps, so the whole-Zone map can be inspected much more closely without dozens of button presses.
+- Expanded map zoom to 24x with multiplicative zoom steps.
 - Disabled page touch gestures while the map is fullscreen so dragging pans the map instead of scrolling the hidden page.
 - Escaped news and event-log text before HTML insertion. Sanitized player callsigns entered through the profile rename and multiplayer rename controls.
-- Added regression tests for player identity, fullscreen navigation, dialogue overlay lifecycle, 24x map zoom and safe news rendering.
 
 # ZONE ONLINE 4.52.0
 

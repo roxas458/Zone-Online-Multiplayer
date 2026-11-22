@@ -20,7 +20,7 @@ const { createMoveOrder, advanceMoveOrder } = require('./src/systems/player-orde
 const { createExpedition, advanceExpedition, findRoute } = require('./src/systems/expedition');
 const { initSharedWorld, initDiplomacy } = require('./src/server/world');
 const { WAR_CONFIG, createOperation, deploymentPower, addDeployment, resolveOperation } = require('./src/systems/war');
-const { tickNpcWorld, interactWithNpc, isHostileFaction } = require('./src/systems/npc-ai');
+const { tickNpcWorld, tickNpcMovement, interactWithNpc, isHostileFaction } = require('./src/systems/npc-ai');
 const { npcWorldPosition, inRange, INTERACTION_RADIUS, COMBAT_RADIUS } = require('./src/systems/proximity');
 const { ensureOnlineWorld, appendWorldEvent, buildWorldSync, publicWorldStatus } = require('./src/systems/online-world');
 const { initEcosystem, tickEcosystem, upgradeBase, createClan, joinClan, addEcoEvent } = require('./src/systems/ecosystem');
@@ -170,7 +170,7 @@ function recordStalkerKill(player,npc){
 }
 
 function publicNpcRoster(){
-  const fields=['id','name','faction','role','location','x','y','alive','generated','supportSpecialist','icon','personality','mood','action','behavior','duty','guardPost','homeLocation','health','morale','supplies','biography','friends','rivals','squadId','squadName','squadType','dialogueVersion','relationships','equipment'];
+  const fields=['id','name','faction','role','location','x','y','alive','generated','supportSpecialist','icon','personality','mood','action','behavior','duty','guardPost','homeLocation','health','morale','supplies','biography','friends','rivals','squadId','squadName','squadType','dialogueVersion','relationships','equipment','destinationPoint','travelTo','direction'];
   return Object.fromEntries(Object.entries(world.npcState||{}).map(([id,n])=>[id,Object.fromEntries(fields.filter(k=>n[k]!==undefined).map(k=>[k,n[k]]))]));
 }
 function publicWorldSnapshot(){
@@ -890,6 +890,15 @@ setInterval(async()=>{
     }
     if(movedAny)broadcastOnline();
   }catch(e){console.error('Player movement tick:',e.message);}finally{playerMovementTickRunning=false;}
+},1000).unref();
+
+// Real-time NPC locomotion is deliberately separated from strategic AI decisions.
+// It advances only existing movement targets and broadcasts compact position deltas.
+setInterval(()=>{
+  try{
+    const moving=tickNpcMovement(world,Date.now(),8);
+    if(moving.length)io.emit('world:npc-motion',{at:Date.now(),npcs:moving});
+  }catch(e){console.error('NPC movement tick:',e.message);}
 },1000).unref();
 
 setInterval(async()=>{
