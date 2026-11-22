@@ -21,6 +21,7 @@ const { initEcosystem, tickEcosystem, upgradeBase, createClan, joinClan, addEcoE
 const { initSouls, tickSouls } = require('./src/systems/souls');
 const { tickNpcAftermath, lootCorpse } = require('./src/systems/npc-aftermath');
 const { tickNpcRescue } = require('./src/systems/npc-rescue');
+const { initStashes, publicStashes, searchStashArea, buyStashIntel, lootStash } = require('./src/systems/stashes');
 const { tickEmission, emissionDamage, publicEmissionState } = require('./src/systems/emissions');
 
 const online = new Map();
@@ -167,7 +168,7 @@ function publicNpcRoster(){
 function publicWorldSnapshot(){
   // The full world is already included in player:ready. Do not include the
   // event history or NPC roster here: they are synchronized separately.
-  const {npcState,npcEvents,eventLog,...snapshot}=world;
+  const {npcState,npcEvents,eventLog,stashes,stashIntel,stashSearchCooldown,...snapshot}=world;
   return snapshot;
 }
 function initialWorldSync(sinceRevision){
@@ -178,7 +179,7 @@ function initialWorldSync(sinceRevision){
 function publicWorldSync(sinceRevision){
   const sync=buildWorldSync(world,sinceRevision);
   if(sync.mode==='snapshot'&&sync.snapshot){
-    const {npcState,npcEvents,eventLog,...snapshot}=sync.snapshot;
+    const {npcState,npcEvents,eventLog,stashes,stashIntel,stashSearchCooldown,...snapshot}=sync.snapshot;
     return {...sync,snapshot};
   }
   return sync;
@@ -186,7 +187,7 @@ function publicWorldSync(sinceRevision){
 function emitNpcState(target=io){target.emit('world:npc-state',{npcs:publicNpcRoster(),events:(world.npcEvents||[]).slice(-20),squads:world.npcSquads||[],memorial:world.npcMemorial||[],corpses:(world.npcCorpses||[]).map(({loot,...c})=>c),factionNotices:(world.factionNotices||[]).slice(0,30),rescueOperations:(world.rescueOperations||[]).slice(0,20),battlefronts:world.battlefronts||[],convoys:world.convoys||[],factionBases:world.factionBases||[],frontlineOrders:world.frontlineOrders||[]});}
 function broadcastOnline(){ io.emit('world:players',onlineList()); }
 function systemMessage(text){ const m={id:crypto.randomUUID(),system:true,name:'Система',text:clean(text,240),time:Date.now()}; recentChat.push(m); if(recentChat.length>80)recentChat.shift(); io.emit('world:chat',m); }
-initDiplomacy(world, FACTIONS); initSharedWorld(world, NPC_HOME, LOCATIONS, COOP_TEMPLATES); initSouls(world); ensureOnlineWorld(world);
+initDiplomacy(world, FACTIONS); initSharedWorld(world, NPC_HOME, LOCATIONS, COOP_TEMPLATES); initSouls(world); initStashes(world); ensureOnlineWorld(world);
 async function initDb(){
   if(!process.env.DATABASE_URL){ console.warn('DATABASE_URL missing: guest multiplayer is active in memory mode; server-side saves reset on restart.'); return; }
   try {
@@ -200,7 +201,7 @@ async function initDb(){
     const wr=await pool.query('SELECT state FROM zone_world WHERE id=1');
     if(wr.rows[0]) world={...world,...wr.rows[0].state}; else await pool.query('INSERT INTO zone_world(id,state) VALUES(1,$1)',[world]);
     const cr=await pool.query('SELECT payload FROM zone_chat ORDER BY id DESC LIMIT 60');
-    recentChat.push(...cr.rows.reverse().map(x=>x.payload)); initDiplomacy(world, FACTIONS); initSharedWorld(world, NPC_HOME, LOCATIONS, COOP_TEMPLATES); initSouls(world); ensureOnlineWorld(world); dbReady=true;
+    recentChat.push(...cr.rows.reverse().map(x=>x.payload)); initDiplomacy(world, FACTIONS); initSharedWorld(world, NPC_HOME, LOCATIONS, COOP_TEMPLATES); initSouls(world); initStashes(world); ensureOnlineWorld(world); dbReady=true;
     console.log('PostgreSQL connected; shared world persistence enabled.');
   } catch(e){ console.error('PostgreSQL initialization failed; server will continue in memory mode:',e.message); pool=null; dbReady=false; }
 }
@@ -375,6 +376,28 @@ io.on('connection', socket=>{
     if(rate.count>8){socket.emit('dm:error',{message:'Слишком часто. Подожди несколько секунд.'});return;}
     const m={id:crypto.randomUUID(),fromId:me.id,toId:target.id,fromName:me.name,toName:target.name,text,time:now};
     await persistPrivateMessage(m);socket.emit('dm:message',m);io.to(target.id).emit('dm:message',m);
+  });
+  socket.on('stash:state',()=>{const p=online.get(socket.data.playerId);if(!p)return;initStashes(world);socket.emit('stash:state',{stashes:publicStashes(world,p.id,p.location)});});
+  socket.on('stash:search',async()=>{
+    const p=online.get(socket.data.playerId);if(!p)return;
+    const result=searchStashArea(world,p,SHOP,Date.now());
+    if(result.state){p.state=result.state;await persistPlayer(p.id,p.state);}
+    await persistWorld();socket.emit('stash:search:result',result);
+  });
+  socket.on('stash:loot',async input=>{
+    const p=online.get(socket.data.playerId);if(!p)return;
+    const result=lootStash(world,p,String(input?.stashId||''),SHOP,Date.now());
+    if(result.ok){p.state=result.state;await persistPlayer(p.id,p.state);await persistWorld();}
+    socket.emit('stash:loot:result',result);
+    if(result.ok)socket.emit('stash:state',{stashes:publicStashes(world,p.id,p.location)});
+  });
+  socket.on('stash:buy-intel',async input=>{
+    const p=online.get(socket.data.playerId),npc=world.npcState?.[String(input?.npcId||'').slice(0,48)];
+    const intelBrokers=new Set(['sid','barman','beard','scout','prof','guide','wolfhound','scientist']);
+    if(!p||!npc||npc.alive===false||npc.location!==p.location||!inRange(p,npcWorldPosition(npc),INTERACTION_RADIUS)||!(intelBrokers.has(npc.id)||String(npc.role||'').toLowerCase().includes('торгов'))){socket.emit('stash:buy-intel:result',{ok:false,message:'Этот сталкер не торгует информацией или находится слишком далеко.'});return;}
+    const result=buyStashIntel(world,p,npc,Date.now());
+    if(result.ok){p.state=result.state;await persistPlayer(p.id,p.state);await persistWorld();}
+    socket.emit('stash:buy-intel:result',{...result,stashes:publicStashes(world,p.id,p.location)});
   });
   socket.on('npc:trade:buy', async input=>{
     const p=online.get(socket.data.playerId), npcId=String(input?.npcId||'').slice(0,48), itemId=String(input?.item||''), goods=SHOP[itemId];
@@ -572,7 +595,7 @@ io.on('connection', socket=>{
     st.state.money=st.money-WAR_CONFIG.operationCost;p.state=st.state;await persistPlayer(p.id,p.state);
     const op=createOperation({id:crypto.randomUUID(),location,attacker:p.faction,defender:owner,createdBy:p.id,territoryControl:world.territoryControl[location]||50});
     world.warOperations.unshift(op);world.warOperations=world.warOperations.slice(0,20);const syncEvent=appendWorldEvent(world,'war_started',{operationId:op.id,location,attacker:p.faction,defender:owner,commander:p.name});
-    await persistWorld();io.emit('world:event',syncEvent);io.emit('war:state',{operations:world.warOperations,history:world.warHistory||[]});io.emit('world:update',{world,notice:`В секторе ${location} группировка «${p.faction}» начала военную операцию против «${owner}».`});
+    await persistWorld();io.emit('world:event',syncEvent);io.emit('war:state',{operations:world.warOperations,history:world.warHistory||[]});io.emit('world:update',{world:publicWorldSnapshot(),notice:`В секторе ${location} группировка «${p.faction}» начала военную операцию против «${owner}».`});
     socket.emit('war:result',{ok:true,message:'Операция объявлена. Собирай бойцов и отдавай приказы.',state:p.state});
   });
   socket.on('war:operation:deploy', async input=>{
@@ -597,7 +620,7 @@ io.on('connection', socket=>{
     const record={id:op.id,location:op.location,attacker:op.attacker,defender:op.defender,winner:result.winner,captured:result.captured,at:Date.now()};
     world.warHistory ||= [];world.warHistory.unshift(record);world.warHistory=world.warHistory.slice(0,30);const syncEvent=appendWorldEvent(world,'war_resolved',record);
     for(const participant of op.participants){const pl=online.get(participant.playerId);if(!pl)continue;const st=safeState(pl.state);st.state.xp=Math.min(1e7,st.xp+35);st.state.rep=Math.max(-1000,Math.min(1000,st.rep+(participant.side===result.winner?5:-2)));if(participant.side===result.winner)st.state.money=Math.min(99999999,st.money+180);pl.state=st.state;await persistPlayer(pl.id,pl.state);io.to(pl.id).emit('war:reward',{state:pl.state,winner:result.winner,won:participant.side===result.winner});}
-    await persistWorld();io.emit('world:event',syncEvent);io.emit('war:state',{operations:world.warOperations,history:world.warHistory});io.emit('world:update',{world,notice:result.captured?`«${op.attacker}» захватили сектор ${op.location}.`:`Оборона «${op.defender}» удержала сектор ${op.location}.`});socket.emit('war:result',{ok:true,message:result.captured?'Победа! Территория перешла под контроль твоей группировки.':'Оборона удержала сектор.',world});
+    await persistWorld();io.emit('world:event',syncEvent);io.emit('war:state',{operations:world.warOperations,history:world.warHistory});io.emit('world:update',{world:publicWorldSnapshot(),notice:result.captured?`«${op.attacker}» захватили сектор ${op.location}.`:`Оборона «${op.defender}» удержала сектор ${op.location}.`});socket.emit('war:result',{ok:true,message:result.captured?'Победа! Территория перешла под контроль твоей группировки.':'Оборона удержала сектор.',world:publicWorldSnapshot()});
   });
   socket.on('friend:request',async input=>{const p=online.get(socket.data.playerId),target=online.get(String(input?.targetId||''));if(!p||!target||p.id===target.id){socket.emit('friend:result',{ok:false,message:'Игрок не найден.'});return;}world.playerFriends ||= {};world.playerFriendRequests ||= {};const friends=world.playerFriends[p.id]||[];if(friends.some(f=>f.id===target.id)){socket.emit('friend:result',{ok:false,message:'Этот игрок уже в друзьях.'});return;}world.playerFriendRequests[target.id] ||= [];if(!world.playerFriendRequests[target.id].some(x=>x.fromId===p.id))world.playerFriendRequests[target.id].push({fromId:p.id,name:p.name,faction:p.faction,at:Date.now()});io.to(target.id).emit('friend:invite',{fromId:p.id,name:p.name,faction:p.faction});await persistWorld();socket.emit('friend:result',{ok:true,message:`Запрос дружбы отправлен игроку ${target.name}.`});});
   socket.on('friend:respond',async input=>{const p=online.get(socket.data.playerId),fromId=String(input?.fromId||'');if(!p)return;world.playerFriends ||= {};world.playerFriendRequests ||= {};const requests=world.playerFriendRequests[p.id]||[],request=requests.find(x=>x.fromId===fromId);if(!request){socket.emit('friend:result',{ok:false,message:'Запрос больше недоступен.'});return;}world.playerFriendRequests[p.id]=requests.filter(x=>x.fromId!==fromId);if(input?.accept){const from=online.get(fromId);world.playerFriends[p.id] ||= [];world.playerFriends[fromId] ||= [];if(!world.playerFriends[p.id].some(x=>x.id===fromId))world.playerFriends[p.id].push({id:fromId,name:request.name,faction:request.faction});if(from&&!world.playerFriends[fromId].some(x=>x.id===p.id))world.playerFriends[fromId].push({id:p.id,name:p.name,faction:p.faction});io.to(fromId).emit('friend:state',{friends:world.playerFriends[fromId]});}await persistWorld();socket.emit('friend:state',{friends:world.playerFriends[p.id]||[]});socket.emit('friend:result',{ok:true,message:input?.accept?'Игрок добавлен в друзья.':'Запрос отклонён.'});});
@@ -692,7 +715,7 @@ io.on('connection', socket=>{
     world.diplomacy[target][p.faction]=updated;
     const syncEvent=appendWorldEvent(world,'diplomacy_changed',{from:p.faction,to:target,action,delta:delta[action]});
     p.state=state.state;await persistPlayer(p.id,p.state);await persistWorld(); io.emit('world:event',syncEvent);
-    io.emit('world:update',{world,notice:`${p.name} провёл дипломатическую миссию между «${p.faction}» и «${target}».`});
+    io.emit('world:update',{world:publicWorldSnapshot(),notice:`${p.name} провёл дипломатическую миссию между «${p.faction}» и «${target}».`});
     socket.emit('diplomacy:result',{ok:true,state:p.state,world});
   });
   socket.on('disconnect',(reason)=>{

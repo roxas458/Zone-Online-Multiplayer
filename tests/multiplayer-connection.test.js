@@ -42,14 +42,14 @@ test('Socket.IO accepts full player save payloads larger than the 1 MB default',
 
 test('world snapshots avoid duplicating the NPC roster and resync sends it separately', () => {
   assert.match(server, /function publicWorldSync\(sinceRevision\)/);
-  assert.match(server, /const \{npcState,npcEvents,eventLog,\.\.\.snapshot\}=sync\.snapshot/);
+  assert.match(server, /const \{npcState,npcEvents,eventLog,stashes,stashIntel,stashSearchCooldown,\.\.\.snapshot\}=sync\.snapshot/);
   assert.match(server, /worldSync:initialWorldSync\(/);
   assert.match(server, /socket\.emit\('world:sync',publicWorldSync\([\s\S]*?emitNpcState\(socket\)/);
 });
 
 
 test('initial player:ready sends one world snapshot and a lightweight revision cursor', () => {
-  assert.match(server, /function publicWorldSnapshot\(\)[\s\S]*?const \{npcState,npcEvents,eventLog,\.\.\.snapshot\}=world/);
+  assert.match(server, /function publicWorldSnapshot\(\)[\s\S]*?const \{npcState,npcEvents,eventLog,stashes,stashIntel,stashSearchCooldown,\.\.\.snapshot\}=world/);
   assert.match(server, /function initialWorldSync\(sinceRevision\)/);
   assert.match(server, /world:sync',publicWorldSync\(/);
 });
