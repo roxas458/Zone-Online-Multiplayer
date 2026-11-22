@@ -1,4 +1,4 @@
-// ZONE ONLINE 4.39.0 browser client. ZONE REPORTS / STARTER LOADOUT / SQUAD PAGE RESTORE.
+// ZONE ONLINE 4.40.0 browser client. ZONE REPORTS / STARTER LOADOUT / SQUAD PAGE RESTORE.
 const clone=o=>JSON.parse(JSON.stringify(o));
 const base={
  name:"Новичок",money:1450,hp:100,radiation:0,radiationProtectionUntil:0,stamina:85,hunger:18,thirst:20,rep:10,day:1,hour:9,loc:"cordon",faction:"Одиночки",xp:0,meetings:0,completed:0,flags:{metSid:false,metWolf:false,heardBar:false,foundArtifact:false,helpedWolf:false},
@@ -323,7 +323,7 @@ const encyclopediaEntries={
  mutants:[
   ["Плоть","Мутант","Относительно медлительное стадное животное. Часто держится возле открытых пространств."],["Псевдособака","Мутант","Хищник, охотящийся стаями. Следы чаще замечают на окраинах секторов."],["Кабан","Мутант","Крупное и опасное животное. Может защищать территорию и бросаться на нарушителя."],["Снорк","Мутант","Подвижный мутант, встречающийся в заброшенных комплексах и руинах."],["Контролёр","Мутант","Редкая опасная форма жизни. Сталкеры советуют не приближаться и не задерживаться на открытом месте."],["Зомбированный сталкер","Мутант","Бывший человек, утративший волю и способность к осмысленному общению. Держится в заброшенных местах и иногда собирается в небольшие группы."],["Кровосос","Мутант","Опасный хищник, предпочитающий укрытия и тёмные участки. Сведения о встречах часто противоречивы."],["Псевдогигант","Мутант","Крайне опасное крупное существо. Встречи с ним обычно заканчиваются отступлением."],["Тушкан","Мутант","Мелкий стайный мутант. Поодиночке не слишком опасен, но стая может застать врасплох."]
  ],
- armor:[["Кожаная куртка с пластинами","Броня","Лёгкий комплект с базовой защитой. Подходит для первых вылазок."],["Комбинезон сталкера М-2","Броня","Универсальная полевая защита для опытного одиночки."],["Заря","Броня","Усиленный комбинезон для опасных маршрутов."],["СЕВА","Броня","Герметичный научно-полевой костюм с повышенной защитой."],["Булат","Броня","Тяжёлый бронекостюм для сложных боевых выходов."],["Экзоскелет","Броня","Тяжёлая силовая система с максимальной защитой в каталоге."]],
+ armor:[["Кожаная куртка с пластинами","Броня","Лёгкий комплект с базовой защитой. Подходит для первых вылазок."],["Комбинезон сталкера М-2","Броня","Универсальная полевая защита для опытного одиночки."],["Заря","Броня","Усиленный комбинезон для опасных маршрутов."],["СЕВА","Броня","Герметичный научно-полевой костюм с повышенной защитой."],["Булат","Броня","Тяжёлый бронекостюм для сложных боевых выходов."],["Экзоскелет","Броня","Тяжёлая силовая система с максимальной защитой в каталоге."],["ПСЗ-9д «Долг»","Долг","Фракционный защитный костюм группировки Долг."],["Ветер свободы","Свобода","Лёгкий костюм, ассоциируемый с группировкой Свобода."],["Куртка бандита","Бандиты","Недорогая одежда с простыми защитными вставками."],["Армейский бронекостюм","Военные","Тяжёлая защитная экипировка военного образца."],["ССП-99","Учёные","Научный защитный костюм для работы в опасной среде."],["Костюм наёмника","Наёмники","Универсальный полевой комплект контрактника."],["Костюм Монолита","Монолит","Усиленный защитный комплект закрытой группировки."],["CS-1","Чистое небо","Фракционная полевая броня группировки Чистое небо."],["Болотный комбинезон ренегата","Ренегаты","Авторский комплект для болотных троп."]],
  artifacts:[["Медуза","Артефакт","Часто встречающаяся находка. Исследователи отмечают необычные свойства материала."],["Каменный цветок","Артефакт","Редкая находка из аномальных полей. Требует осторожной транспортировки."],["Пустышка","Артефакт","Небольшой объект с нестабильными показателями. Ценность зависит от состояния."],["Ломоть мяса","Артефакт","Органический артефакт неизвестного происхождения. Интересен полевым учёным."],["Вспышка","Артефакт","Объект с выраженной энергетической активностью. Не держи рядом с повреждённым оборудованием."],["Ночная звезда","Артефакт","Редкий артефакт с высокой рыночной стоимостью."],["Душа","Артефакт","Органическая находка, которую изучают полевые исследователи."],["Золотая рыбка","Артефакт","Редкий объект с необычной структурой и высокой ценностью."],["Пружина","Артефакт","Небольшой артефакт, часто встречающийся в опасных полях."],["Грави","Артефакт","Артефакт с выраженными физическими аномалиями."]]
 };
 
@@ -712,7 +712,7 @@ function renderMap(){
 }
 function selectLocation(id){
  chosenLoc=id;let l=g.locations.find(x=>x.id===id),pts=g.keyPoints?.[id]||[];
- $("locationInfo").innerHTML=`<b>${l.icon} ${l.name}</b> <span class="tag">${l.owner}</span><p class="muted small">${l.desc}</p><div class="small">Контроль: ${l.control}% · Уровень риска: ${l.risk}</div><div class="bar"><i style="width:${l.control}%"></i></div><div class="rightbuttons" style="margin-top:10px">${id===g.loc?'<span class="tag">Текущая локация</span>':`<button onclick="travel('${id}')">Отправиться · ${l.travel} ч.</button>`}<button onclick="influence('${id}')" ${l.owner===g.faction?"disabled":""}>Повысить влияние · 120 ₽</button></div><div class="section">Ключевые точки сектора</div><div class="poi-list">${pts.map(p=>`<div class="poi ${p.discovered?"discovered":""}"><b>${p.discovered?"✓":"⌖"} ${p.name}</b><span class="poi-marker">${p.kind}</span><small>${p.discovered?p.desc:"Сведения отсутствуют"}</small>${id===g.loc&&!p.discovered?`<div style="margin-top:7px"><button onclick="discoverPoint('${p.id}')">Исследовать</button></div>`:""}</div>`).join("")}</div>`;
+ $("locationInfo").innerHTML=`<b>${l.icon} ${l.name}</b> <span class="tag">${l.owner}</span><p class="muted small">${l.desc}</p><div class="small">Контроль: ${l.control}% · Уровень риска: ${l.risk}</div><div class="bar"><i style="width:${l.control}%"></i></div><div class="rightbuttons" style="margin-top:10px">${id===g.loc?'<span class="tag">Текущая локация</span>':`<button onclick="travel('${id}')">Пешая экспедиция · ${l.travel} ч.</button>${g.loc===(factionGuides[g.faction]?.base||'')&&((g.visitedLocations||[]).includes(id))?`<button class="guide-fast-travel" onclick="useFactionGuide('${id}')">Проводник · ${guideFare(id).toLocaleString('ru-RU')} ₽</button>`:''}`}<button onclick="influence('${id}')" ${l.owner===g.faction?"disabled":""}>Повысить влияние · 120 ₽</button></div><div class="section">Ключевые точки сектора</div><div class="poi-list">${pts.map(p=>`<div class="poi ${p.discovered?"discovered":""}"><b>${p.discovered?"✓":"⌖"} ${p.name}</b><span class="poi-marker">${p.kind}</span><small>${p.discovered?p.desc:"Сведения отсутствуют"}</small>${id===g.loc&&!p.discovered?`<div style="margin-top:7px"><button onclick="discoverPoint('${p.id}')">Исследовать</button></div>`:""}</div>`).join("")}</div>`;
  renderMap();
 }
 function explore(){startAreaSurvey()}
@@ -1061,7 +1061,7 @@ function craft(i){let recipes=[{cost:2,out:"bandage",name:"Бинт"},{cost:1,ou
 function renderProfile(){
  const rank=g.xp<50?"Новичок":g.xp<150?"Опытный сталкер":g.xp<300?"Следопыт":g.xp<600?"Ветеран Зоны":"Легенда Зоны";
  $("profileName").textContent=g.name;$("rank").textContent=rank;$("profileFaction").textContent=`${g.faction} · ${here().name}`;$("profileBio").textContent=`В Зоне с ${new Date(g.realTimeStartedAt||Date.now()).toLocaleDateString('ru-RU')}. Твой путь продолжается.`;
- $("playerPortrait").innerHTML=portraitMarkup({id:'player-'+g.name,name:g.name,faction:g.faction,role:rank,icon:'☻'});
+ $("playerPortrait").innerHTML=g.playerPortrait?`<div class="npc-portrait portrait-xl"><img src="/assets/portraits/${g.playerPortrait}" alt="Портрет ${escapeHtml(g.name)}"><span class="portrait-faction">${factionIconMarkup(g.faction)}</span></div>`:portraitMarkup({id:'player-'+g.name,name:g.name,faction:g.faction,role:rank,icon:'☻'});
  $("profileStats").innerHTML=[["Репутация",g.rep],["Опыт",g.xp],["Здоровье",g.hp+"%"],["Выносливость",g.stamina+"%"],["Ранг",rank],["Группировка",g.faction]].map(x=>`<div class="stat"><span>${x[0]}</span><strong style="font-size:16px">${escapeHtml(x[1])}</strong></div>`).join("");
  const c=g.careerStats||{},artifacts=g.items.filter(x=>x.type==='Артефакт').reduce((a,x)=>a+x.qty,0),discovered=Object.values(g.keyPoints||{}).flat().filter(p=>p.discovered).length,done=g.quests.filter(q=>q.done).length;
  $("profileCareerStats").innerHTML=[["Победы в столкновениях",c.kills||0],["Найдено артефактов",artifacts],["Открыто точек",discovered],["Заданий выполнено",done],["Локаций посещено",(g.visitedLocations||[g.loc]).length],["Переходов",c.travelled||0]].map(x=>`<div class="stat"><span>${x[0]}</span><strong>${x[1]}</strong></div>`).join("");
@@ -1090,7 +1090,7 @@ function renderRightIntel(){
  const sector=$('sectorIntel');if(sector)sector.innerHTML=`<div class="intel-location-name">${escapeHtml(here().name)}</div><div class="intel-grid"><div><small>КОНТАКТЫ</small><b>${roster.length}</b></div><div><small>СОЮЗНИКИ</small><b class="intel-friendly">${friendly}</b></div><div><small>НЕЙТРАЛЫ</small><b>${neutral}</b></div><div><small>УГРОЗЫ</small><b class="intel-hostile">${hostile}</b></div><div><small>ИЗУЧЕНО ТОЧЕК</small><b>${known}/${points.length}</b></div><div><small>РЕПУТАЦИЯ</small><b>${Number(g.rep||0)}</b></div></div><div class="intel-footnote">Сведения обновляются при изменении обстановки в секторе.</div>`;
  const signals=$('fieldSignals');if(signals){const newsItems=(g.news||[]).slice(0,3);signals.innerHTML=`<div class="intel-signal-row"><span>ПОГОДА</span><b>${escapeHtml(g.world?.weather||'неизвестно')}</b></div><div class="intel-signal-row"><span>АКТИВНОСТЬ ВЫБРОСА</span><b>${escapeHtml(g.world?.emission||'нет данных')}</b></div><div class="intel-signal-row"><span>АКТИВНОСТЬ МУТАНТОВ</span><b>${escapeHtml(g.world?.mutants||'нет данных')}</b></div><div class="intel-news-list">${newsItems.map(n=>`<div><b>${escapeHtml(n.title||'Сообщение КПК')}</b><small>${escapeHtml(n.body||'')}</small></div>`).join('')||'<div class="mutedbox small">Новых сообщений пока нет.</div>'}</div>`;}
 }
-function render(){let l=here();const hp=$("headerPlayerPortrait");if(hp)hp.innerHTML=portraitMarkup({id:"player-"+g.name,name:g.name,faction:g.faction,role:"Сталкер",icon:"♙"});const hn=$("headerPlayerName"),hf=$("headerPlayerFaction");if(hn)hn.textContent=g.name||"Сталкер";if(hf)hf.textContent=g.faction||"Одиночки";$("topMoney").textContent=g.money.toLocaleString("ru-RU");$("topHp")&&($("topHp").textContent=g.hp+"%");$("topHunger")&&($("topHunger").textContent=needPercent(g.hunger)+"%");$("topThirst")&&($("topThirst").textContent=needPercent(g.thirst)+"%");const radEl=$("topRadiation");if(radEl)radEl.textContent=Math.round(radiationLevel())+"%";$("topDay").textContent=realClock().stamp;$("topLoc").textContent=l.name;$("sMoney").textContent=g.money+" ₽";$("sHp").textContent=g.hp+"%";$("sRep").textContent=g.rep;$("sDay").textContent=g.day;
+function render(){let l=here();const hp=$("headerPlayerPortrait");if(hp)hp.innerHTML=g.playerPortrait?`<div class="npc-portrait"><img src="/assets/portraits/${g.playerPortrait}" alt="Портрет ${escapeHtml(g.name)}"><span class="portrait-faction">${factionIconMarkup(g.faction)}</span></div>`:portraitMarkup({id:"player-"+g.name,name:g.name,faction:g.faction,role:"Сталкер",icon:"♙"});const hn=$("headerPlayerName"),hf=$("headerPlayerFaction");if(hn)hn.textContent=g.name||"Сталкер";if(hf)hf.textContent=g.faction||"Одиночки";$("topMoney").textContent=g.money.toLocaleString("ru-RU");$("topHp")&&($("topHp").textContent=g.hp+"%");$("topHunger")&&($("topHunger").textContent=needPercent(g.hunger)+"%");$("topThirst")&&($("topThirst").textContent=needPercent(g.thirst)+"%");const radEl=$("topRadiation");if(radEl)radEl.textContent=Math.round(radiationLevel())+"%";$("topDay").textContent=realClock().stamp;$("topLoc").textContent=l.name;$("sMoney").textContent=g.money+" ₽";$("sHp").textContent=g.hp+"%";$("sRep").textContent=g.rep;$("sDay").textContent=g.day;
 $("nearby").innerHTML=nearbyNpcs().slice(0,3).map(n=>`<div class="item"><div><b>${n.icon} ${n.name}</b><div class="desc">${n.role} · ${n.desc}</div></div><button onclick="meet('${n.id}')">Подойти</button></div>`).join("")||'<div class="mutedbox">Поблизости никого нет.</div>';
 $("homeNews").textContent=g.news[0]?g.news[0].title+": "+g.news[0].body:"Пока без новостей.";
 renderRightIntel();
@@ -1105,8 +1105,13 @@ function resetGame(){if(confirm("Начать заново? Текущее ло�
 let zoneSocket=null, zoneSocketTarget='', zoneHelloReadyTimer=null, zoneConnectAttempt=0, zonePlayerReady=false, zonePlayerId=localStorage.getItem('zoneOnlinePlayerId')||'';
 // Guest-only release: discard obsolete account credentials from older builds.
 localStorage.removeItem('zoneAccountToken');localStorage.removeItem('zoneAccountUsername');
-const factionSpawn={ 'Одиночки':'cordon','Долг':'bar','Свобода':'army','Бандиты':'dump','Военные':'agro','Учёные':'yantar','Наёмники':'limansk','Монолит':'radar','Чистое небо':'swamps' };
-const spawnNames={cordon:'Кордон',bar:'Бар',army:'Военные склады',dump:'Свалка',agro:'Агропром',yantar:'Янтарь',limansk:'Лиманск',radar:'Радар',swamps:'Болота'};
+const factionSpawn={ 'Одиночки':'cordon','Долг':'bar','Свобода':'army','Бандиты':'dump','Военные':'agro','Учёные':'yantar','Наёмники':'limansk','Монолит':'radar','Чистое небо':'swamps','Ренегаты':'darkhollow' };
+const factionGuides={ 'Одиночки':{name:'Седой',base:'cordon'},'Долг':{name:'Комендант',base:'bar'},'Свобода':{name:'Шустрый',base:'army'},'Бандиты':{name:'Косой',base:'dump'},'Военные':{name:'Старшина',base:'agro'},'Учёные':{name:'Навигатор',base:'yantar'},'Наёмники':{name:'Курьер',base:'limansk'},'Монолит':{name:'Паломник',base:'radar'},'Чистое небо':{name:'Туман',base:'swamps'},'Ренегаты':{name:'Кривой',base:'darkhollow'} };
+const guideBaseFare=8500;
+function guideFare(destination){const l=g.locations.find(x=>x.id===destination);const d=Math.max(1,Number(l?.travel)||1);return Math.max(4500,Math.round((guideBaseFare+d*2100)*(1-(Number(g.guideDiscount)||0))));}
+function useFactionGuide(destination){const guide=factionGuides[g.faction],target=g.locations.find(x=>x.id===destination);if(!guide||!target||destination===g.loc)return alert('Проводник не может выполнить этот переход.');if(g.loc!==guide.base)return alert(`Проводник ${guide.name} принимает заказы только на базе «${locationName(guide.base)}».`);if(!(g.visitedLocations||[]).includes(destination))return alert('Проводник согласен вести только в уже посещённые тобой сектора. Сначала открой маршрут обычной экспедицией.');if(activePlayerSquad&&activePlayerSquad.leader!==zonePlayerId)return alert('Маршрутом отряда управляет командир.');const fare=guideFare(destination);if(g.money<fare)return alert(`Услуги проводника стоят ${fare.toLocaleString('ru-RU')} ₽. Не хватает денег.`);if(!confirm(`${guide.name}, проводник группировки «${g.faction}», доставит тебя в «${target.name}» за ${fare.toLocaleString('ru-RU')} ₽. Переместиться?`))return;g.money-=fare;g.loc=destination;g.visitedLocations=[...new Set([...(g.visitedLocations||[]),destination])];g.worldPosition=null;g.expedition=null;g.guideTrips=(g.guideTrips||0)+1;g.log.unshift(`Переход с проводником ${guide.name}: ${target.name}. Оплата ${fare} ₽.`);g.news.unshift({day:realClock().day,hour:realClock().time,title:'Переход с проводником',body:`${g.name} прибыл в ${target.name}. Проводник: ${guide.name} (${g.faction}). Оплата: ${fare} ₽.`});save();mpSyncLocation();render();renderMap();renderZoneMap();selectLocation(destination);}
+
+const spawnNames={cordon:'Кордон',bar:'Бар',army:'Военные склады',dump:'Свалка',agro:'Агропром',yantar:'Янтарь',limansk:'Лиманск',radar:'Радар',swamps:'Болота',darkhollow:'Тёмная Лощина'};
 let onlinePlayers=[], serverWorld=null, serverChat=[], incomingTrades=[], activePlayerSquad=null, activePlayerTradeTarget=null;
 let serverLeaderboard=[], selectedRankId='', rankRecentEvents=[];
 let applyingServerState=false;
@@ -1175,9 +1180,22 @@ const factionLore={
  'Учёные':'Исследовательские группы, изучающие аномальные явления и артефакты.',
  'Наёмники':'Контрактники, выполняющие заказы различных клиентов.',
  'Монолит':'Закрытая и крайне враждебная группировка из глубины Зоны.',
- 'Чистое небо':'Исследователи, стремящиеся понять природу Зоны.'
+ 'Чистое небо':'Исследователи, стремящиеся понять природу Зоны.',
+ 'Ренегаты':'Бывшие сталкеры и болотные изгои, живущие отдельными группами и редко доверяющие чужакам.'
 };
 let setupFaction='Одиночки';
+let selectedSetupPortrait='stalker-01.webp';
+let setupBackground='wanderer';
+const setupBackgrounds={
+ wanderer:{desc:'Самостоятельный исследователь. Начинает с небольшим запасом репутации у одиночек.'},
+ medic:{desc:'Полевой медик. Получает дополнительную аптечку.'},
+ technician:{desc:'Техник-ремонтник. Начинает с дополнительными материалами для обслуживания снаряжения.'},
+ researcher:{desc:'Помощник учёных. Получает небольшой стартовый кредит доверия у научных групп.'},
+ courier:{desc:'Курьер Зоны. Знает проводников и получает скидку на их услуги.'}
+};
+function selectSetupBackground(id){if(!setupBackgrounds[id])return;setupBackground=id;const d=setupBackgrounds[id];if($('setupBackgroundDesc'))$('setupBackgroundDesc').textContent=d.desc;}
+function renderSetupPortraits(){const host=$('setupPortraits');if(!host)return;host.innerHTML=Array.from({length:16},(_,i)=>{const file=`stalker-${String(i+1).padStart(2,'0')}.webp`;return `<button type="button" class="setup-portrait-choice ${selectedSetupPortrait===file?'selected':''}" onclick="chooseSetupPortrait('${file}')" aria-label="Выбрать портрет ${i+1}"><img src="/assets/portraits/${file}" alt="Портрет сталкера ${i+1}" loading="lazy"></button>`}).join('');const avatar=$('setupAvatar');if(avatar)avatar.innerHTML=`<img src="/assets/portraits/${selectedSetupPortrait}" alt="Выбранный портрет">`;}
+function chooseSetupPortrait(file){if(!/^stalker-(0[1-9]|1[0-6])\.webp$/.test(file))return;selectedSetupPortrait=file;renderSetupPortraits();}
 const STARTER_BUDGET=400;
 const STARTER_GEAR={
  weapon_none:{id:'weapon_none',name:'Без основного оружия',type:'Оружие',desc:'Начать без основного оружия.',weight:0,value:0,points:0,slot:'weapon'},
@@ -1188,6 +1206,15 @@ const STARTER_GEAR={
  armor_leather:{id:'armor_leather',name:'Кожаная куртка с пластинами',type:'Броня',desc:'Лёгкая защита для первых переходов.',weight:.7,value:280,defense:2,price:520,points:65,slot:'suit'},
  armor_stalker:{id:'armor_stalker',name:'Комбинезон сталкера М-2',type:'Броня',desc:'Сбалансированный полевой костюм.',weight:1.1,value:1050,defense:3,price:1850,points:115,slot:'suit'},
  armor_zarya:{id:'armor_zarya',name:'Заря',type:'Броня',desc:'Усиленный комбинезон с повышенной защитой.',weight:1.5,value:2200,defense:5,price:3850,points:175,slot:'suit'},
+ armor_duty:{id:'armor_duty',name:'Бронекостюм ПСЗ-9д «Долг»',type:'Броня',desc:'Фракционный защитный костюм группировки «Долг».',weight:5,value:2600,defense:6,price:5200,points:185,slot:'suit'},
+ armor_freedom:{id:'armor_freedom',name:'Комбинезон «Ветер свободы»',type:'Броня',desc:'Лёгкий костюм группировки «Свобода».',weight:4,value:2100,defense:4,price:4700,points:165,slot:'suit'},
+ armor_bandit:{id:'armor_bandit',name:'Куртка бандита',type:'Броня',desc:'Доступная куртка с простыми защитными вставками.',weight:3,value:650,defense:2,price:1200,points:75,slot:'suit'},
+ armor_military:{id:'armor_military',name:'Армейский бронекостюм',type:'Броня',desc:'Тяжёлая защитная экипировка военного образца.',weight:8,value:3300,defense:7,price:6800,points:220,slot:'suit'},
+ armor_ecologist:{id:'armor_ecologist',name:'Научный костюм ССП-99',type:'Броня',desc:'Защитный костюм для работы в опасной исследовательской среде.',weight:4,value:3000,defense:3,price:6100,points:190,slot:'suit'},
+ armor_merc:{id:'armor_merc',name:'Костюм наёмника',type:'Броня',desc:'Универсальный полевой комплект контрактника.',weight:5,value:1800,defense:4,price:3900,points:145,slot:'suit'},
+ armor_monolith:{id:'armor_monolith',name:'Костюм «Монолита»',type:'Броня',desc:'Усиленный защитный комплект закрытой группировки.',weight:5,value:2400,defense:5,price:5100,points:180,slot:'suit'},
+ armor_clearsky:{id:'armor_clearsky',name:'Броня Чистого неба CS-1',type:'Броня',desc:'Фракционная полевая броня исследовательской группировки.',weight:7,value:1900,defense:5,price:4400,points:155,slot:'suit'},
+ armor_renegade:{id:'armor_renegade',name:'Болотный комбинезон ренегата',type:'Броня',desc:'Авторский комплект с защитными накладками для болотных троп.',weight:4,value:950,defense:3,price:2300,points:105,slot:'suit'},
  detector_none:{id:'detector_none',name:'Без детектора',type:'Детектор',desc:'Поиск артефактов без прибора.',weight:0,value:0,points:0,slot:'tool'},
  detector_echo:{id:'detector_echo',name:'Детектор «Отклик»',type:'Детектор',desc:'Базовый прибор для поиска аномальных объектов.',weight:.6,value:220,price:650,points:65,slot:'tool'},
  detector_bear:{id:'detector_bear',name:'Детектор «Медведь»',type:'Детектор',desc:'Более удобный прибор с расширенным диапазоном.',weight:.8,value:650,price:1650,points:115,slot:'tool'},
@@ -1204,9 +1231,11 @@ const STARTER_GEAR={
 let setupLoadout={weapon:'weapon_pm',suit:'armor_leather',tool:'detector_echo',backpack:'backpack_standard',supplies:['med','bread','bread','bandage','water']};
 function setupSelectedItems(){return [setupLoadout.weapon,setupLoadout.suit,setupLoadout.tool,setupLoadout.backpack,...setupLoadout.supplies].filter(id=>id&&id!=='weapon_none'&&id!=='armor_none'&&id!=='detector_none');}
 function setupSpent(){return setupSelectedItems().reduce((sum,id)=>sum+(STARTER_GEAR[id]?.points||0),0);}
+const factionSuit={ 'Одиночки':'armor_stalker','Долг':'armor_duty','Свобода':'armor_freedom','Бандиты':'armor_bandit','Военные':'armor_military','Учёные':'armor_ecologist','Наёмники':'armor_merc','Монолит':'armor_monolith','Чистое небо':'armor_clearsky','Ренегаты':'armor_renegade' };
 function renderSetupLoadout(){
  const root=$('setupLoadoutChoices');if(!root)return;
- const fields=[['weapon','Основное оружие',['weapon_none','weapon_pm','weapon_toz34','weapon_aks74u']],['suit','Бронекостюм',['armor_none','armor_leather','armor_stalker','armor_zarya']],['tool','Детектор',['detector_none','detector_echo','detector_bear']],['backpack','Рюкзак',['backpack_standard','backpack_field','backpack_expedition']]];
+ const suitOptions=['armor_none','armor_leather','armor_stalker','armor_zarya','armor_duty','armor_freedom','armor_bandit','armor_military','armor_ecologist','armor_merc','armor_monolith','armor_clearsky','armor_renegade'];
+ const fields=[['weapon','Основной слот',['weapon_none','weapon_pm','weapon_toz34','weapon_aks74u']],['suit','Фракционный бронекостюм',suitOptions],['tool','Детектор',['detector_none','detector_echo','detector_bear']],['backpack','Рюкзак',['backpack_standard','backpack_field','backpack_expedition']]];
  const select=(key,label,ids)=>`<label class="setup-choice"><span>${label}</span><select class="field" data-setup-slot="${key}" onchange="changeSetupSlot('${key}',this.value)">${ids.map(id=>{const item=STARTER_GEAR[id];return `<option value="${id}" ${setupLoadout[key]===id?'selected':''}>${item.name} · ${item.points} очк.</option>`}).join('')}</select><small>${escapeHtml(STARTER_GEAR[setupLoadout[key]]?.desc||'')}</small></label>`;
  const supplies=[['med','Аптечка'],['bandage','Бинт'],['anti_rad','Антирад'],['bread','Хлеб'],['canned','Консервы'],['water','Вода']];
  root.innerHTML=`<div class="setup-choice-grid">${fields.map(f=>select(...f)).join('')}</div><div class="setup-supplies-head">ПРИПАСЫ / ДОБАВЛЯЙ ИЛИ УБИРАЙ</div><div class="setup-supplies">${supplies.map(([id,label])=>{const count=setupLoadout.supplies.filter(x=>x===id).length;return `<div class="setup-supply-row"><span>${label} <small>${STARTER_GEAR[id].points} очк. · ${count} шт.</small></span><div><button type="button" onclick="changeSetupSupply('${id}',-1)" aria-label="Убрать ${label}">−</button><b>${count}</b><button type="button" onclick="changeSetupSupply('${id}',1)" aria-label="Добавить ${label}">+</button></div></div>`}).join('')}</div>`;
@@ -1224,35 +1253,35 @@ function updateSetupPreview(){
  const name=($('setupCallsign')?.value||'').trim()||'НОВЫЙ СТАЛКЕР',spawn=factionSpawn[setupFaction]||'cordon';
  if($('setupPreviewName'))$('setupPreviewName').textContent=name.toUpperCase();
  if($('setupPreviewFaction'))$('setupPreviewFaction').textContent=setupFaction;
- if($('setupPreviewSpawn'))$('setupPreviewSpawn').textContent=`Точка появления: ${spawnNames[spawn]||spawn}`;
+ if($('setupPreviewSpawn'))$('setupPreviewSpawn').textContent=`Точка появления: ${spawnNames[spawn]||spawn}`;const av=$('setupAvatar');if(av)av.innerHTML=`<img src="/assets/portraits/${selectedSetupPortrait}" alt="Портрет персонажа">`;const bg=setupBackgrounds[setupBackground];if($('setupBackgroundDesc')&&bg)$('setupBackgroundDesc').textContent=bg.desc;
  if($('setupStarterContract'))$('setupStarterContract').textContent=setupFaction==='Одиночки'?'На Кордоне Волк поможет освоиться, а Сидорович предложит первую работу.':`На базе «${setupFaction}» тебя встретит представитель группировки и выдаст первое поручение.`;
 }
-function resetStarterLoadout(){setupLoadout={weapon:'weapon_pm',suit:'armor_leather',tool:'detector_echo',backpack:'backpack_standard',supplies:['med','bread','bread','bandage','water']};renderSetupLoadout();}
+function resetStarterLoadout(){setupLoadout={weapon:'weapon_pm',suit:factionSuit[setupFaction]||'armor_leather',tool:'detector_echo',backpack:'backpack_standard',supplies:['med','bread','bread','bandage','water']};renderSetupLoadout();}
 function randomizeStarterLoadout(){
- const groups={weapon:['weapon_none','weapon_pm','weapon_toz34','weapon_aks74u'],suit:['armor_none','armor_leather','armor_stalker','armor_zarya'],tool:['detector_none','detector_echo','detector_bear'],backpack:['backpack_standard','backpack_field','backpack_expedition']};
+ const groups={weapon:['weapon_none','weapon_pm','weapon_toz34','weapon_aks74u'],suit:['armor_none','armor_leather','armor_stalker','armor_zarya',factionSuit[setupFaction]||'armor_stalker'],tool:['detector_none','detector_echo','detector_bear'],backpack:['backpack_standard','backpack_field','backpack_expedition']};
  let tries=0;do{for(const [slot,ids] of Object.entries(groups))setupLoadout[slot]=ids[Math.floor(Math.random()*ids.length)];setupLoadout.supplies=['med','bread','bandage'];if(Math.random()>.5)setupLoadout.supplies.push('anti_rad');if(Math.random()>.5)setupLoadout.supplies.push('water');tries++;}while(setupSpent()>STARTER_BUDGET&&tries<100);
  renderSetupLoadout();
 }
 function openCharacterSetup(){
- const root=$('characterSetup');if(!root)return;
+ const root=$('characterSetup');if(!root)return;if(factionSuit[setupFaction]&&setupLoadout.suit==='armor_leather')setupLoadout.suit=factionSuit[setupFaction];
  $('setupCallsign').value=g.name==='Новичок'?'':g.name;
  $('setupFactions').innerHTML=g.factions.map(f=>`<button type="button" class="faction-choice ${setupFaction===f.name?'selected':''}" onclick="selectSetupFaction('${f.name.replace(/'/g,"\\'")}')"><b>${f.icon||'◉'} ${f.name}</b><div class="desc">${f.style||''}</div></button>`).join('');
  $('factionDescription').textContent=factionLore[setupFaction]||'Выбранная сторона Зоны.';const spawn=factionSpawn[setupFaction]||'cordon';if($('setupSpawnInfo'))$('setupSpawnInfo').textContent=`Точка появления: ${spawnNames[spawn]||spawn}. Ты начнёшь игру у базы своей группировки.`;
- renderSetupLoadout();updateSetupPreview();root.classList.add('show');
+ renderSetupLoadout();renderSetupPortraits();if($('setupBackground'))$('setupBackground').value=setupBackground;selectSetupBackground(setupBackground);updateSetupPreview();root.classList.add('show');
 }
-function selectSetupFaction(name){const current=$('setupCallsign').value;setupFaction=name;openCharacterSetup();$('setupCallsign').value=current;updateSetupPreview();}
+function selectSetupFaction(name){const current=$('setupCallsign').value;setupFaction=name;if(factionSuit[name])setupLoadout.suit=factionSuit[name];openCharacterSetup();$('setupCallsign').value=current;updateSetupPreview();}
 function confirmCharacter(){
  const name=$('setupCallsign').value.trim().replace(/[<>]/g,'').slice(0,24);
  if(name.length<2)return alert('Позывной должен содержать минимум 2 символа.');
  if(!g.factions.some(f=>f.name===setupFaction))return alert('Выбери группировку из списка.');
  const spent=setupSpent();if(spent>STARTER_BUDGET)return alert('Комплект превышает лимит очков снабжения.');
- g.name=name;g.faction=setupFaction;g.characterCreated=true;const spawn=factionSpawn[setupFaction]||'cordon';g.loc=spawn;g.visitedLocations=[...new Set([...(g.visitedLocations||[]),spawn])];g.worldPosition=null;
+ g.name=name;g.faction=setupFaction;g.characterCreated=true;g.playerPortrait=selectedSetupPortrait;g.background=setupBackground;g.characterTraits=[setupBackground];g.guideDiscount=setupBackground==='courier'?.12:0;const spawn=factionSpawn[setupFaction]||'cordon';g.loc=spawn;g.visitedLocations=[...new Set([...(g.visitedLocations||[]),spawn])];g.worldPosition=null;
  // A new character receives only the selected starter kit; the loadout is real inventory, not a visual-only preview.
  g.items=[];g.equipment={weapon:'',sidearm:'',suit:'',tool:'',helmet:'',artifact:'',backpack:''};
  const counts={};for(const id of setupSelectedItems())counts[id]=(counts[id]||0)+1;
  for(const [id,qty] of Object.entries(counts)){const item=STARTER_GEAR[id];if(!item)continue;g.items.push({id:item.id,name:item.name,type:item.type,desc:item.desc,weight:item.weight||0,value:item.value||0,qty,price:item.price||0,defense:item.defense||0,power:item.power||0,capacity:item.capacity||0,condition:100});}
  for(const slot of ['weapon','suit','tool','backpack']){const item=STARTER_GEAR[setupLoadout[slot]];if(item&&item.id&&!item.id.endsWith('_none'))g.equipment[slot]=item.name;}
- g.startingSupplyPoints={spent,budget:STARTER_BUDGET};
+ if(setupBackground==='medic')g.items.push({id:'med-background',name:'Дополнительная аптечка',type:'Медицина',desc:'Бонус предыстории полевого медика.',weight:.4,value:100,qty:1,condition:100});if(setupBackground==='technician')g.items.push({id:'scrap-background',name:'Запас деталей',type:'Материал',desc:'Бонус предыстории техника.',weight:.8,value:30,qty:2,condition:100});if(setupBackground==='researcher'){g.rep=(g.rep||0)+3;g.scienceTrust=(g.scienceTrust||0)+3;}if(setupBackground==='wanderer')g.rep=(g.rep||0)+3;g.startingSupplyPoints={spent,budget:STARTER_BUDGET};
  g.news.unshift({day:realClock().day,hour:realClock().time,title:'Регистрация завершена',body:`Сталкер ${name} зарегистрирован в КПК. Группировка: ${setupFaction}. Стартовый комплект: ${spent}/${STARTER_BUDGET} очков снабжения.`});
  g.log.unshift(`Позывной: ${name}. Группировка: ${setupFaction}. Начальная база: ${spawnNames[spawn]||spawn}. Стартовый комплект: ${spent}/${STARTER_BUDGET} очков.`);
  $('characterSetup').classList.remove('show');document.body.classList.remove('title-screen-active');save();mpSyncLocation();renderInventory();
@@ -1695,7 +1724,7 @@ function continueZoneGame(){
 function beginNewZoneGame(){
  if(g.characterCreated&&!confirm('Начать новую игру? Текущее локальное сохранение будет заменено.'))return;
  localStorage.removeItem('zoneExpandedSave');
- g=clone(base);g.characterCreated=false;setupFaction='Одиночки';
+ g=clone(base);g.characterCreated=false;setupFaction='Одиночки';selectedSetupPortrait='stalker-01.webp';setupBackground='wanderer';
  document.body.classList.remove('title-screen-active');
  $('titleScreen')?.setAttribute('hidden','');
  openCharacterSetup();
