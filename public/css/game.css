@@ -1158,3 +1158,23 @@ body.title-screen-active .quick-use-bar{display:none}
 .radio-readonly-note{margin-top:10px;padding:10px 12px;border-top:1px solid rgba(173,150,105,.25);color:#a9a58d;font-size:10px;letter-spacing:.09em;line-height:1.5}.radio-message.radio-help{border-left-color:#c77b68}.radio-message.radio-trade{border-left-color:#c5a66a}.radio-message.radio-anomaly{border-left-color:#a98cc4}.radio-message.radio-sighting,.radio-message.radio-mutants{border-left-color:#bd786d}.marker-artifact{cursor:pointer;filter:drop-shadow(0 0 5px rgba(118,214,193,.8))}.marker-artifact circle{fill:#75c7b1;stroke:#d4fff1;stroke-width:2.5}.marker-artifact text{fill:#10231e;font-size:14px}
 
 .inspect-effects{margin:9px 0;padding:9px;background:rgba(120,150,115,.09);border:1px solid rgba(120,150,115,.2);display:grid;gap:4px}.inspect-effects small{color:#b9c6a7}
+
+/* 4.42.0 character identity and compact portrait picker */
+.setup-person-preview .setup-avatar,.setup-avatar{width:54px!important;height:64px!important;flex:0 0 54px;border-radius:3px}
+.setup-identity-fields{display:grid;grid-template-columns:1fr;gap:5px;margin:8px 0 10px}
+.setup-generator-row{display:flex;gap:5px;flex-wrap:wrap;margin:0 0 5px}
+.setup-generator-row button,.setup-portrait-compact button{font-size:9px!important;padding:5px 8px!important}
+.setup-portrait-compact{display:flex;align-items:center;gap:10px;padding:8px;margin:8px 0 12px;background:#111612;border:1px solid #505646}
+.setup-portrait-mini{width:46px;height:56px;flex:0 0 46px;overflow:hidden;border:1px solid #8b805d;background:#1a2019}
+.setup-portrait-mini img{width:100%;height:100%;object-fit:cover;display:block}
+.setup-portrait-compact b,.setup-portrait-compact small{display:block;font-size:10px;color:#d7d0b5}
+.setup-portrait-compact small{font-size:9px;color:#9e9f8c;margin:3px 0 6px}
+.setup-portrait-modal{position:absolute;inset:0;z-index:30;background:rgba(0,0,0,.82);display:grid;place-items:center;padding:18px}
+.setup-portrait-modal[hidden]{display:none!important}
+.setup-portrait-modal-card{width:min(560px,94vw);max-height:80vh;overflow:auto;padding:14px;background:#171b16;border:1px solid #9a8d68;box-shadow:0 18px 55px #000}
+.setup-portrait-modal-card header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;color:#e4d9b7;font-size:11px;letter-spacing:.12em}
+.setup-portrait-grid{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:7px;margin:0}
+.setup-portrait-choice{aspect-ratio:4/5;min-height:48px}
+.coop-artifact-card{border-left:2px solid #78bca8!important}
+.marker-artifact-coop{filter:drop-shadow(0 0 8px rgba(124,220,195,.95))}
+@media(max-width:680px){.setup-portrait-grid{grid-template-columns:repeat(4,minmax(0,1fr))}.setup-portrait-modal{padding:8px}.setup-portrait-modal-card{max-height:86vh}.setup-generator-row button{flex:1}}
