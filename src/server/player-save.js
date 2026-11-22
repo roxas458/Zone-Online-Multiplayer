@@ -6,7 +6,7 @@
 const SERVER_AUTHORITY_FIELDS = Object.freeze([
   'money', 'items', 'hp', 'xp', 'rep', 'quests', 'careerStats', 'faction', 'characterCreated', 'visitedLocations',
   'equipment', 'weaponSlots', 'armor', 'artifacts', 'skills', 'rank',
-  'reputation', 'stash', 'stashItems', 'tradeHistory', 'level', 'perks', 'achievements'
+  'reputation', 'stash', 'stashItems', 'tradeHistory', 'level', 'perks', 'achievements', 'guestSessionVersion'
 ]);
 
 function mergeClientSaveState(currentState, incomingState, options = {}) {

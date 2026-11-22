@@ -351,7 +351,7 @@ test('dialogue topic selection returns the chosen current server-side topic', ()
 test('4.31 guest-only mode removes account registration and login routes', () => {
   const source = require('node:fs').readFileSync(require('node:path').join(__dirname, '..', 'server.js'), 'utf8');
   assert.doesNotMatch(source, /api\/auth\/(register|login)/);
-  assert.match(source, /guest identity/);
+  assert.match(source, /guest profiles use signed sessions/);
 });
 test('4.21 new characters spawn at their faction home and faction chat is location-scoped', () => {
   const server = require('node:fs').readFileSync(require('node:path').join(__dirname, '..', 'server.js'), 'utf8');

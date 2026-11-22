@@ -10,8 +10,12 @@ const {
 const { clean, validId, createSafeState } = require('./src/server/validation');
 const { reconcilePlayerPosition } = require('./src/server/player-authority');
 const { mergeClientSaveState } = require('./src/server/player-save');
+const { createGuestAuth } = require('./src/server/guest-auth');
 const { applyPlayerTrade } = require('./src/server/player-trade');
 const safeState = createSafeState(FACTIONS, LOCATIONS);
+const guestSessionSecret = process.env.ZONE_SESSION_SECRET || crypto.randomBytes(48).toString('hex');
+const guestAuth = createGuestAuth({ secret: guestSessionSecret });
+if (!process.env.ZONE_SESSION_SECRET) console.warn('[auth] ZONE_SESSION_SECRET is not configured; guest sessions will be invalidated when this process restarts.');
 const { createMoveOrder, advanceMoveOrder } = require('./src/systems/player-orders');
 const { createExpedition, advanceExpedition, findRoute } = require('./src/systems/expedition');
 const { initSharedWorld, initDiplomacy } = require('./src/server/world');
@@ -258,18 +262,36 @@ io.on('connection', socket=>{
       const dbWaitStartedAt=Date.now();
       await dbInitialization;
       const dbWaitMs=Date.now()-dbWaitStartedAt;
-      // guest identity mode: account registration/login has been removed. Every connection is a guest
-      // identified by a browser-generated UUID; no token or database lookup is required.
-      const id=validId(payload?.id)?String(payload.id):crypto.randomUUID();
+      // guest profiles use signed sessions; identity uses a signed bearer session token after the first profile claim.
+      // Legacy profiles without a session marker are migrated once on first return.
+      const requestedId=validId(payload?.id)?String(payload.id):null;
+      let id=requestedId || crypto.randomUUID();
       const profileLoadStartedAt=Date.now();
-      let saved=await loadPlayer(id);
-      const pendingNewCharacter=payload?.state?.characterCreated===true&&saved?.characterCreated!==true;
-      if((!saved||pendingNewCharacter) && payload?.state) { saved=safeState(payload.state).state; await persistPlayer(id,saved); }
+      let saved=requestedId ? await loadPlayer(requestedId) : null;
+      const tokenValid=!!requestedId && guestAuth.verify(payload?.sessionToken, requestedId);
+      if(saved && Number(saved.guestSessionVersion||0)>=1 && !tokenValid){
+        const message='Сессия гостевого профиля недействительна или истекла. Для защиты профиля вход отклонён.';
+        socket.emit('player:hello:error',{message,code:'GUEST_SESSION_INVALID'});
+        if(typeof ack==='function')ack({ok:false,message,code:'GUEST_SESSION_INVALID'});
+        return;
+      }
+      if(saved && Number(saved.guestSessionVersion||0)<1){
+        // One-time compatibility migration for profiles created before signed sessions.
+        if(payload?.state && saved.characterCreated!==true && payload.state.characterCreated===true){
+          saved=mergeClientSaveState(saved,safeState(payload.state).state,{allowCharacterCreation:true});
+        }
+        saved.guestSessionVersion=1;
+      } else if(!saved){
+        saved=payload?.state ? safeState(payload.state).state : safeState({}).state;
+        saved.guestSessionVersion=1;
+      }
+      const sessionToken=guestAuth.issue(id);
       const profileLoadMs=Date.now()-profileLoadStartedAt;
       const stateValidationStartedAt=Date.now();
-      const s=safeState(saved||payload?.state);
+      const s=safeState(saved);
+      s.state.guestSessionVersion=1;
       // Never reattach an unvalidated database record after normalizing it.
-      if(saved) await persistPlayer(id,s.state);
+      await persistPlayer(id,s.state);
       const stateValidationMs=Date.now()-stateValidationStartedAt;
       const spawnPoint=SECTOR_COORDS[s.loc]||SECTOR_COORDS.cordon;const savedPos=s.state?.worldPosition;const p={ id, name:s.name, faction:s.faction, location:s.loc, x:Number.isFinite(Number(savedPos?.x))?Math.max(0,Math.min(1000,Number(savedPos.x))):spawnPoint[0], y:Number.isFinite(Number(savedPos?.y))?Math.max(0,Math.min(2000,Number(savedPos.y))):spawnPoint[1], hp:s.hp, xp:s.xp, joinedAt:Date.now(), lastSeen:Date.now(), state:s.state, moveOrder:null, travelEncounter:null };
       // Publish the new owner before closing an older tab/session. The old
@@ -285,10 +307,10 @@ io.on('connection', socket=>{
       const joinEvent = appendWorldEvent(world, 'player_joined', { player:publicPlayer(p) });
       // Acknowledge after registration but BEFORE the world snapshot, so clients
       // receive the small acknowledgement without waiting for a large NPC payload.
-      if(typeof ack==='function'){ack({ok:true,accepted:true,persistent:dbReady});console.info(`[socket] player:hello ack sent id=${socket.id}`);}
+      if(typeof ack==='function'){ack({ok:true,accepted:true,persistent:dbReady,sessionToken});console.info(`[socket] player:hello ack sent id=${socket.id}`);}
       s.state.emission = { ...publicEmissionState(world), active: world.emission.phase === 'active', warning: world.emission.phase === 'warning' };
       world.pendingArtifactRewards ||= {};const pendingRewards=world.pendingArtifactRewards[id]||[];for(const reward of pendingRewards){s.state.items ||= [];const found=s.state.items.find(x=>x.id===reward.id);if(found)found.qty=(Number(found.qty)||0)+1;else s.state.items.push({...reward,qty:1});}if(pendingRewards.length){delete world.pendingArtifactRewards[id];p.state=s.state;await persistPlayer(id,s.state);}
-      socket.emit('player:ready',{id, savedState:s.state, guest:true, world:publicWorldSnapshot(), worldSync:initialWorldSync(Number(payload?.lastRevision)||0), status:publicWorldStatus(world,online.size), chat:recentChat.filter(m=>!m.location||m.location===p.location).slice(-60), players:onlineList(), leaderboard:leaderboardPayload(), position:{x:p.x,y:p.y}, persistent:dbReady});
+      socket.emit('player:ready',{id, savedState:s.state, guest:true, sessionToken, world:publicWorldSnapshot(), worldSync:initialWorldSync(Number(payload?.lastRevision)||0), status:publicWorldStatus(world,online.size), chat:recentChat.filter(m=>!m.location||m.location===p.location).slice(-60), players:onlineList(), leaderboard:leaderboardPayload(), position:{x:p.x,y:p.y}, persistent:dbReady});
       for(const entry of (world.events||[])){const offer=entry?.type==='trade'?entry.offer:null;if(offer?.to===id&&offer.status==='pending'&&Number(offer.expiresAt)>Date.now())socket.emit('trade:incoming',offer); }
       console.log(`player:hello completed for ${id} in ${Date.now()-helloStartedAt}ms (dbWait=${dbWaitMs}ms profile=${profileLoadMs}ms state=${stateValidationMs}ms db=${dbReady?'postgres':'memory-fallback'})`);
       socket.to('zone-world').emit('world:event',joinEvent);

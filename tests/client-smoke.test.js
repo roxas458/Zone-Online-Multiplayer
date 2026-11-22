@@ -460,9 +460,9 @@ test('4.25 field PDA keeps long-page filters and map controls reachable', () => 
 test('4.33 build labels are consistent', () => {
   const html = fs.readFileSync(path.join(root, 'public/index.html'), 'utf8');
   const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
-  assert.equal(pkg.version, '4.48.0');
-  assert.match(html, /BUILD 4\.48\.0/);
-  assert.match(html, /ZONE ONLINE 4\.48\.0/);
+  assert.equal(pkg.version, '4.49.0');
+  assert.match(html, /BUILD 4\.49\.0/);
+  assert.match(html, /ZONE ONLINE 4\.49\.0/);
 });
 
 test('4.32 fieldwork, detector search, journal and map ecology layers are wired into the client', () => {
@@ -524,8 +524,8 @@ test('4.27 login acknowledgement timeout accounts for Render cold starts', () =>
 test('4.31 guest server acknowledges before the large world snapshot', () => {
   const server = fs.readFileSync(path.join(root, 'server.js'), 'utf8');
   const handler = server.indexOf("socket.on('player:hello', async (payload, ack)=>{");
-  const ack = server.indexOf("ack({ok:true,accepted:true,persistent:dbReady})", handler);
-  const firstAwait = server.indexOf('await loadPlayer(id)', handler);
+  const ack = server.indexOf("ack({ok:true,accepted:true,persistent:dbReady,sessionToken})", handler);
+  const firstAwait = server.indexOf('await loadPlayer(requestedId)', handler);
   const ready = server.indexOf("socket.emit('player:ready'", handler);
   assert.ok(firstAwait > handler && ready > firstAwait, 'profile snapshot follows profile loading');
   assert.ok(ack > firstAwait && ack < ready, 'guest acknowledgement is sent before large ready payload');
@@ -625,7 +625,7 @@ test('4.33 survival and expedition features are wired into the game and server',
   const client=fs.readFileSync(path.join(root,'public/js/game.js'),'utf8');
   const server=fs.readFileSync(path.join(root,'server.js'),'utf8');
   const data=fs.readFileSync(path.join(root,'src/shared/game-data.js'),'utf8');
-  assert.match(html,/survival\.js\?v=4\.48\.0/);
+  assert.match(html,/survival\.js\?v=4\.49\.0/);
   assert.match(html,/Подготовить рюкзак/);
   assert.match(html,/Охота на мутантов/);
   assert.match(client,/function tickSurvival\(/);

@@ -1,4 +1,4 @@
-ZONE ONLINE 4.48.0
+ZONE ONLINE 4.49.0
 
 # ZONE ONLINE 4.39.0
 
@@ -209,3 +209,13 @@ ZONE ONLINE 4.48.0
 - The server returns an authoritative save acknowledgement; the online client reconciles the protected fields instead of retaining locally forged economy/progression values.
 - PostgreSQL deployments create `zone_trade_receipts` and record each accepted trade offer ID inside the same transaction as the two profile updates. A retried offer after a restart cannot apply the same transfer twice.
 - This is a staged authority migration. Guest UUID identity is still not account authentication, and offline/local gameplay continues to use local saves.
+
+
+## 4.49.0 — signed guest sessions
+
+- Guest sessions now use HMAC-SHA256 signed bearer tokens tied to the player UUID and a 90-day expiry. The browser stores the token in local storage and sends it during the Socket.IO hello handshake.
+- Existing profiles created before this change are migrated once: their first successful return receives a signed session token. Generic client saves cannot change the server-owned guest-session version marker.
+- Existing saved profiles with a session marker reject hello requests that do not present a valid token.
+- A legacy profile without a session marker can still be claimed once during migration; this compatibility window cannot prove historical ownership.
+- Configure `ZONE_SESSION_SECRET` with a stable random secret of at least 32 bytes in the hosting environment (for example, generate one with `openssl rand -hex 48`). If omitted, the server generates an ephemeral secret and warns that guest sessions will be invalidated after process restart.
+- When PostgreSQL is unavailable, profiles remain memory-fallback only; session signing does not create durable profile storage.
