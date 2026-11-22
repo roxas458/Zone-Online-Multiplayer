@@ -903,13 +903,21 @@ setInterval(()=>{
   if(npcLifeTickRunning)return;npcLifeTickRunning=true;
   try{
     const now=Date.now();
-    const events=tickNpcLife(world,now,Math.random);
+    const events=tickNpcLife(world,now,Math.random);let traderStockChanged=false;
     for(const event of events){
       io.emit('world:npc-event',event);
-      if(event.type==='npc_artifact_found'||event.type==='npc_social_encounter'){
+      if(event.type==='npc_artifact_found'||event.type==='npc_social_encounter'||event.type==='npc_squad_formed'||event.type==='npc_rumor_shared'||event.type==='npc_road_encounter'||event.type==='npc_goods_delivered'){
         const synced=appendWorldEvent(world,event.type,event,now);io.emit('world:event',synced);
       }
+      if(event.type==='npc_goods_delivered'){
+        const trader=world.npcState?.[event.npcIds?.[1]],pending=trader?.stock?.items||[];
+        if(trader&&pending.length){const account=npcEconomyFor(trader),remaining=[];
+          for(const item of pending){const match=Object.entries(SHOP).find(([,goods])=>goods.name===item.name);if(!match){remaining.push(item);continue;}const [itemId,goods]=match;account.stock[itemId]=Math.min(Number(account.maxStock[itemId])||99,(Number(account.stock[itemId])||0)+Math.max(1,Number(item.qty)||1));recordNpcTrade(account,{type:'npc_delivery',item:itemId,qty:Math.max(1,Number(item.qty)||1),sourceNpcId:event.npcIds?.[0],sourceNpcName:world.npcState?.[event.npcIds?.[0]]?.name||'сталкер',price:0});traderStockChanged=true;}
+          trader.stock.items=remaining;
+        }
+      }
     }
+    if(traderStockChanged)persistWorld().catch(error=>console.error('NPC trader stock save:',error.message));
   }catch(e){console.error('NPC A-Life tick:',e.message);}finally{npcLifeTickRunning=false;}
 },15000).unref();
 
@@ -917,12 +925,12 @@ setInterval(()=>{
 // It advances only existing movement targets and broadcasts compact position deltas.
 setInterval(()=>{
   try{
-    const moving=tickNpcMovement(world,Date.now(),8);
+    const moving=tickNpcMovement(world,Date.now(),2.5);
     if(moving.length)io.emit('world:npc-motion',{at:Date.now(),npcs:moving});
   }catch(e){console.error('NPC movement tick:',e.message);}
 },1000).unref();
 
-setInterval(()=>{try{const updates=tickMutantMovement(world,Date.now(),2.8);if(updates.length)io.emit('world:mutant-motion',{at:Date.now(),packs:updates});}catch(e){console.error('Mutant movement tick:',e.message);}},1000).unref();
+setInterval(()=>{try{const updates=tickMutantMovement(world,Date.now(),2.5);if(updates.length)io.emit('world:mutant-motion',{at:Date.now(),packs:updates});}catch(e){console.error('Mutant movement tick:',e.message);}},1000).unref();
 
 let proximityCombatRunning=false;
 setInterval(()=>{

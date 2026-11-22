@@ -48,7 +48,7 @@ test('4.52.2 header map button opens the fullscreen map and fullscreen canvas hi
 test('4.52.2 server streams compact NPC motion updates separately from strategic decisions',()=>{
   const server=fs.readFileSync(path.join(root,'server.js'),'utf8');
   const ai=fs.readFileSync(path.join(root,'src/systems/npc-ai.js'),'utf8');
-  assert.match(server,/tickNpcMovement\(world,Date\.now\(\),8\)/);
+  assert.match(server,/tickNpcMovement\(world,Date\.now\(\),2\.5\)/);
   assert.match(server,/world:npc-motion/);
   assert.match(ai,/function tickNpcMovement\(/);
   assert.match(server,/destinationPoint','travelTo/);
