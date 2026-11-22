@@ -1253,3 +1253,20 @@ body.reduce-background .title-atmosphere,body.reduce-background .title-grain,bod
     animation:none !important;
   }
 }
+
+/* 4.58.0 — visible NPC firefights and clickable battle hotspots */
+.zone-map .marker-in-combat .marker-dot{fill:#ff6b32;stroke:#ffe1a2;stroke-width:4;filter:drop-shadow(0 0 5px #ff4b16)}
+.zone-map .marker-in-combat .marker-pulse,.zone-map .battle-hotspot-pulse{fill:#ff5722;opacity:.34;animation:zoneBattlePulse 1.15s ease-out infinite}
+.zone-map .combat-flame,.zone-map .battle-hotspot-flame{font-size:20px;stroke:none;paint-order:normal;filter:drop-shadow(0 0 5px #ff6a22);animation:zoneFireFlicker .48s ease-in-out infinite alternate}
+.zone-map .combat-muzzle-flash{fill:none;stroke:#ffe49a;stroke-width:2.5;stroke-linecap:round;filter:drop-shadow(0 0 4px #ff7a21);animation:zoneMuzzleFlash .8s steps(2,end) infinite}
+.zone-map .marker-battle-hotspot{cursor:pointer;color:#ff6b32}
+.zone-map .battle-hotspot-core{fill:#4b2117;stroke:#ffb05b;stroke-width:3;filter:drop-shadow(0 0 7px #ff4b16)}
+.zone-map .battle-hotspot-icon{font-size:18px;fill:#ffe8c4;stroke:none}
+.zone-map .battle-hotspot-flame{font-size:18px}
+.zone-map .marker-battle-hotspot:hover .battle-hotspot-core,.zone-map .marker-battle-hotspot:focus .battle-hotspot-core{stroke:#fff1b5;stroke-width:5}
+.map-battle-roster{display:grid;gap:5px;margin:8px 0;padding:8px;border:1px solid var(--line);border-radius:7px;background:#0002;font-size:12px}
+.map-battle-roster>div{padding:4px 0;border-top:1px solid #ffffff12}
+@keyframes zoneBattlePulse{0%{r:12px;opacity:.5}100%{r:34px;opacity:0}}
+@keyframes zoneFireFlicker{from{transform:translateY(1px) scale(.9);opacity:.75}to{transform:translateY(-3px) scale(1.12);opacity:1}}
+@keyframes zoneMuzzleFlash{0%,68%,100%{opacity:0}70%,78%{opacity:1}}
+@media(prefers-reduced-motion:reduce){.zone-map .marker-in-combat .marker-pulse,.zone-map .battle-hotspot-pulse,.zone-map .combat-flame,.zone-map .combat-muzzle-flash{animation:none}}
