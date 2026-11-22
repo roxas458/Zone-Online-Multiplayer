@@ -1,4 +1,4 @@
-# ZONE ONLINE 4.33.37
+# ZONE ONLINE 4.33.38
 
 Обновление главного меню: атмосферный стартовый экран, продолжение и загрузка локального сохранения, запуск новой игры с выбором группировки и позывного, переход к сетевой игре и опциям. Адаптивная компоновка для мобильных экранов.
 
@@ -25,9 +25,18 @@
 - Original map artwork and existing game content are preserved.
 
 
-## 4.33.37 — Realistic Zone foundation
+## 4.33.38 — Realistic Zone foundation
 
 - Added a persistent server-authoritative emission cycle shared by multiplayer clients.
 - Added warning, active, and residual-radiation phases with predictable durations.
 - Added server-side exposure damage with shelter and suit protection.
 - Preserved legacy save migration and offline emission fallback.
+
+## 4.33.38 — A-Life: NPC needs and daily routines
+
+- Added server-side hunger, thirst, fatigue, and stress values for NPCs.
+- NPCs gradually consume supplies to satisfy hunger and thirst; lack of supplies slowly reduces morale.
+- Each NPC receives a stable individual night-rest window derived from its ID.
+- Tired stalkers enter a rest duty and wait longer before their next behavior decision.
+- Legacy NPC records receive safe defaults without changing IDs, names, factions, or locations.
+- Added automated coverage for needs, supplies, night rest, and legacy-state migration.

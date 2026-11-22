@@ -24,12 +24,44 @@ const NPC_DISPLAY = {sid:'Сидорович',wolf:'Волк',fanatic:'Фана�
 function createNpcRoster(npcHome, now = Date.now()) {
   const roster = {};
   for (const [id, location] of Object.entries(npcHome || {})) {
-    roster[id] = { id, name: NPC_DISPLAY[id] || id, faction: NPC_FACTIONS[id] || 'Одиночки', role: ROLES[id] || 'сталкер', location, homeLocation:location, baseLocation:location, destination: null, action: 'camp', behavior:'camp', duty:'base_guard', guardPost:true, mood: 'спокоен', health: 100, morale: 60, supplies: 50, alive: true, lastActionAt: now, nextDecisionAt:now+5*60000, relationships: {}, inventory: [], history: [], generated:false, dialogueVersion:0, dialogueCycle:Math.floor(now/900000), lastApproachAt:0, route:[] };
+    roster[id] = { id, name: NPC_DISPLAY[id] || id, faction: NPC_FACTIONS[id] || 'Одиночки', role: ROLES[id] || 'сталкер', location, homeLocation:location, baseLocation:location, destination: null, action: 'camp', behavior:'camp', duty:'base_guard', guardPost:true, mood: 'спокоен', health: 100, morale: 60, supplies: 50, needs:{hunger:0,thirst:0,fatigue:0,stress:0}, lastNeedsAt:now, alive: true, lastActionAt: now, nextDecisionAt:now+5*60000, relationships: {}, inventory: [], history: [], generated:false, dialogueVersion:0, dialogueCycle:Math.floor(now/900000), lastApproachAt:0, route:[] };
   }
   return roster;
 }
 function choose(list, random) { return list[Math.floor(random() * list.length)] || null; }
 function scheduleNext(npc,now,random,min=1,max=4){npc.nextDecisionAt=now+(min+Math.floor(random()*(max-min+1)))*60000;}
+function npcSleepWindow(npc, now) {
+  if (!Number.isInteger(npc.sleepStartHour)) {
+    let hash=0; for (const char of String(npc.id||'')) hash=(hash*31+char.charCodeAt(0))>>>0;
+    npc.sleepStartHour=21+(hash%4); npc.sleepEndHour=5+(hash%3);
+  }
+  const hour=new Date(now).getUTCHours();
+  return npc.sleepStartHour>npc.sleepEndHour
+    ? hour>=npc.sleepStartHour||hour<npc.sleepEndHour
+    : hour>=npc.sleepStartHour&&hour<npc.sleepEndHour;
+}
+function updateNpcNeeds(npc, now) {
+  npc.needs ||= { hunger:0, thirst:0, fatigue:0, stress:0 };
+  for (const key of ['hunger','thirst','fatigue','stress']) npc.needs[key]=clamp(npc.needs[key],0,100);
+  const previous=Number(npc.lastNeedsAt)||now;
+  const minutes=Math.max(0,Math.min(5,(now-previous)/60000));
+  npc.lastNeedsAt=now;
+  if (!minutes) return;
+  npc.needs.hunger=clamp(npc.needs.hunger+minutes*.035,0,100);
+  npc.needs.thirst=clamp(npc.needs.thirst+minutes*.055,0,100);
+  npc.needs.fatigue=clamp(npc.needs.fatigue+minutes*(npc.action==='travel'? .05:.03),0,100);
+  if (npc.action==='combat') npc.needs.stress=clamp(npc.needs.stress+minutes*.8,0,100);
+  else if (npc.action==='camp'||npc.action==='rest') npc.needs.stress=clamp(npc.needs.stress-minutes*.35,0,100);
+  if ((npc.needs.hunger>=65||npc.needs.thirst>=65) && Number(npc.supplies)>0) {
+    npc.supplies=clamp(npc.supplies-2,0,100);
+    if(npc.needs.hunger>=65)npc.needs.hunger=clamp(npc.needs.hunger-42,0,100);
+    if(npc.needs.thirst>=65)npc.needs.thirst=clamp(npc.needs.thirst-48,0,100);
+    npc.lastSupplyUseAt=now;
+  } else if ((npc.needs.hunger>=65||npc.needs.thirst>=65) && Number(npc.supplies)<=0) {
+    npc.morale=clamp(Number(npc.morale)-minutes*.025,0,100);
+  }
+  if(npc.action==='camp'||npc.action==='rest') npc.needs.fatigue=clamp(npc.needs.fatigue-minutes*.22,0,100);
+}
 function recordAction(npc,now){npc.lastActionAt=now;npc.history ||= [];npc.history.push({action:npc.action,location:npc.location,at:now});npc.history=npc.history.slice(-12);}
 function moveNpc(npc,to,now,events,reason='patrol'){
   if(!to||to===npc.location)return false;
@@ -43,7 +75,8 @@ function tickNpcWorld(world, locations, random = Math.random, now = Date.now()) 
     if (!npc.equipment) { const role=npc.role||'сталкер'; npc.equipment={suit:role.includes('учёный')?'Научный комбинезон':role.includes('торговец')?'Куртка торговца':'Комбинезон сталкера',weapon:role.includes('охотник')?'ТОЗ-34':role.includes('разведчик')?'АКС-74У':'ПМ',tool:'Обычный детектор',backpack:'Полевой рюкзак'}; }
     if (!npc.alive) continue;
     const cycle=Math.floor(now/900000); if(npc.dialogueCycle!==cycle || !npc.dialogue){npc.dialogueCycle=cycle;if(npc.dialogue)npc.dialogueVersion=(npc.dialogueVersion||0)+1;npc.dialogue = buildDialogue(npc, {recentWorldEvent:world.zoneEvents?.at(-1)?.title || ''}, now);if(npc.dialogueVersion)events.push({type:'npc_dialogue_updated',npcId:npc.id,text:`${npc.name}: появились новые темы и слухи для разговора.`,at:now});}
-    npc.health=clamp(npc.health,0,100);npc.morale=clamp(npc.morale,0,100);npc.supplies=clamp(npc.supplies,0,100);
+    npc.health=clamp(npc.health ?? 100,0,100);npc.morale=clamp(npc.morale ?? 60,0,100);npc.supplies=clamp(npc.supplies ?? 50,0,100);
+    updateNpcNeeds(npc,now);
     npc.homeLocation ||= homeForFaction(npc.faction,owners,npc.location);
     npc.baseLocation ||= npc.homeLocation;
     npc.behavior ||= 'camp'; npc.nextDecisionAt ||= now+60000;
@@ -71,7 +104,11 @@ function tickNpcWorld(world, locations, random = Math.random, now = Date.now()) 
     } else {
       const atHome=npc.location===npc.homeLocation||npc.location===npc.baseLocation;
       const roll=random();
-      if(roll<.24){npc.action='camp';npc.behavior='campfire';npc.duty='rest_at_base';npc.guardPost=false;npc.mood='спокоен';npc.health=clamp(npc.health+3,0,100);npc.morale=clamp(npc.morale+3,0,100);npc.supplies=clamp(npc.supplies+1,0,100);}
+      if(npc.needs.fatigue>=82 || (npcSleepWindow(npc,now)&&npc.needs.fatigue>=28)){
+        npc.action='rest';npc.behavior='rest';npc.duty='recover';npc.guardPost=false;npc.mood='устал';
+        npc.needs.fatigue=clamp(npc.needs.fatigue-8,0,100);npc.morale=clamp(npc.morale+1,0,100);
+      }
+      else if(roll<.24){npc.action='camp';npc.behavior='campfire';npc.duty='rest_at_base';npc.guardPost=false;npc.mood='спокоен';npc.health=clamp(npc.health+3,0,100);npc.morale=clamp(npc.morale+3,0,100);npc.supplies=clamp(npc.supplies+1,0,100);}
       else if(roll<.48){npc.action='guard';npc.behavior='guard';npc.duty='base_guard';npc.guardPost=true;npc.mood='насторожен';npc.morale=clamp(npc.morale+1,0,100);}
       else if(roll<.62){npc.action='rest';npc.behavior='rest';npc.duty='recover';npc.guardPost=false;npc.health=clamp(npc.health+5,0,100);npc.morale=clamp(npc.morale+2,0,100);}
       else {
@@ -81,7 +118,7 @@ function tickNpcWorld(world, locations, random = Math.random, now = Date.now()) 
         else {const center=SECTOR_COORDS[npc.location]||SECTOR_COORDS.cordon,angle=random()*Math.PI*2,radius=18+random()*78;npc.destinationPoint={x:Math.max(4,Math.min(996,center[0]+Math.cos(angle)*radius)),y:Math.max(4,Math.min(1996,center[1]+Math.sin(angle)*radius))};npc.action='patrol';npc.behavior='patrol';npc.duty='sector_patrol';npc.guardPost=false;} 
       }
       if(atHome&&npc.action==='camp'&&random()<.12)events.push({type:'npc_camp_event',npcId:npc.id,location:npc.location,text:`${npc.name} отдыхает у костра на базе «${npc.faction}».`,at:now});
-      scheduleNext(npc,now,random,1,4);recordAction(npc,now);
+      scheduleNext(npc,now,random,npc.action==='rest'?8:1,npc.action==='rest'?14:4);recordAction(npc,now);
     }
     npc.destination=null;
     world.npcPositions[npc.id]=npc.location;
@@ -179,4 +216,4 @@ function interactWithNpc(npc, player, action, now = Date.now(), context = {}) {
   const result=interactDialogue(npc,player,action,context,now);npc.lastInteractionAt=now;
   return { ok:true, ...result, relationship:npc.relationships[player.id], npcId:npc.id };
 }
-module.exports = { NPC_FACTIONS, ROLES, createNpcRoster, tickNpcWorld, interactWithNpc, isHostileFaction };
+module.exports = { NPC_FACTIONS, ROLES, createNpcRoster, tickNpcWorld, interactWithNpc, isHostileFaction, updateNpcNeeds, npcSleepWindow };
