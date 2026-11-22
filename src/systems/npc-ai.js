@@ -77,7 +77,10 @@ function moveNpc(npc,to,now,events,reason='patrol'){
 // this function only advances already-authorized movement orders in world coordinates.
 function tickNpcMovement(world,now=Date.now(),speed=2.5){
   const moved=[];
-  for(const npc of Object.values(world.npcState||{})){
+  const active=Object.values(world.npcState||{}).filter(n=>n&&n.alive!==false&&n.location);
+  const combatGrid=new Map(),combatCell=NPC_SKIRMISH_RADIUS;
+  for(const n of active){const p=npcWorldPosition(n),key=`${n.location}|${Math.floor(p.x/combatCell)}|${Math.floor(p.y/combatCell)}`;if(!combatGrid.has(key))combatGrid.set(key,[]);combatGrid.get(key).push(n);}
+  for(const npc of active){
     if(!npc||npc.alive===false)continue;
     if(!Number.isFinite(Number(npc.x))||!Number.isFinite(Number(npc.y))){const initial=npcWorldPosition(npc);npc.x=initial.x;npc.y=initial.y;}
     // Ordinary stalkers periodically leave their post for short local patrols.
@@ -87,6 +90,18 @@ function tickNpcMovement(world,now=Date.now(),speed=2.5){
       if(now>=npc.nextRoamAt){const center=SECTOR_COORDS[npc.location]||SECTOR_COORDS.cordon,seed=(npcSeed(npc.id+'|'+Math.floor(now/45000))>>>0),angle=(seed%10000)/10000*Math.PI*2,radius=28+((seed>>>8)%68);npc.destinationPoint={x:Math.max(4,Math.min(996,center[0]+Math.cos(angle)*radius)),y:Math.max(4,Math.min(1996,center[1]+Math.sin(angle)*radius))};npc.action='patrol';npc.behavior='patrol';npc.duty='sector_patrol';npc.guardPost=false;npc.nextRoamAt=now+45000+(seed%45000);}
     }
     if(!npc.destinationPoint)continue;
+    // Hostile contacts stop movement before either side can walk through the other.
+    // The proximity-combat tick resolves damage and deaths on its own cadence.
+    const here=npcWorldPosition(npc),cx=Math.floor(here.x/combatCell),cy=Math.floor(here.y/combatCell);
+    let blockedByHostile=false;
+    for(let ox=-1;ox<=1&&!blockedByHostile;ox++)for(let oy=-1;oy<=1&&!blockedByHostile;oy++){
+      for(const other of combatGrid.get(`${npc.location}|${cx+ox}|${cy+oy}`)||[]){
+        if(other===npc||other.alive===false||!isHostileFaction(npc.faction,other.faction,world.diplomacy))continue;
+        if(inRange(here,npcWorldPosition(other),NPC_SKIRMISH_RADIUS)){blockedByHostile=true;break;}
+      }
+    }
+    if(blockedByHostile){npc.action='combat';npc.behavior='combat';npc.mood='в бою';npc.destinationPoint=null;continue;}
+    if(npc.action==='combat'&&now-(Number(npc.lastSkirmishAt)||0)<12000)continue;
     const dx=Number(npc.destinationPoint.x)-Number(npc.x),dy=Number(npc.destinationPoint.y)-Number(npc.y),distance=Math.hypot(dx,dy),step=Math.min(distance,Math.max(1,Number(speed)||8));
     if(distance<=step+0.5){npc.x=Number(npc.destinationPoint.x);npc.y=Number(npc.destinationPoint.y);npc.destinationPoint=null;if(npc.travelTo){npc.location=npc.travelTo;npc.travelTo=null;}if(npc.action==='travel')npc.action='patrol';}
     else{npc.x+=dx/distance*step;npc.y+=dy/distance*step;npc.action='travel';}

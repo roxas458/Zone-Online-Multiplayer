@@ -1,3 +1,16 @@
+# ZONE ONLINE 4.57.0
+
+## 4.57.0 — Performance, Combat & Character Death
+
+- Player-vs-NPC proximity combat now builds one sector-aware spatial index per tick and checks only nearby cells, avoiding a full NPC scan for every connected player.
+- NPC movement now detects nearby hostile stalkers before advancing movement orders. Hostile contacts stop both sides so the existing combat simulation can resolve the encounter instead of allowing NPCs to pass through each other.
+- Player death is now a real character lifecycle transition. The server records death, sets health to zero, clears movement/expedition orders and permits a fresh character creation. A new character receives fresh starting health, supplies and progression.
+- Desktop map rendering disables expensive SVG drop shadows and marker pulse animations on fine-pointer devices while preserving all markers and interactions.
+- Imported save files are limited to 5 MB, bounded in nesting/collection size, and sanitized to strip markup/control characters and prototype-pollution keys before use.
+- Added regression coverage for hostile movement blocking, character death/recreation, spatially indexed player combat and imported-save sanitization.
+
+Validation: `npm test` — 332 tests passed. `npm run check` — passed. All production JavaScript files also passed `node --check`.
+
 # ZONE ONLINE 4.56.0
 
 ## 4.56.0 — Living A-Life Routines

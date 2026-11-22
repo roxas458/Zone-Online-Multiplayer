@@ -326,6 +326,14 @@ io.on('connection', socket=>{
       if(typeof ack==='function')ack({ok:false,message,detail:clean(e?.message||'unknown',180)});
     }
   });
+  socket.on('player:character-death', async input=>{
+    const id=socket.data.playerId,player=id&&online.get(id);if(!player)return;
+    player.state ||= {};player.state.hp=0;player.state.dead=true;player.state.characterCreated=false;
+    player.state.deathCause=clean(input?.cause,180)||'погиб в Зоне';player.state.diedAt=Date.now();player.hp=0;
+    player.moveOrder=null;player.expedition=null;
+    await persistPlayer(id,player.state);
+    socket.emit('player:death',{cause:player.state.deathCause,at:player.state.diedAt});
+  });
   socket.on('player:save', async input=>{
     const id=socket.data.playerId, p=online.get(id); if(!id||!p)return;
     const clientState=safeState(input);
@@ -938,19 +946,31 @@ setInterval(()=>{
   try{
     const now=Date.now();
     for(const event of tickNpcProximityCombat(world,now,Math.random)){const ev=appendWorldEvent(world,event.type,event,now);io.emit('world:event',ev);io.emit('world:npc-event',event);}
+    // Build one location-aware spatial index per tick instead of scanning every NPC
+    // for every connected player (the old O(players × NPCs) hot path).
+    const combatCell=Math.max(1,COMBAT_RADIUS),hostilesByCell=new Map();
+    for(const npc of Object.values(world.npcState||{})){
+      if(!npc||npc.alive===false||!npc.location)continue;
+      const pos=npcWorldPosition(npc),key=`${npc.location}|${Math.floor(pos.x/combatCell)}|${Math.floor(pos.y/combatCell)}`;
+      if(!hostilesByCell.has(key))hostilesByCell.set(key,[]);hostilesByCell.get(key).push({npc,pos});
+    }
     for(const player of online.values()){
       if(!player.location||!Number.isFinite(Number(player.x))||!Number.isFinite(Number(player.y)))continue;
-      player.state ||= {};
-      for(const npc of Object.values(world.npcState||{})){
-        if(!npc||npc.alive===false||npc.location!==player.location||!isHostileFaction(player.faction,npc.faction,world.diplomacy))continue;
-        const position=npcWorldPosition(npc);if(!inRange({x:player.x,y:player.y},position,COMBAT_RADIUS))continue;
+      player.state ||= {};if(player.state.dead||Number(player.state.hp)<=0)continue;
+      const cx=Math.floor(player.x/combatCell),cy=Math.floor(player.y/combatCell),nearby=[];
+      for(let ox=-1;ox<=1;ox++)for(let oy=-1;oy<=1;oy++)nearby.push(...(hostilesByCell.get(`${player.location}|${cx+ox}|${cy+oy}`)||[]));
+      for(const {npc, pos:position} of nearby){
+        if(!isHostileFaction(player.faction,npc.faction,world.diplomacy)||!inRange({x:player.x,y:player.y},position,COMBAT_RADIUS))continue;
         npc.playerCombatAt ||= {};if(now-(Number(npc.playerCombatAt[player.id])||0)<2500)continue;npc.playerCombatAt[player.id]=now;
         const playerDamage=2+Math.floor(Math.random()*4),npcDamage=3+Math.floor(Math.random()*5);
-        player.state.hp=Math.max(1,(Number(player.state.hp)||Number(player.hp)||100)-playerDamage);player.hp=player.state.hp;
+        player.state.hp=Math.max(0,(Number(player.state.hp)||Number(player.hp)||100)-playerDamage);player.hp=player.state.hp;
         npc.health=Math.max(0,(Number(npc.health)||100)-npcDamage);npc.action='combat';npc.behavior='combat';npc.mood='в бою';npc.lastPlayerCombatAt=now;
         if(npc.health<=0){npc.alive=false;npc.action='dead';npc.deathCause=`выведен из строя в столкновении с игроком ${player.name}`;npc.diedAt=now;npc.combatDeaths=(Number(npc.combatDeaths)||0)+1;}
+        if(player.state.hp<=0){player.state.dead=true;player.state.characterCreated=false;player.state.diedAt=now;player.state.deathCause=`погиб в перестрелке со сталкером ${npc.name}`;player.moveOrder=null;player.expedition=null;}
         io.to(player.id).emit('npc:combat-engaged',{npcId:npc.id,name:npc.name,faction:npc.faction,playerDamage,npcDamage,playerHp:player.state.hp,npcHp:npc.health,npcDown:npc.alive===false,distance:Math.round(Math.hypot(player.x-position.x,player.y-position.y))});
+        if(player.state.dead)io.to(player.id).emit('player:death',{cause:player.state.deathCause,at:now});
         persistPlayer(player.id,player.state).catch(()=>{});
+        if(player.state.dead)break;
       }
     }
   }catch(e){console.error('Proximity combat tick:',e.message);}finally{proximityCombatRunning=false;}

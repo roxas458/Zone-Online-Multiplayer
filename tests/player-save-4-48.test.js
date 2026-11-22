@@ -23,12 +23,14 @@ test('4.49 client cannot reset character identity, faction or discovery progress
   assert.deepEqual(result.visitedLocations, ['cordon', 'bar']);
 });
 
-test('4.49 first character creation may select a faction without opening economy fields', () => {
-  const result = mergeClientSaveState({ characterCreated: false, faction: 'Одиночки', money: 0, items: [] }, { characterCreated: true, faction: 'Долг', money: 999999, items: [{ id: 'artifact', qty: 999 }] }, { allowCharacterCreation: true });
+test('4.49 fresh character creation after death replaces the previous character state', () => {
+  const result = mergeClientSaveState({ characterCreated: false, faction: 'Одиночки', money: 0, hp: 0, items: [{ id: 'old', qty: 1 }], xp: 900 }, { characterCreated: true, faction: 'Долг', money: 1450, hp: 100, xp: 0, items: [{ id: 'pm', qty: 1 }] }, { allowCharacterCreation: true });
   assert.equal(result.characterCreated, true);
   assert.equal(result.faction, 'Долг');
-  assert.equal(result.money, 0);
-  assert.deepEqual(result.items, []);
+  assert.equal(result.money, 1450);
+  assert.equal(result.hp, 100);
+  assert.equal(result.xp, 0);
+  assert.deepEqual(result.items, [{ id: 'pm', qty: 1 }]);
 });
 
 test('4.49 new profile can retain initial state when no server profile exists', () => {

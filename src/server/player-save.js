@@ -15,7 +15,10 @@ function mergeClientSaveState(currentState, incomingState, options = {}) {
   const merged = { ...incoming };
   if (!currentState || Object.keys(current).length === 0) return merged;
   for (const key of SERVER_AUTHORITY_FIELDS) {
-    if (options.allowCharacterCreation === true && (key === 'characterCreated' || key === 'faction')) continue;
+    // A server-authorized fresh character (initial creation or after death)
+    // starts a genuinely new life, so its selected starter state replaces the
+    // previous character's protected economy and progression fields.
+    if (options.allowCharacterCreation === true) continue;
     if (Object.prototype.hasOwnProperty.call(current, key)) merged[key] = current[key];
     else delete merged[key];
   }

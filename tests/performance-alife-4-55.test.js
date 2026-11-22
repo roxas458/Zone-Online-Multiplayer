@@ -82,3 +82,44 @@ test('delivered NPC goods are added to the trader economy stock used by NPC trad
  assert.match(serverSource,/account\.stock\[itemId\]=Math\.min/);
  assert.match(serverSource,/recordNpcTrade\(account,\{type:'npc_delivery'/);
 });
+
+
+test('hostile NPCs block movement and enter combat instead of walking through each other',()=>{
+ const a=npc('moving-a',{faction:'Долг',x:500,y:500,destinationPoint:{x:600,y:500},action:'travel'});
+ const b=npc('blocking-b',{faction:'Свобода',x:510,y:500,destinationPoint:{x:400,y:500},action:'travel'});
+ const beforeA=a.x,beforeB=b.x;
+ tickNpcMovement({npcState:{a,b}},now,2.5);
+ assert.equal(a.x,beforeA);assert.equal(b.x,beforeB);
+ assert.equal(a.action,'combat');assert.equal(b.action,'combat');
+ assert.equal(a.destinationPoint,null);assert.equal(b.destinationPoint,null);
+});
+
+test('player death is authoritative, persisted and stops further proximity damage',()=>{
+ assert.match(serverSource,/player\.state\.dead\|\|Number\(player\.state\.hp\)<=0/);
+ assert.match(serverSource,/player\.state\.hp<=0\)\{player\.state\.dead=true/);
+ assert.match(serverSource,/io\.to\(player\.id\)\.emit\('player:death'/);
+ assert.match(serverSource,/player:character-death/);
+ const client=fs.readFileSync(path.join(__dirname,'../public/js/game.js'),'utf8');
+ assert.match(client,/function playerDeath\(cause=/);
+ assert.match(client,/g\.characterCreated=false/);
+ assert.match(client,/openCharacterSetup\(\)/);
+ assert.doesNotMatch(client,/if\(g\.hp<=0\)\{g\.hp=15/);
+});
+
+test('player proximity combat uses a spatial index instead of scanning every NPC for every player',()=>{
+ const start=serverSource.indexOf('const combatCell=Math.max(1,COMBAT_RADIUS)');
+ const end=serverSource.indexOf("},1500).unref();",start);
+ const body=serverSource.slice(start,end);
+ assert.match(body,/hostilesByCell/);
+ assert.match(body,/hostilesByCell\.get/);
+ assert.match(body,/for\(const player of online\.values\(\)\)/);
+});
+
+
+test('imported save data is size-limited and strips executable markup and prototype keys',()=>{
+ const client=fs.readFileSync(path.join(__dirname,'../public/js/game.js'),'utf8');
+ assert.match(client,/f\.size>5\*1024\*1024/);
+ assert.match(client,/function sanitizeImportedValue/);
+ assert.match(client,/__proto__.*prototype.*constructor/);
+ assert.match(client,/replace\(\/\[<>/);
+});
