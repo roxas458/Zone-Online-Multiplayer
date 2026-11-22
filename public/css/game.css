@@ -1178,3 +1178,18 @@ body.title-screen-active .quick-use-bar{display:none}
 .coop-artifact-card{border-left:2px solid #78bca8!important}
 .marker-artifact-coop{filter:drop-shadow(0 0 8px rgba(124,220,195,.95))}
 @media(max-width:680px){.setup-portrait-grid{grid-template-columns:repeat(4,minmax(0,1fr))}.setup-portrait-modal{padding:8px}.setup-portrait-modal-card{max-height:86vh}.setup-generator-row button{flex:1}}
+
+
+/* 4.44.0 — comfort settings, scalable UI and accessible touch targets */
+
+.title-options-panel select{width:92px;min-height:36px;background:#111811;color:#e7e5d8;border:1px solid #69735b;border-radius:5px;padding:6px}
+.title-options-panel .title-scale-row{align-items:center}
+.title-options-actions{gap:8px;flex-wrap:wrap}
+body.high-contrast{--line:#89977e;--muted:#c2cbb7;color:#f3f5e9}
+body.high-contrast .panel,body.high-contrast .item,body.high-contrast .stat,body.high-contrast .settings-options{border-color:#89977e!important}
+body.high-contrast .muted,body.high-contrast .small,body.high-contrast small{color:#d1d8c8}
+body.large-controls button,body.large-controls input,body.large-controls select,body.large-controls textarea{min-height:46px}
+body.large-controls button{padding-left:14px;padding-right:14px}
+body.reduce-background .title-atmosphere,body.reduce-background .title-grain,body.reduce-background .atmosphere-fx{display:none!important}
+.settings-options select{min-width:88px;min-height:40px;background:#111811;color:var(--text);border:1px solid var(--line);border-radius:6px;padding:7px}
+@media(max-width:720px){body.large-controls .settings-options input{width:26px;height:26px}.title-options-panel .title-options-actions button{flex:1;min-width:120px}}

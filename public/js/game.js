@@ -657,12 +657,23 @@ function returnToTitleScreen(){
 function openMainMenu(){returnToTitleScreen();}
 function closeMainMenu(){closeTitleOptions();}
 function menuGo(id){view(id);render();}
-function setGameOption(key,value){
- g.options||={};g.options[key]=!!value;document.body.classList.toggle('large-text',!!g.options.largeText);document.body.classList.toggle('reduce-motion',!!g.options.reduceMotion);document.body.classList.toggle('compact-ui',!!g.options.compactUI);
- const pairs={largeText:'settingLargeText',reduceMotion:'settingReduceMotion',compactUI:'settingCompact'},titlePairs={largeText:'titleLargeText',reduceMotion:'titleReduceMotion',compactUI:'titleCompact'};
- if($(pairs[key]))$(pairs[key]).checked=!!value;if($(titlePairs[key]))$(titlePairs[key]).checked=!!value;save();
+function applyGameOptions(){
+ const o=g.options||{},classes={largeText:'large-text',reduceMotion:'reduce-motion',compactUI:'compact-ui',highContrast:'high-contrast',largeControls:'large-controls',reduceBackground:'reduce-background'};
+ for(const [key,cls] of Object.entries(classes))document.body.classList.toggle(cls,!!o[key]);
+ const scale=[.9,1,1.1,1.2,1.3].includes(Number(o.uiScale))?Number(o.uiScale):1;
+ if(document.body?.style)document.body.style.zoom=String(scale);
+ const ids={largeText:'settingLargeText',reduceMotion:'settingReduceMotion',compactUI:'settingCompact',highContrast:'settingHighContrast',largeControls:'settingLargeControls',reduceBackground:'settingReduceBackground'};
+ const titleIds={largeText:'titleLargeText',reduceMotion:'titleReduceMotion',compactUI:'titleCompact',highContrast:'titleHighContrast',largeControls:'titleLargeControls',reduceBackground:'titleReduceBackground'};
+ for(const [key,id] of Object.entries(ids))if($(id))$(id).checked=!!o[key];
+ for(const [key,id] of Object.entries(titleIds))if($(id))$(id).checked=!!o[key];
+ if($('settingUiScale'))$('settingUiScale').value=String(scale);if($('titleUiScale'))$('titleUiScale').value=String(scale);
 }
-function applyGameOptions(){for(const [key,value] of Object.entries(g.options||{})){document.body.classList.toggle(key==='largeText'?'large-text':key==='reduceMotion'?'reduce-motion':'compact-ui',!!value);}}
+function setGameOption(key,value){
+ const allowed=['largeText','reduceMotion','compactUI','highContrast','largeControls','reduceBackground','uiScale'];if(!allowed.includes(key))return;
+ g.options||={};g.options[key]=key==='uiScale'?( [.9,1,1.1,1.2,1.3].includes(Number(value))?Number(value):1):!!value;
+ applyGameOptions();save();
+}
+function resetGameOptions(){g.options={largeText:false,reduceMotion:false,compactUI:false,highContrast:false,largeControls:false,reduceBackground:false,uiScale:1};applyGameOptions();save();}
 function npcServerAction(npcId,action){
  const npc=npcBy(npcId);if(!npc)return;if(!npcInInteractionRange(npc))return alert('Подойди ближе к сталкеру. Радиус взаимодействия — 8 м.');
  if(zoneSocket?.connected&&zonePlayerReady){zoneSocket.emit('npc:interact',{npcId,action});return;}
@@ -1126,12 +1137,12 @@ function renderCraft(){$("recipes").innerHTML=[{name:"Полевой набор"
 function craft(i){let recipes=[{cost:2,out:"bandage",name:"Бинт"},{cost:1,out:"bolt",name:"Болты",qty:5},{cost:3,out:"med",name:"Аптечка"}],r=recipes[i];if(count("scrap")<r.cost)return alert("Недостаточно металлолома.");take("scrap",r.cost);let map={bandage:["Бинт","Медицина","Полевой расходный предмет",.2,45],bolt:["Болты","Инструмент","Металлические болты",.1,5],med:["Аптечка","Медицина","Восстанавливает здоровье",.4,100]}[r.out];addItem(r.out,map[0],map[1],map[2],map[3],map[4],r.qty||1);log("Изготовлено: "+r.name+".");save()}
 function renderProfile(){
  const rank=g.xp<50?"Новичок":g.xp<150?"Опытный сталкер":g.xp<300?"Следопыт":g.xp<600?"Ветеран Зоны":"Легенда Зоны";
- $("profileName").textContent=g.name;$("rank").textContent=rank;$("profileFaction").textContent=`${g.faction} · ${here().name}`;$("profileBio").textContent=`В Зоне с ${new Date(g.realTimeStartedAt||Date.now()).toLocaleDateString('ru-RU')}. Твой путь продолжается.`;
+ $("profileName").textContent=[g.realName,g.name].filter(Boolean).join(" ");$("rank").textContent=rank;$("profileFaction").textContent=`${g.faction} · ${here().name}`;$("profileBio").textContent=`В Зоне с ${new Date(g.realTimeStartedAt||Date.now()).toLocaleDateString('ru-RU')}. Твой путь продолжается.`;
  $("playerPortrait").innerHTML=g.playerPortrait?`<div class="npc-portrait portrait-xl"><img src="/assets/portraits/${g.playerPortrait}" alt="Портрет ${escapeHtml(g.name)}"><span class="portrait-faction">${factionIconMarkup(g.faction)}</span></div>`:portraitMarkup({id:'player-'+g.name,name:g.name,faction:g.faction,role:rank,icon:'☻'});
  $("profileStats").innerHTML=[["Репутация",g.rep],["Опыт",g.xp],["Здоровье",g.hp+"%"],["Выносливость",g.stamina+"%"],["Ранг",rank],["Группировка",g.faction]].map(x=>`<div class="stat"><span>${x[0]}</span><strong style="font-size:16px">${escapeHtml(x[1])}</strong></div>`).join("");
  const c=g.careerStats||{},artifacts=g.items.filter(x=>x.type==='Артефакт').reduce((a,x)=>a+x.qty,0),discovered=Object.values(g.keyPoints||{}).flat().filter(p=>p.discovered).length,done=g.quests.filter(q=>q.done).length;
  $("profileCareerStats").innerHTML=[["Победы в столкновениях",c.kills||0],["Найдено артефактов",artifacts],["Открыто точек",discovered],["Заданий выполнено",done],["Локаций посещено",(g.visitedLocations||[g.loc]).length],["Переходов",c.travelled||0]].map(x=>`<div class="stat"><span>${x[0]}</span><strong>${x[1]}</strong></div>`).join("");
- $("profileRecord").innerHTML=`<div class="record-line"><span>Позывной</span><b>${escapeHtml(g.name)}</b></div><div class="record-line"><span>Текущий сектор</span><b>${escapeHtml(here().name)}</b></div><div class="record-line"><span>Знакомства</span><b>${g.meetings||0}</b></div><div class="record-line"><span>Время в Зоне</span><b>${Math.max(0,Math.floor((Date.now()-(g.realTimeStartedAt||Date.now()))/86400000))} дн.</b></div>`;
+ $("profileRecord").innerHTML=`<div class="record-line"><span>Имя</span><b>${escapeHtml(g.realName||'—')}</b></div><div class="record-line"><span>Позывной</span><b>${escapeHtml(g.name)}</b></div><div class="record-line"><span>Текущий сектор</span><b>${escapeHtml(here().name)}</b></div><div class="record-line"><span>Знакомства</span><b>${g.meetings||0}</b></div><div class="record-line"><span>Время в Зоне</span><b>${Math.max(0,Math.floor((Date.now()-(g.realTimeStartedAt||Date.now()))/86400000))} дн.</b></div>`;
  $("meetingCount").textContent=g.meetings||0;
 }
 function rename(){let n=prompt("Новый позывной:",g.name);if(n&&n.trim()){g.name=n.trim().slice(0,24);log("Позывной изменён.");save()}}
@@ -1251,11 +1262,10 @@ const factionLore={
 };
 let setupFaction='Одиночки';
 let selectedSetupPortrait='stalker-01.webp';
-const SETUP_FIRST_NAMES=['Алексей','Андрей','Антон','Артём','Борис','Вадим','Виктор','Глеб','Денис','Егор','Илья','Кирилл','Максим','Михаил','Никита','Олег','Павел','Роман','Сергей','Фёдор','Ярослав'];
-const SETUP_LAST_NAMES=['Алексеев','Белов','Волков','Громов','Демидов','Ершов','Зайцев','Ильин','Ковалёв','Крылов','Морозов','Никитин','Орлов','Петров','Романов','Соколов','Трофимов','Фомин','Чернов','Шестаков'];
-const SETUP_CALLSIGNS=['Север','Шорох','Клык','Филин','Грач','Сыч','Ворон','Барс','Кремень','Сухарь','Факел','Пепел','Дозор','Маяк','Кочевник','Беркут','Рысь','Глухарь','Вихрь','Кедр','Туман','Скиталец','Компас','Рубеж','Скат'];
+const SETUP_FIRST_NAMES=['Алексей','Андрей','Антон','Артём','Борис','Вадим','Виктор','Глеб','Денис','Егор','Илья','Кирилл','Максим','Михаил','Никита','Олег','Павел','Роман','Сергей','Фёдор','Ярослав','Ярик','Вася','Миша','Коля','Саня','Женя','Лёша','Дима','Влад'];
+const SETUP_CALLSIGNS=['Пугливый','Прокурор','Пророк','Север','Шорох','Клык','Филин','Грач','Сыч','Ворон','Барс','Кремень','Сухарь','Факел','Пепел','Дозор','Маяк','Кочевник','Беркут','Рысь','Глухарь','Вихрь','Кедр','Туман','Скиталец','Компас','Рубеж','Скат','Молчун','Хмурый','Бродяга','Доктор','Профессор','Шустрый','Лис','Седой','Батя','Тихий','Фартовый','Зверь','Крот','Шаман','Бес','Фокусник','Смотрящий','Механик','Шило','Гонец','Сварог','Ястреб','Каспер','Скрипач','Косой','Рыбак','Старый','Малыш','Капрал','Шахтёр','Книжник','Гвоздь','Проводник','Кремень','Патрон','Лоцман','Хан'];
 function pickSetup(list){return list[Math.floor(Math.random()*list.length)];}
-function generateSetupRealName(){const el=$('setupRealName');if(el)el.value=pickSetup(SETUP_FIRST_NAMES)+' '+pickSetup(SETUP_LAST_NAMES);updateSetupPreview();}
+function generateSetupRealName(){const el=$('setupRealName');if(el)el.value=pickSetup(SETUP_FIRST_NAMES);updateSetupPreview();}
 function generateSetupCallsign(){const el=$('setupCallsign');if(el)el.value=pickSetup(SETUP_CALLSIGNS);updateSetupPreview();}
 function generateSetupIdentity(){generateSetupRealName();generateSetupCallsign();}
 let setupBackground='wanderer';
@@ -1346,7 +1356,7 @@ function updateSetupBudget(){
 }
 function updateSetupPreview(){
  const name=($('setupCallsign')?.value||'').trim()||'НОВЫЙ СТАЛКЕР',realName=($('setupRealName')?.value||'').trim(),spawn=factionSpawn[setupFaction]||'cordon';
- if($('setupPreviewName'))$('setupPreviewName').textContent=(realName?realName+' · ':'')+name.toUpperCase();
+ if($('setupPreviewName'))$('setupPreviewName').textContent=((realName?realName+' ':'')+name).toUpperCase();
  if($('setupPreviewFaction'))$('setupPreviewFaction').textContent=setupFaction;
  if($('setupPreviewSpawn'))$('setupPreviewSpawn').textContent=`Точка появления: ${spawnNames[spawn]||spawn}`;const av=$('setupAvatar');if(av)av.innerHTML=`<img src="/assets/portraits/${selectedSetupPortrait}" alt="Портрет персонажа">`;const bg=setupBackgrounds[setupBackground];if($('setupBackgroundDesc')&&bg)$('setupBackgroundDesc').textContent=bg.desc;
  if($('setupStarterContract'))$('setupStarterContract').textContent=setupFaction==='Одиночки'?'На Кордоне Волк поможет освоиться, а Сидорович предложит первую работу.':`На базе «${setupFaction}» тебя встретит представитель группировки и выдаст первое поручение.`;
@@ -1359,15 +1369,15 @@ function randomizeStarterLoadout(){
 }
 function openCharacterSetup(){
  const root=$('characterSetup');if(!root)return;if(factionSuit[setupFaction]&&setupLoadout.suit==='armor_leather')setupLoadout.suit=factionSuit[setupFaction];
- $('setupCallsign').value=g.name==='Новичок'?'':g.name;$('setupRealName').value=g.realName||'';
+ $('setupCallsign').value=g.name==='Новичок'?'':g.name;$('setupRealName').value=(g.realName||'').trim().split(/\s+/)[0]||'';
  $('setupFactions').innerHTML=g.factions.map(f=>`<button type="button" class="faction-choice ${setupFaction===f.name?'selected':''}" onclick="selectSetupFaction('${f.name.replace(/'/g,"\\'")}')"><b>${f.icon||'◉'} ${f.name}</b><div class="desc">${f.style||''}</div></button>`).join('');
  $('factionDescription').textContent=factionLore[setupFaction]||'Выбранная сторона Зоны.';const spawn=factionSpawn[setupFaction]||'cordon';if($('setupSpawnInfo'))$('setupSpawnInfo').textContent=`Точка появления: ${spawnNames[spawn]||spawn}. Ты начнёшь игру у базы своей группировки.`;
  renderSetupLoadout();renderSetupPortraits();if($('setupBackground'))$('setupBackground').value=setupBackground;selectSetupBackground(setupBackground);updateSetupPreview();root.classList.add('show');
 }
 function selectSetupFaction(name){const current=$('setupCallsign').value,real=$('setupRealName').value;setupFaction=name;if(factionSuit[name])setupLoadout.suit=factionSuit[name];openCharacterSetup();$('setupCallsign').value=current;$('setupRealName').value=real;updateSetupPreview();}
 function confirmCharacter(){
- const name=$('setupCallsign').value.trim().replace(/[<>]/g,'').slice(0,24);let realName=$('setupRealName').value.trim().replace(/[<>]/g,'').slice(0,36);if(!realName){realName=pickSetup(SETUP_FIRST_NAMES)+' '+pickSetup(SETUP_LAST_NAMES);$('setupRealName').value=realName;}
- if(name.length<2)return alert('Позывной должен содержать минимум 2 символа.');if(realName.length<3)return alert('Укажи имя и фамилию персонажа.');
+ const name=$('setupCallsign').value.trim().replace(/[<>]/g,'').slice(0,24);let realName=$('setupRealName').value.trim().replace(/[<>]/g,'').split(/\s+/)[0].slice(0,24);if(!realName){realName=pickSetup(SETUP_FIRST_NAMES);$('setupRealName').value=realName;}
+ if(name.length<2)return alert('Позывной должен содержать минимум 2 символа.');if(realName.length<2)return alert('Укажи имя персонажа.');
  if(!g.factions.some(f=>f.name===setupFaction))return alert('Выбери группировку из списка.');
  const spent=setupSpent();if(spent>STARTER_BUDGET)return alert('Комплект превышает лимит очков снабжения.');
  g.name=name;g.realName=realName;g.faction=setupFaction;g.characterCreated=true;g.playerPortrait=selectedSetupPortrait;g.background=setupBackground;g.characterTraits=[setupBackground];g.guideDiscount=setupBackground==='courier'?.12:0;const spawn=factionSpawn[setupFaction]||'cordon';g.loc=spawn;g.visitedLocations=[...new Set([...(g.visitedLocations||[]),spawn])];g.worldPosition=null;
@@ -1835,7 +1845,7 @@ function beginNewZoneGame(){
 function enterZoneOnline(){continueZoneGame();}
 function openTitleOptions(){
  const panel=$('titleOptionsPanel');if(!panel)return;
- $('titleLargeText').checked=!!g.options?.largeText;$('titleReduceMotion').checked=!!g.options?.reduceMotion;$('titleCompact').checked=!!g.options?.compactUI;
+ applyGameOptions();
  if($('titleMenuPanel'))$('titleMenuPanel').hidden=true;panel.hidden=false;
 }
 function closeTitleOptions(){const panel=$('titleOptionsPanel');if(panel)panel.hidden=true;if($('titleMenuPanel'))$('titleMenuPanel').hidden=false;}
