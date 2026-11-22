@@ -19,9 +19,9 @@ test('map player markers are touch and keyboard friendly', () => {
   assert.match(js, /function playerMapPointMarkup[\s\S]*?role=\\?"button/);
   assert.match(css, /map-player-hit \.marker-hit-area/);
 });
-test('desktop connection prefers polling before websocket upgrade with bounded health probe', () => {
+test('desktop connection prefers websocket with polling fallback and bounded health probe', () => {
   assert.match(js, /maxWaitMs=1800/);
-  assert.match(js, /transports:\['polling','websocket'\]/);
+  assert.match(js, /transports:\['websocket','polling'\]/);
 });
 
 test('self marker nearby panel includes NPC conversation-radius discovery', () => {
@@ -41,4 +41,22 @@ test('player trade uses exact coordinate distance instead of rounded display met
   assert.match(js, /function playerDistanceExact\(player\)/);
   assert.match(js, /exactDistance>8/);
   assert.match(js, /exactDistance<=8/);
+});
+
+
+test('NPC squad marker is anchored to its clickable leader so its hit point and range ring match', () => {
+  assert.match(js, /const \[x,y\]=pts\[0\],cls=npcMarkerClass\(lead\)/);
+  assert.match(js, /function showMapNpcRadius\(id\)[\s\S]*?zoneMapCenter=\{x:p\[0\],y:p\[1\]\}/);
+});
+
+test('NPC map profile exposes callsign, current location, route and destination with a talk action', () => {
+  assert.match(js, /function showMapNpcCard\(id\)[\s\S]*?Маршрут:[\s\S]*?Направляется:[\s\S]*?startTalk/);
+  assert.match(js, /showMapNpcRadius\('\$\{escMapAttr\(n\.id\)\}'\);showMapNpcCard/);
+  assert.match(js, /selectedNpcRoute=selectedPos&&selectedDestination/);
+});
+
+test('NPC roster sync copies authoritative coordinates and route state and clears stale coordinates', () => {
+  assert.match(js, /local\.route=Array\.isArray\(npc\.route\)\?npc\.route:\[\]/);
+  assert.match(js, /local\.destinationPoint=npc\.destinationPoint/);
+  assert.match(js, /else\{delete local\.x;delete local\.y;\}/);
 });

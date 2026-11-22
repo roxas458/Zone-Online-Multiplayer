@@ -953,3 +953,9 @@ body.title-screen-active .survival-hud{display:none}
  .hud-condition-strip span{font-size:9px;padding:1px 3px}
 }
 body.title-screen-active .quick-use-bar{display:none}
+
+/* 4.33.35: selected NPC route is emphasized and squad members are tappable. */
+.npc-route-selected{stroke:#f0b85b;stroke-width:5;stroke-dasharray:7 5;opacity:1;filter:drop-shadow(0 0 5px #f0b85b)}
+.npc-route-destination{fill:#f0b85b;stroke:#fff0c2;stroke-width:2;filter:drop-shadow(0 1px 4px #000)}
+.map-entity-member{width:100%;text-align:left;color:inherit;cursor:pointer;font:inherit}
+.map-entity-member:focus-visible{outline:2px solid #e7d18a;outline-offset:2px}

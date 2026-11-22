@@ -439,8 +439,8 @@ test('4.25 field PDA keeps long-page filters and map controls reachable', () => 
 test('4.33 build labels are consistent', () => {
   const html = fs.readFileSync(path.join(root, 'public/index.html'), 'utf8');
   const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
-  assert.equal(pkg.version, '4.33.34');
-  assert.match(html, /BUILD 4\.33\.34/);
+  assert.equal(pkg.version, '4.33.35');
+  assert.match(html, /BUILD 4\.33\.35/);
   assert.match(html, /ZONE ONLINE 4\.33/);
 });
 
@@ -463,7 +463,7 @@ test('4.27 connection diagnostics support a separate server URL and health endpo
   assert.match(html, /zone-online-multiplayer\.onrender\.com/);
   assert.match(client, /queryMatch=.*server=/);
   assert.match(client, /\/health/);
-  assert.match(client, /transports:\['polling','websocket'\]/);
+  assert.match(client, /transports:\['websocket','polling'\]/);
   assert.match(client, /tryAllTransports:true/);
   assert.match(client, /https:\/\/zone-online-multiplayer\.onrender\.com/);
   assert.match(client, /connect_error/);
@@ -616,10 +616,10 @@ test('4.33 survival and expedition features are wired into the game and server',
 });
 
 
-test('4.33.32 uses polling-first desktop connection with WebSocket upgrade and prevents duplicate reconnects', () => {
+test('4.33.35 uses WebSocket-first desktop connection with polling fallback and prevents duplicate reconnects', () => {
   const client = fs.readFileSync(path.join(root, 'public/js/game.js'), 'utf8');
   const server = fs.readFileSync(path.join(root, 'server.js'), 'utf8');
-  assert.match(client, /transports:\['polling','websocket'\]/);
+  assert.match(client, /transports:\['websocket','polling'\]/);
   assert.match(client, /tryAllTransports:true/);
   assert.match(client, /https:\/\/zone-online-multiplayer\.onrender\.com/);
   assert.match(client, /randomizationFactor:0\.25/);

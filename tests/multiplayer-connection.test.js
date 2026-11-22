@@ -79,3 +79,8 @@ test('NPC roster transfer omits precomputed dialogue text and waits for Render h
   assert.match(game, /await waitForMultiplayerHealth\(targetUrl,connectAttempt,1800\)/);
   assert.match(game, /trying Socket\.IO anyway/);
 });
+
+
+test('server sends NPC movement routes and destination coordinates to connected clients', () => {
+  assert.match(server, /'homeLocation','destination','destinationPoint','route','health'/);
+});
