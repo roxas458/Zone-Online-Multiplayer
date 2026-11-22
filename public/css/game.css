@@ -1229,3 +1229,9 @@ body.reduce-background .title-atmosphere,body.reduce-background .title-grain,bod
 #zoneMapFrame:fullscreen .map-tools,#zoneMapFrame.map-fullscreen-fallback .map-tools{margin-left:auto}
 #zoneMapFrame:fullscreen .map-entity-card,#zoneMapFrame.map-fullscreen-fallback .map-entity-card{position:absolute;z-index:30;left:12px;bottom:12px;max-width:min(440px,calc(100vw - 24px));max-height:45dvh;overflow:auto}
 #zoneMapFrame:fullscreen .map-range-legend,#zoneMapFrame.map-fullscreen-fallback .map-range-legend{z-index:25;bottom:12px;left:auto;right:12px}
+
+/* 4.56.0 — faction identity is consistent on strategic objectives and squad markers. */
+.zone-map .marker-keypoint circle{fill:var(--faction-color,#d2bc74);stroke:#f4edcf;stroke-width:1.7}
+.zone-map .marker-keypoint text{fill:#10150f;font-weight:900}
+.zone-map .world-squad-marker .marker-dot{fill:currentColor;stroke:#f4edcf;stroke-width:3.5}
+.zone-map .world-squad-marker .marker-pulse{fill:currentColor;opacity:.22}
