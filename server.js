@@ -23,7 +23,7 @@ const { tickNpcAftermath, lootCorpse } = require('./src/systems/npc-aftermath');
 const { tickNpcRescue } = require('./src/systems/npc-rescue');
 const { initStashes, publicStashes, searchStashArea, buyStashIntel, lootStash } = require('./src/systems/stashes');
 const { tickEmission, emissionDamage, publicEmissionState } = require('./src/systems/emissions');
-const { ensureFactionRadio, listFactionRadio, postFactionRadio } = require('./src/systems/radio-network');
+const { ensureFactionRadio, listFactionRadio, createNpcRadioMessage } = require('./src/systems/radio-network');
 
 const online = new Map();
 const recentChat = [];
@@ -357,13 +357,6 @@ io.on('connection', socket=>{
     emitNpcState(socket);
   });
   socket.on('radio:state',()=>{const p=online.get(socket.data.playerId);if(!p)return;socket.emit('radio:state',{faction:p.faction,messages:listFactionRadio(world,p.faction)});});
-  socket.on('radio:send',async input=>{
-    const p=online.get(socket.data.playerId);if(!p)return;
-    const rate=socket.data.radioRate||{at:0,count:0};if(Date.now()-rate.at>10000){rate.at=Date.now();rate.count=0;}rate.count++;socket.data.radioRate=rate;
-    if(rate.count>5){socket.emit('radio:result',{ok:false,message:'Радиоканал перегружен. Подожди несколько секунд.'});return;}
-    const result=postFactionRadio(world,p,input?.text,Date.now());if(!result.ok){socket.emit('radio:result',result);return;}
-    await persistWorld();io.to(`faction:${p.faction}`).emit('radio:message',result.message);socket.emit('radio:result',{ok:true,message:'Сообщение передано по каналу группировки.'});
-  });
   socket.on('world:chat:send', async input=>{
     if(!socket.data.playerId)return;
     const text=clean(input?.text,240);if(!text)return;
@@ -450,7 +443,7 @@ io.on('connection', socket=>{
     const st=safeState(p.state);if(st.money<goods.price){socket.emit('market:result',{ok:false,message:'Недостаточно рублей.'});return;}
     st.state.money=st.money-goods.price;st.state.items ||= [];
     const existing=st.state.items.find(x=>x.id===itemId);
-    if(existing){existing.qty+=goods.qty;if(goods.defense){existing.defense=goods.defense;existing.condition=existing.condition??100;}if(goods.capacity)existing.capacity=goods.capacity;}else st.state.items.push({id:itemId,name:itemId==='bolt'?'Болт':goods.name,type:goods.type,desc:goods.desc,weight:goods.weight,qty:goods.qty,value:goods.value,...(goods.defense?{defense:goods.defense,condition:100}:{}),...(goods.capacity?{capacity:goods.capacity}:{})});
+    if(existing){existing.qty+=goods.qty;if(goods.defense){existing.defense=goods.defense;existing.condition=existing.condition??100;}if(goods.capacity)existing.capacity=goods.capacity;if(goods.tier)existing.tier=goods.tier;if(goods.range)existing.range=goods.range;if(goods.effects)existing.effects=goods.effects;}else st.state.items.push({id:itemId,name:itemId==='bolt'?'Болт':goods.name,type:goods.type,desc:goods.desc,weight:goods.weight,qty:goods.qty,value:goods.value,...(goods.defense?{defense:goods.defense,condition:100}:{}),...(goods.capacity?{capacity:goods.capacity}:{}),...(goods.tier?{tier:goods.tier,range:goods.range}:{}),...(goods.effects?{effects:goods.effects}:{})});
     p.state=st.state;await persistPlayer(p.id,p.state);socket.emit('market:result',{ok:true,message:`Куплено: ${goods.name}.`,state:p.state});
   });
   socket.on('player:equipment:update', async input=>{
@@ -504,8 +497,8 @@ io.on('connection', socket=>{
     }
     for(const row of buyPlan){
       const goods=row.goods,existing=st.state.items.find(x=>x.id===row.id);
-      if(existing)existing.qty+=goods.qty*row.qty;
-      else st.state.items.push({id:row.id,name:goods.name,type:goods.type,desc:goods.desc,weight:goods.weight,qty:goods.qty*row.qty,value:goods.value,...(goods.defense?{defense:goods.defense,condition:100}:{}),...(goods.capacity?{capacity:goods.capacity}:{})});
+      if(existing){existing.qty+=goods.qty*row.qty;if(goods.tier)existing.tier=goods.tier;if(goods.range)existing.range=goods.range;if(goods.effects)existing.effects=goods.effects;}
+      else st.state.items.push({id:row.id,name:goods.name,type:goods.type,desc:goods.desc,weight:goods.weight,qty:goods.qty*row.qty,value:goods.value,...(goods.defense?{defense:goods.defense,condition:100}:{}),...(goods.capacity?{capacity:goods.capacity}:{}),...(goods.tier?{tier:goods.tier,range:goods.range}:{}),...(goods.effects?{effects:goods.effects}:{})});
     }
     st.state.money=Math.min(99999999,Math.max(0,st.money-cost+payout));
     p.state=st.state;await persistPlayer(p.id,p.state);
@@ -762,11 +755,13 @@ function applyEmissionExposure(player, emission, now) {
   if (now - Number(survival.lastEmissionDamageAt || 0) < 55_000) return false;
   const sheltered = Number(survival.shelterUntil || 0) > now;
   const suit = (state.items || []).find(item => item?.name === state.equipment?.suit && item.type === 'Броня');
-  const damage = emissionDamage(sheltered, Number(suit?.defense || 0) * 5);
+  const artifact = (state.items || []).find(item => item?.name === state.equipment?.artifact && item.type === 'Артефакт');
+  const artifactProtection = Math.max(0, Math.min(0.3, Number(artifact?.effects?.radiationProtection || 0)));
+  const damage = emissionDamage(sheltered, Number(suit?.defense || 0) * 5 + artifactProtection * 100);
   const currentHp = Number.isFinite(Number(state.hp)) ? Math.max(0, Number(state.hp)) : 100;
   if (currentHp <= 0) return false;
   state.hp = Math.max(1, currentHp - damage.hp);
-  state.radiation = Math.min(100, (Number(state.radiation) || 0) + damage.radiation);
+  state.radiation = Math.min(100, (Number(state.radiation) || 0) + Math.max(0, damage.radiation - artifactProtection * 12));
   state.stamina = Math.max(0, (Number(state.stamina) || 0) - damage.stamina);
   survival.lastEmissionDamageAt = now;
   state.emission = { ...publicEmissionState({ emission }), active: true, warning: false };
@@ -862,9 +857,18 @@ setInterval(async()=>{
  const template=FACTION_INCIDENTS[Math.floor(Math.random()*FACTION_INCIDENTS.length)];const incident={...template(a,b,loc),id:crypto.randomUUID(),at:Date.now(),type:'faction_incident'};
  world.zoneEvents ||= [];world.zoneEvents.push(incident);world.zoneEvents=world.zoneEvents.slice(-50);
  const ev=appendWorldEvent(world,'faction_incident',incident,incident.at);await persistWorld();io.emit('world:zoneEvent',incident);io.emit('world:event',ev);
- for(const faction of incident.factions){const msg={id:crypto.randomUUID(),faction,name:'Дежурный радист',text:`Сводка: ${incident.title}. ${incident.body}`,at:incident.at,location:loc};ensureFactionRadio(world)[faction] ||= [];ensureFactionRadio(world)[faction].push(msg);ensureFactionRadio(world)[faction]=ensureFactionRadio(world)[faction].slice(-100);io.to(`faction:${faction}`).emit('radio:message',msg);}
+ for(const faction of incident.factions){const msg={id:crypto.randomUUID(),faction,name:'Дежурный радист',text:`Сводка: ${incident.title}. ${incident.body}`,kind:'incident',title:incident.title,at:incident.at,location:loc,source:'npc'};ensureFactionRadio(world)[faction] ||= [];ensureFactionRadio(world)[faction].push(msg);ensureFactionRadio(world)[faction]=ensureFactionRadio(world)[faction].slice(-100);io.to(`faction:${faction}`).emit('radio:message',msg);}
  await persistWorld();
 },6*60*1000).unref();
+
+setInterval(async()=>{
+ for(const faction of FACTIONS){
+  const message=createNpcRadioMessage(world,faction,Date.now(),Math.random);
+  io.to(`faction:${faction}`).emit('radio:message',message);
+ }
+ try{await persistWorld();}catch(error){console.error('Faction radio persistence:',error.message);}
+},95*1000).unref();
+
 dbInitialization = initDb().catch(e=>{console.error('Database bootstrap error:',e);});
 server.listen(PORT,'0.0.0.0',()=>console.log(`ZONE ONLINE listening on ${PORT} node=${process.version} bootMs=${Date.now()-SERVER_PROCESS_STARTED_AT} npcCount=${Object.keys(world.npcState||{}).length} socketTransports=websocket,polling`));
 server.on('error',error=>{console.error('HTTP server failed to start:',error);process.exitCode=1;});

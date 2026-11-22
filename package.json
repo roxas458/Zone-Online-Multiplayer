@@ -1,8 +1,8 @@
 {
   "name": "zone-online",
-  "version": "4.40.0",
+  "version": "4.41.0",
   "private": true,
-  "description": "ZONE ONLINE — faction radio, dynamic world events, NPC approach and clickable stash map",
+  "description": "ZONE ONLINE — NPC faction radio, artifact discovery, detector progression and map signals",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
