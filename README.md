@@ -1,4 +1,4 @@
-ZONE ONLINE 4.46.0
+ZONE ONLINE 4.47.0
 
 # ZONE ONLINE 4.39.0
 
@@ -181,10 +181,32 @@ ZONE ONLINE 4.46.0
 - Sectors tab lists nearby strategic sectors and opens their map details without leaving the map screen.
 - Added responsive styling for mobile and full-screen map layouts.
 
-## 4.46.0 — BUGFIX & CODE CLEANUP
+## 4.47.0 — BUGFIX & CODE CLEANUP
 
 - Fixed sector visit history and travel statistics: they now update on each confirmed expedition hop, including intermediate sectors.
 - Offline random encounters are scheduled after the expedition reaches its destination, not when the travel order is submitted.
 - Removed four shadowed duplicate map interaction function declarations.
 - Unified cache-busting versions for first-party browser scripts.
 - Added regression coverage for duplicate declarations and expedition arrival bookkeeping.
+
+
+## 4.47.0 — Multiplayer authority fixes
+
+- Player profile saves no longer control the server-owned sector or world coordinates.
+- `player:update` rejects direct client-side sector changes; confirmed expedition and squad travel remain server-driven.
+- Confirmed sector arrivals update server coordinates for leaders and squad followers.
+- Added regression tests for client teleport prevention and faction spawn initialization.
+
+
+## 4.47.0 — Multiplayer authority fixes
+
+- Player profile saves no longer control the server-owned sector or world coordinates.
+- `player:update` rejects direct client-side sector changes; confirmed expedition and squad travel remain server-driven.
+- Confirmed sector arrivals update server coordinates for leaders and squad followers.
+- Added regression tests for client teleport prevention and faction spawn initialization.
+
+## Multiplayer audit — remaining risks
+
+- The guest profile handshake uses a browser-generated UUID without account authentication. Treat it as a guest identity, not a secure account credential.
+- `player:save` still accepts client-owned progression fields such as money, inventory, XP, and HP after basic normalization. Preventing tampering safely requires moving those progression mutations behind server-authoritative gameplay actions; this release intentionally does not silently discard legitimate client-side progression.
+- Live multi-client and PostgreSQL integration tests still require installed dependencies and a configured database. The current automated suite validates the source contracts and isolated game systems, not a deployed multiplayer session.
