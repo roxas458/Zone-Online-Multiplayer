@@ -1,6 +1,6 @@
-# ZONE ONLINE 4.34.0
+# ZONE ONLINE 4.35.0
 
-## 4.34.0 — Living Dialogue & PDA Identity
+## 4.35.0 — Living Dialogue & PDA Identity
 
 - Added original multi-topic signature conversations for Sidorovich, Wolf and Sultan, with legacy quest topics preserved.
 - Added expanded NPC conversations about personal history, life before the Zone, daily work, current local rumors, plans and news from the mainland. Random and ordinary NPC dialogue topics refresh on a 15-minute cycle; the server dialogue generator supports the same signature branches.
@@ -109,3 +109,11 @@
 - Поиск местности работает с серверным кулдауном; координаты тайников скрыты до обнаружения.
 - Проверенные информаторы продают координаты нетронутых тайников за 22 000–43 000 ₽.
 - Обыск тайника требует подойти к нему, а содержимое выдаётся сервером только один раз.
+
+
+## 4.35.0 — PDA Interface Overhaul
+
+- Player portrait, callsign, faction, balance, world clock and location are grouped in a right-aligned header dossier.
+- The encyclopedia opens as a full-screen PDA workspace.
+- The armory catalogue is now an encyclopedia section instead of a sidebar destination.
+- The characters view is redesigned as a searchable two-pane contacts directory with portrait rows and detailed NPC dossiers.

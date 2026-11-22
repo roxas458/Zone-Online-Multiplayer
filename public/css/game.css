@@ -972,3 +972,70 @@ body.title-screen-active .quick-use-bar{display:none}
 .header-map-trigger:hover{border-color:#a4a879;background:linear-gradient(#4a563f,#263326)}
 @media(max-width:760px){.header-player-card{order:2;max-width:150px;padding:4px 6px}.header-player-portrait{width:32px;height:32px;flex-basis:32px}.header-player-copy b{font-size:10px}.header-player-copy small{font-size:8px}.header-map-trigger{min-height:34px;padding:6px 8px;font-size:9px}.header-map-trigger span{display:none}}
 @media(max-width:420px){.header-player-card{max-width:118px}.header-player-copy small{max-width:78px}.header-actions{gap:4px}.header-map-trigger,.inventory-quick-trigger,.fullscreen-trigger,.main-menu-trigger{padding-left:6px;padding-right:6px}}
+
+/* ZONE ONLINE 4.35.0 — right-aligned player identity, full-screen encyclopedia and PDA contacts */
+.zone-header{display:flex;align-items:center;gap:14px;justify-content:space-between;padding:9px 16px;min-height:76px}
+.zone-header .logo{flex:1 1 auto;min-width:170px}
+.zone-header .header-actions{order:2;margin-left:auto}
+.header-player-card{order:3;flex:0 0 auto;max-width:330px;min-width:220px;display:flex;align-items:center;gap:10px;padding:6px 10px;background:linear-gradient(145deg,#3a3d34,#171b17 72%);border:1px solid #85816a;box-shadow:inset 0 0 0 2px #090b09,0 3px 12px #0008;border-radius:3px}
+.header-player-portrait{width:54px;height:58px;flex-basis:54px;border:2px solid #88836b;background:#10120f;box-shadow:0 0 0 2px #24271f;position:relative}
+.header-player-details{display:grid;gap:6px;min-width:0;flex:1}
+.header-player-copy b{font:600 15px Georgia,serif;letter-spacing:.4px;color:#eee7d2}
+.header-player-copy small{font:9px monospace;color:#c2b68c;letter-spacing:1px;text-transform:uppercase}
+.header-player-metrics{display:flex;gap:9px;flex-wrap:wrap;border-top:1px solid #77745a66;padding-top:5px;color:#aaa995;font:9px monospace}
+.header-player-metrics span{white-space:nowrap}.header-player-metrics b{color:#e0d29c;font-weight:700}
+@media(max-width:900px){.zone-header{flex-wrap:wrap;gap:8px}.zone-header .logo{flex:1 1 100%;order:0}.zone-header .header-actions{order:2;margin-left:0}.header-player-card{order:1;margin-left:auto;min-width:200px}}
+@media(max-width:560px){.zone-header{padding:7px 8px}.zone-header .logo{font-size:12px}.zone-header .logo small{font-size:7px}.zone-header .header-actions{order:3;width:100%;justify-content:space-between}.header-player-card{order:2;margin-left:0;max-width:none;width:100%;min-width:0}.header-player-portrait{width:48px;height:50px;flex-basis:48px}.header-player-copy b{font-size:13px}.header-player-metrics{gap:7px;font-size:8px}}
+
+/* Full-screen PDA knowledge terminal */
+#encyclopedia.view.active{position:fixed;inset:0;z-index:80;display:block;overflow:auto;overscroll-behavior:contain;width:100vw;height:100dvh;max-width:none;margin:0;padding:clamp(12px,2vw,26px);background:radial-gradient(ellipse at 50% -15%,#3b4034,#171a16 52%,#090b09 100%);color:#d8d6c9}
+#encyclopedia.view.active:before{content:"";position:fixed;inset:7px;border:1px solid #8b876c;box-shadow:inset 0 0 0 3px #10120f,0 0 0 1px #050605;pointer-events:none;z-index:-1}
+.pda-ency-topbar{display:flex;justify-content:space-between;align-items:center;gap:18px;padding:4px 6px 12px;border-bottom:1px solid #686653}
+.pda-ency-brand h1{margin:2px 0 0;color:#e2dfcf;font:500 clamp(20px,3vw,29px) Georgia,serif;letter-spacing:.5px}
+.pda-ency-top-actions{display:flex;align-items:center;gap:12px;min-width:min(58%,620px)}
+.pda-ency-search{min-width:0;flex:1}.pda-ency-search .field{background:#101214;border-color:#55534b;border-radius:0;font:11px monospace;padding:9px 11px}
+.pda-ency-mode-tabs{display:flex;gap:5px;padding:10px 0 8px;border-bottom:1px solid #46463f}
+.pda-ency-mode-tabs button{background:#20221f;border:1px solid #55564c;color:#aaa99d;border-radius:0;padding:8px 14px;font:10px monospace;letter-spacing:.8px}
+.pda-ency-mode-tabs button.active{background:#3b3c32;color:#e4d49a;border-color:#a39a70;box-shadow:inset 0 -2px #c2ad72}
+.pda-ency-close{white-space:nowrap;border-radius:0;background:#292b27;border-color:#77735e;font:10px monospace}
+#encyclopedia .pda-ency-layout{grid-template-columns:minmax(230px,27%) minmax(0,1fr);min-height:calc(100dvh - 190px);height:calc(100dvh - 190px);margin-top:10px}
+#encyclopedia .pda-ency-tree{max-height:none;background:#111315;border-color:#55545e}
+#encyclopedia .pda-ency-page{min-height:0;background:#111315}
+#encyclopedia .pda-ency-article{max-height:none;flex:1}
+#encyclopedia .pda-ency-foot{padding:9px 5px 0}
+.pda-ency-armory{padding:12px 2px 22px;min-height:calc(100dvh - 190px)}
+.pda-ency-armory-heading{display:flex;align-items:end;justify-content:space-between;gap:15px;padding:12px 14px;margin-bottom:12px;background:linear-gradient(100deg,#292d26,#151815);border:1px solid #55564b}
+.pda-ency-armory-heading h2{margin:2px 0 4px;color:#e2ddca;font:500 22px Georgia,serif}.pda-ency-armory-heading p{margin:0;color:#9d9c8d;font-size:11px}
+.pda-ency-armory .inventory-toolbar{margin:0}.pda-ency-armory .inventory-toolbar input,.pda-ency-armory .inventory-toolbar select{border-radius:0;background:#101214;border-color:#5a594e}
+@media(max-width:760px){.pda-ency-topbar{align-items:stretch;flex-direction:column}.pda-ency-top-actions{min-width:0;width:100%}#encyclopedia .pda-ency-layout{grid-template-columns:1fr;height:auto;min-height:0}#encyclopedia .pda-ency-tree{max-height:27vh}#encyclopedia .pda-ency-page{min-height:48vh}#encyclopedia .pda-ency-article{max-height:44vh}.pda-ency-armory-heading{align-items:stretch;flex-direction:column}.pda-ency-armory .inventory-toolbar{flex-wrap:wrap}.pda-ency-close span{display:none}}
+
+/* Call of Pripyat-style contacts directory */
+.pda-contacts-head{display:flex;justify-content:space-between;align-items:end;gap:12px;padding:2px 4px 10px;border-bottom:1px solid #55554b}
+.pda-contacts-head h1{margin:2px 0 0;color:#dedbd0;font:500 23px Georgia,serif}
+.pda-contacts-tools{display:flex;align-items:center;gap:10px}.pda-contacts-tools>span{font:9px monospace;color:#a5a18c;white-space:nowrap}.pda-contacts-tools input{width:min(230px,34vw);border-radius:0;background:#111315;border-color:#56564d;font-size:11px}
+.pda-contacts-shell{display:grid;grid-template-columns:minmax(0,1.08fr) minmax(0,.92fr);gap:10px;margin-top:10px;min-height:490px;height:min(62vh,650px)}
+.pda-contact-list-panel,.pda-contact-detail-panel{min-width:0;display:flex;flex-direction:column;background:#111315;border:1px solid #5b5a50;box-shadow:inset 0 0 0 2px #080909}
+.pda-contact-panel-title{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 11px;background:#383941;border-bottom:1px solid #64636a;color:#e0ddd4;font:15px Georgia,serif}
+.pda-contact-panel-title span{font:9px monospace;color:#b7b4a5}
+.pda-contact-list{padding:5px 8px;overflow:auto;flex:1;scrollbar-color:#4a4a50 #17181b;scrollbar-width:thin}
+.pda-contact-row{width:100%;display:grid;grid-template-columns:8px 58px minmax(0,1fr) auto;align-items:center;gap:9px;padding:7px 6px;margin:0;border:0;border-bottom:1px solid #45453f;background:transparent;text-align:left;border-radius:0;color:#d8d5ca;min-height:86px}
+.pda-contact-row:hover,.pda-contact-row.selected{background:#292b2d;border-color:#77745e}
+.pda-contact-row.selected{box-shadow:inset 3px 0 #c3b27a}
+.pda-contact-status{width:7px;height:7px;border-radius:50%;background:#82b47a;box-shadow:0 0 5px #82b47a99;align-self:start;margin-top:7px}
+.pda-contact-status.enemy{background:#c76f60;box-shadow:0 0 5px #c76f6099}
+.pda-contact-row .npc-portrait{width:58px;height:58px;border-radius:0;border:1px solid #69695e;box-shadow:none}
+.pda-contact-row .npc-portrait img{width:100%;height:100%;object-fit:cover}
+.pda-contact-main{display:grid;gap:3px;min-width:0}.pda-contact-main b{font:15px Georgia,serif;color:#e0ddd2}.pda-contact-main small{font:10px Georgia,serif;color:#a5a39a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.pda-contact-main .pda-contact-meta{color:#777b75;font-size:9px}
+.pda-contact-relation{align-self:start;margin-top:4px;font:10px monospace;color:#aaa99b}.pda-contact-relation.negative,.negative{color:#d47b70}.pda-contact-relation.positive,.positive{color:#a8c78c}
+.pda-contact-detail{padding:13px 15px;overflow:auto;flex:1;scrollbar-color:#4a4a50 #17181b;scrollbar-width:thin}
+.pda-contact-identity{display:grid;grid-template-columns:118px minmax(0,1fr);gap:14px;align-items:center;padding-bottom:13px;border-bottom:1px solid #44453e}
+.pda-contact-identity .npc-portrait{width:118px;height:132px;border-radius:0;border:2px solid #777463;box-shadow:0 0 0 3px #252720}
+.pda-contact-identity .npc-portrait img{width:100%;height:100%;object-fit:cover}
+.pda-contact-identity h2{margin:4px 0;color:#e4e0d4;font:500 22px Georgia,serif}.pda-contact-identity p{margin:4px 0;color:#a8a697;font:11px Georgia,serif}.pda-contact-state{font:9px monospace;color:#a6bd86;text-transform:uppercase}
+.pda-contact-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:5px;margin:12px 0}
+.pda-contact-stats>div{padding:8px 6px;background:#202321;border:1px solid #41433c;min-width:0}.pda-contact-stats small{display:block;color:#85877d;font:8px monospace;letter-spacing:.5px}.pda-contact-stats b{display:block;margin-top:4px;color:#d7d0ae;font:12px monospace;overflow-wrap:anywhere}
+.pda-contact-section{padding:9px 2px;border-top:1px solid #3c3e38}.pda-contact-section>b{font:9px monospace;letter-spacing:1px;color:#aaa58d}.pda-contact-section p{margin:5px 0 0;color:#bdbbb0;font:12px/1.55 Georgia,serif}
+.pda-contact-actions{display:flex;flex-wrap:wrap;gap:6px;padding-top:12px}.pda-contact-actions button{font-size:10px;border-radius:0;padding:7px 9px}
+.pda-contact-empty{padding:22px 14px;color:#888a82;font:12px Georgia,serif;text-align:center}
+.pda-contact-lower-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}
+@media(max-width:760px){.pda-contacts-head{align-items:stretch;flex-direction:column}.pda-contacts-tools{width:100%}.pda-contacts-tools input{width:100%}.pda-contacts-shell{grid-template-columns:1fr;height:auto;min-height:0}.pda-contact-list-panel{max-height:36vh;min-height:190px}.pda-contact-detail-panel{min-height:390px}.pda-contact-lower-grid{grid-template-columns:1fr}.pda-contact-identity{grid-template-columns:88px minmax(0,1fr)}.pda-contact-identity .npc-portrait{width:88px;height:102px}.pda-contact-stats{grid-template-columns:repeat(2,minmax(0,1fr))}}

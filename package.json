@@ -1,8 +1,8 @@
 {
   "name": "zone-online",
-  "version": "4.34.0",
+  "version": "4.35.0",
   "private": true,
-  "description": "ZONE ONLINE — living dialogue, character identity and PDA navigation",
+  "description": "ZONE ONLINE — full-screen PDA, contacts dossiers and integrated armory",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
