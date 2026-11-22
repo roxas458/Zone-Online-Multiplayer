@@ -1,8 +1,8 @@
 {
   "name": "zone-online",
-  "version": "4.42.0",
+  "version": "4.43.0",
   "private": true,
-  "description": "ZONE ONLINE — cooperative artifact expeditions, character identity generator and expanded armor catalogue",
+  "description": "ZONE ONLINE — expanded faction equipment and Zone armory",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",

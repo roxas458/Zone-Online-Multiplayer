@@ -1,4 +1,4 @@
-ZONE ONLINE 4.42.0
+ZONE ONLINE 4.43.0
 
 # ZONE ONLINE 4.39.0
 
@@ -155,3 +155,9 @@ ZONE ONLINE 4.42.0
 - Moved NPC approaches, faction casualty notices, rescue operations and Zone memorial entries into a dedicated Zone Reports tab.
 - Reworked character creation into a three-panel PDA registration screen with a 400-point starter equipment budget.
 - Selected starter equipment and supplies are added to the actual inventory and equipped at character creation.
+
+## 4.43.0 — Faction equipment and expanded armory
+- Added 30 additional weapon entries to the in-game armory catalogue.
+- Added 14 faction-specific armor variants covering Duty, Freedom, Military, Mercenaries, Clear Sky, Loners, Monolith, Bandits, Renegades and Scientists.
+- New armor variants can be selected in character creation and use the existing suit equipment/defense/condition systems.
+- Added the new weapons and armor to shared NPC shop data and the player-trade allowlist.

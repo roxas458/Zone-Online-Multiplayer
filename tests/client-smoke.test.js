@@ -106,7 +106,7 @@ test('4.8 catalogue and point-of-interest expansion covers every sector', () => 
   const game = fs.readFileSync(path.join(root, 'public/js/game.js'), 'utf8');
   const weapons = game.match(/const weaponCatalogue=\[([\s\S]*?)\n\];/);
   assert.ok(weapons);
-  assert.equal((weapons[1].match(/\["[a-z0-9_]+"/g) || []).length, 37);
+  assert.equal((weapons[1].match(/\["[a-z0-9_]+"/g) || []).length, 67);
   const poi = game.match(/const extraPoi48=\{([\s\S]*?)\n\};/);
   assert.ok(poi);
   assert.equal((poi[1].match(/^\s*[a-z]+:\[\[/gm) || []).length, 16);
@@ -460,9 +460,9 @@ test('4.25 field PDA keeps long-page filters and map controls reachable', () => 
 test('4.33 build labels are consistent', () => {
   const html = fs.readFileSync(path.join(root, 'public/index.html'), 'utf8');
   const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
-  assert.equal(pkg.version, '4.42.0');
-  assert.match(html, /BUILD 4\.42\.0/);
-  assert.match(html, /ZONE ONLINE 4\.42\.0/);
+  assert.equal(pkg.version, '4.43.0');
+  assert.match(html, /BUILD 4\.43\.0/);
+  assert.match(html, /ZONE ONLINE 4\.43\.0/);
 });
 
 test('4.32 fieldwork, detector search, journal and map ecology layers are wired into the client', () => {
