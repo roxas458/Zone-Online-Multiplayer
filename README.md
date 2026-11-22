@@ -1,6 +1,14 @@
-# ZONE ONLINE 4.57.2
+# ZONE ONLINE 4.58.0
 
-## 4.57.2 — Faction War Activity & Capture Balance
+## 4.58.0 — Visible NPC Battles & Tactical Battle Reports
+
+- NPCs currently fighting now display animated fire, muzzle flashes and a combat pulse on the local and Zone maps.
+- Active battlefronts have clickable map hotspots showing the sector, factions, rounds, losses and known participants with their current health/alive status.
+- Battlefronts retain a bounded participant list so tactical reports can identify the NPCs involved without unbounded world-state growth.
+- The armory catalogue contains 67 entries, including melee weapons.
+
+
+## 4.58.0 — Faction War Activity & Capture Balance
 
 - Повышена частота стратегических вылазок экспансионистских группировок: шанс отправки отряда 58%, период повторной готовности сокращён до 4 минут.
 - Монолит и Свобода теперь ставят доступные вражеские объекты выше обычной разведки и снабжения, если штаб не занят срочной обороной или запросом игрока.

@@ -209,7 +209,8 @@ function tickNpcWorld(world, locations, random = Math.random, now = Date.now()) 
     const a=group.find(n=>n.faction===sides[0]), b=group.find(n=>hostility(sides[0],n.faction));
     if(!a||!b) continue;
     const battle=world.battlefronts.find(x=>x.location===location&&x.status==='active');
-    const engagement=battle||{id:`battle_${location}_${now}`,location,attacker:a.faction,defender:b.faction,status:'active',startedAt:now,rounds:0,losses:0};
+    const engagement=battle||{id:`battle_${location}_${now}`,location,attacker:a.faction,defender:b.faction,status:'active',startedAt:now,rounds:0,losses:0,participants:[]};
+    engagement.participants ||= [];for(const participant of [a.id,b.id])if(participant&&!engagement.participants.includes(participant))engagement.participants.push(participant);engagement.participants=engagement.participants.slice(-24);
     engagement.rounds++;engagement.lastAt=now;
     const damageA=4+Math.floor(random()*13),damageB=4+Math.floor(random()*13);
     b.health=clamp(b.health-damageA,0,100);a.health=clamp(a.health-damageB,0,100);a.action=b.action='combat';a.behavior=b.behavior='combat';a.mood=b.mood='в бою';
