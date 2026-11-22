@@ -57,6 +57,19 @@ function initSouls(world,random=Math.random){
       }
     }
   }
+  // Keep a real, persistent commander on every squad, including squads migrated from older saves.
+  for(const squad of world.npcSquads){
+    const members=(squad.members||[]).map(id=>world.npcState?.[id]).filter(n=>n&&n.alive!==false);
+    if(!members.length)continue;
+    if(!members.some(n=>n.id===squad.leaderId))squad.leaderId=members[0].id;
+    squad.leaderName=world.npcState[squad.leaderId]?.name||members[0].name;
+    squad.memberRelations ||= {};
+    for(const member of members){
+      member.relationships ||= {};
+      if(!Number.isFinite(Number(member.relationships[squad.leaderId])))member.relationships[squad.leaderId]=member.id===squad.leaderId?100:20;
+      squad.memberRelations[member.id]=Number(member.relationships[squad.leaderId]);
+    }
+  }
   // Migrate older saved squads to a typed role without changing their membership or location.
   for(const [index,squad] of (world.npcSquads||[]).entries()){
     squad.type ||= SQUAD_TYPES[index%SQUAD_TYPES.length];
@@ -77,9 +90,39 @@ function syncNpcGroups(world){
   }).filter(squad=>squad.size>=1);
 }
 function factionSlug(s){return String(s).toLowerCase().replace(/[^а-яa-z0-9]+/gi,'_').slice(0,18);}
+function tickSquadPolitics(world,now,random,events){
+  const npcs=world.npcState||{},squads=world.npcSquads||[];
+  for(const squad of squads){
+    if(!squad||!Array.isArray(squad.members)||!squad.members.length)continue;
+    let members=squad.members.map(id=>npcs[id]).filter(n=>n&&n.alive!==false);
+    if(!members.length)continue;
+    if(!members.some(n=>n.id===squad.leaderId)){squad.leaderId=members[0].id;squad.leaderName=members[0].name;}
+    const leader=squad.leaderId;
+    for(const member of members){
+      if(member.id===leader||!member.generated)continue;
+      const trust=Number(member.relationships?.[leader]??20);
+      const discontent=trust<=-45||Number(member.morale??60)<=12;
+      if(!discontent||now-(Number(member.lastSquadChangeAt)||0)<30*60*1000||random()>.08)continue;
+      const destination=squads.find(other=>other!==squad&&other.faction===member.faction&&other.location===member.location&&other.status!=='disbanded'&&(other.members||[]).length<6);
+      squad.members=squad.members.filter(id=>id!==member.id);
+      if(destination){destination.members.push(member.id);member.squadId=destination.id;member.squadName=destination.name;}
+      else{member.squadId=null;member.squadName=null;member.action='camp';member.behavior='camp';}
+      member.lastSquadChangeAt=now;member.history ||= [];member.memory ||= [];
+      const reason=trust<=-45?'конфликт с командиром':'потеря доверия внутри отряда';
+      const record={action:'squad_left',fromSquad:squad.id,toSquad:destination?.id||null,reason,at:now};
+      member.history.push(record);member.history=member.history.slice(-40);member.memory.push({type:'squad_change',...record});member.memory=member.memory.slice(-40);
+      if(squad.leaderId===member.id){const next=squad.members.map(id=>npcs[id]).find(n=>n&&n.alive!==false);squad.leaderId=next?.id||null;squad.leaderName=next?.name||null;}
+      events.push({type:'npc_squad_change',npcId:member.id,fromSquad:squad.id,toSquad:destination?.id||null,text:`${member.name} покинул отряд «${squad.name}» из-за ${reason}${destination?` и присоединился к «${destination.name}»`:''}.`,at:now});
+    }
+    squad.members=squad.members.filter(id=>npcs[id]&&npcs[id].alive!==false);
+    if(!squad.members.length)squad.status='disbanded';
+    squad.memberRelations=Object.fromEntries(squad.members.map(id=>[id,Number(npcs[id]?.relationships?.[squad.leaderId]??0)]));
+  }
+}
 function tickSouls(world,locations,random=Math.random,now=Date.now()){
   initSouls(world,random);
   const events=[];const npcs=world.npcState||{};
+  tickSquadPolitics(world,now,random,events);
   for(const npc of Object.values(npcs)){
     if(!npc.generated)continue;
     if(npc.alive===false&&!npc.memorialized&&!npc.replacementDueAt)npc.replacementDueAt=now+3*60*1000;

@@ -1,6 +1,6 @@
-# ZONE ONLINE 4.55.0
+# ZONE ONLINE 4.56.0
 
-## 4.55.0 — Living A-Life Routines
+## 4.56.0 — Living A-Life Routines
 
 This release adds a server-authoritative individual NPC life layer on top of the existing faction, squad, mutant and proximity systems.
 
@@ -27,7 +27,7 @@ npm start
 
 The automated test suite covers routine assignment, artifact-search completion, social memories and protection of combat/mission states. Live browser and multiplayer server validation still requires running the project with its dependencies and configured database.
 
-## 4.55.0 — Smooth A-Life & Object Approach
+## 4.56.0 — Smooth A-Life & Object Approach
 
 - NPC and mutant movement now use the same 2.5 map-units-per-second speed as player movement.
 - NPC social encounters and hostile NPC skirmishes use sector-local spatial grids rather than comparing every possible pair.
