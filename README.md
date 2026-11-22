@@ -1,4 +1,12 @@
-# ZONE ONLINE 4.33.45
+# ZONE ONLINE 4.34.0
+
+## 4.34.0 — Living Dialogue & PDA Identity
+
+- Added original multi-topic signature conversations for Sidorovich, Wolf and Sultan, with legacy quest topics preserved.
+- Added expanded NPC conversations about personal history, life before the Zone, daily work, current local rumors, plans and news from the mainland. Random and ordinary NPC dialogue topics refresh on a 15-minute cycle; the server dialogue generator supports the same signature branches.
+- Moved the Zone map shortcut from the left navigation rail to the main header and removed the duplicate mobile-dock map item.
+- Added a persistent player identity card in the header with portrait, callsign and faction; existing header status continues to show money, in-game day/time and current location.
+- Added regression coverage for dialogue branches and PDA navigation.
 
 Обновление главного меню: атмосферный стартовый экран, продолжение и загрузка локального сохранения, запуск новой игры с выбором группировки и позывного, переход к сетевой игре и опциям. Адаптивная компоновка для мобильных экранов.
 

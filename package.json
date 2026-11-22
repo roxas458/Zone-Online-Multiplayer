@@ -1,8 +1,8 @@
 {
   "name": "zone-online",
-  "version": "4.33.45",
+  "version": "4.34.0",
   "private": true,
-  "description": "ZONE ONLINE — persistent stashes, field notes and expensive intelligence trading",
+  "description": "ZONE ONLINE — living dialogue, character identity and PDA navigation",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
