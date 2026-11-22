@@ -1,4 +1,4 @@
-// ZONE ONLINE 4.33.32 browser client. IMMERSIVE TITLE SCREEN / SURVIVAL / MULTIPLAYER.
+// ZONE ONLINE 4.33.36 browser client. RESTORED NPC DIALOGUE / NPC-SPECIFIC TRADE.
 const clone=o=>JSON.parse(JSON.stringify(o));
 const base={
  name:"Новичок",money:1450,hp:100,radiation:0,radiationProtectionUntil:0,stamina:85,hunger:18,thirst:20,rep:10,day:1,hour:9,loc:"cordon",faction:"Одиночки",xp:0,meetings:0,completed:0,flags:{metSid:false,metWolf:false,heardBar:false,foundArtifact:false,helpedWolf:false},
@@ -69,6 +69,7 @@ const QUICK_USE_SLOTS=[
  {id:'bandage',icon:'▤',label:'Бинт'},
  {id:'bread',icon:'🥫',label:'Еда'}
 ];
+const NPC_DIALOGUE_TEMPLATES=new Map((base.npcs||[]).map(n=>[n.id,{greeting:n.greeting,topics:clone(n.topics||[])}]));
 const hadLocalSave=!!localStorage.getItem("zoneExpandedSave");
 let g;try{g=JSON.parse(localStorage.getItem("zoneExpandedSave"))||clone(base)}catch(e){g=clone(base)}
 if(g.characterCreated===undefined)g.characterCreated=hadLocalSave;
@@ -409,15 +410,20 @@ function renderCopDialogue(n, message, choices){
  $('dialoguePlayerName').textContent=g.name||'Сталкер';
  $('dialoguePlayerFaction').textContent=g.faction||'Одиночки';
  box.innerHTML=`<div class="cop-message"><b>${escapeHtml(n.name||'Сталкер')}</b><p>${escapeHtml(message||n.greeting||'…')}</p></div>`;
- choiceBox.innerHTML=(choices||[]).map((t,i)=>`<button type="button" onclick="topic('${escapeHtml(n.id)}',${i})">${escapeHtml(t[0])}</button>`).join('')+(n.role==='техник'?`<button type="button" class="dialogue-trade-action" onclick="openRepairWorkshop('${escapeHtml(n.id)}')">⚙ Мастерская: ремонт оружия и брони</button>`:'')+`<button type="button" class="dialogue-trade-action" onclick="closeTalk();openNpcTrade('${escapeHtml(n.id)}')">Торговать</button>`;
+ const safeChoices=(Array.isArray(choices)&&choices.length?choices:(Array.isArray(n.topics)?n.topics:[])).filter(t=>Array.isArray(t)&&t.length>=2);
+ choiceBox.innerHTML=safeChoices.map((t,i)=>`<button type="button" onclick="topic('${escapeHtml(n.id)}',${i})">${escapeHtml(t[0])}</button>`).join('')+(n.role==='техник'?`<button type="button" class="dialogue-trade-action" onclick="openRepairWorkshop('${escapeHtml(n.id)}')">⚙ Мастерская: ремонт оружия и брони</button>`:'')+`<button type="button" class="dialogue-trade-action" onclick="openActiveNpcTrade()">Торговать</button>`;
 }
 function startTalk(id){
  let n=npcBy(id);if(!n)return;if(!npcInInteractionRange(n))return alert('Ты слишком далеко. Чтобы поговорить, подойди на расстояние 8 м.');
  const live=serverWorld?.npcState?.[id];
  if(live?.dialogue){
-  if(live.generated){n.greeting=live.dialogue.greeting;n.topics=live.dialogue.topics;}
-  else{n.topics=(n.topics||[]).filter(t=>!['Свежие слухи','Личная история'].includes(t[0]));n.topics.push(['Свежие слухи',live.dialogue.topics?.[1]?.[1]||'Пока новых сведений нет.'],['Личная история',live.dialogue.topics?.[2]?.[1]||'Сталкер не хочет говорить о прошлом.']);}
+  n.greeting=live.dialogue.greeting||n.greeting||NPC_DIALOGUE_TEMPLATES.get(id)?.greeting;
+  const serverTopics=Array.isArray(live.dialogue.topics)?live.dialogue.topics.filter(t=>Array.isArray(t)&&t.length>=2):[];
+  const savedTopics=NPC_DIALOGUE_TEMPLATES.get(id)?.topics||[];
+  // Preserve authored character-specific dialogue when an older/partial server save has no topics.
+  n.topics=serverTopics.length?serverTopics:savedTopics;
  }
+ if(!Array.isArray(n.topics)||!n.topics.length){const fallback=NPC_DIALOGUE_TEMPLATES.get(id);n.topics=clone(fallback?.topics||[['Что нового?','Сейчас в округе тихо. Будь осторожен и проверяй маршрут перед выходом.']]);}
  activeNpc=id;
  const storyMeet={lebedev:["metLebedev","story_swamp_signal"],novikov:["metNovikov","story_swamp_relay"],prof:["metSakharov","story_yantar_echo"],beard:["metBeard","story_north_route"],archivist:["metArchivist","story_pripyat_archive"]};
  if(storyMeet[id]){g.storyFlags[storyMeet[id][0]]=true;addQuest(storyMeet[id][1]);}
@@ -457,7 +463,27 @@ function renderPeople(){
  $("peopleList").innerHTML=(nearby||'<div class="mutedbox">В этой локации сейчас никого нет. Попробуй зайти позже.</div>')+(squads?`<h3>Отряды сталкеров</h3>${squads}`:"")+(memorial?`<h3>Память Зоны</h3>${memorial}`:"");
 }
 
-function openNpcTrade(id){const n=npcBy(id);if(!n||n.loc!==g.loc)return alert('Сталкер должен находиться рядом.');activeNpc=id;const eq=n.equipment||serverWorld?.npcState?.[id]?.equipment||{};const role=(n.role||'').toLowerCase(),fallback={suit:role.includes('торгов')?'Куртка торговца':role.includes('учён')||role.includes('исслед')?'Научный комбинезон':'Комбинезон сталкера',weapon:role.includes('охот')?'ТОЗ-34':role.includes('развед')?'АКС-74У':'ПМ',tool:'Обычный детектор',backpack:'Полевой рюкзак'};const npcStock=serverWorld?.npcEconomy?.[id]?.stock||{};const canSellWeapons=['sid','barman','scout','prof','scientist','beard'].includes(id)||role.includes('торгов');const stock=tradeGoods().filter(x=>['Медицина','Еда','Артефакт','Броня','Инструмент','Оружие','Материал'].includes(x[2])&&(x[2]!=='Оружие'||canSellWeapons)&&Number(npcStock[x[1]]??(canSellWeapons?5:0))>0);const npcBalance=Number(serverWorld?.npcEconomy?.[id]?.balance??(id==='sid'?10000000:5000));let panel=$('npcTradePanel');if(!panel){panel=document.createElement('div');panel.id='npcTradePanel';panel.className='npc-trade-panel';$('peopleList').appendChild(panel);}panel.innerHTML=`<div class="npc-trade-window"><div class="npc-trade-title"><b>Полевой обмен — ${escapeHtml(n.name)}</b><span class="tag">${escapeHtml(n.role||'Сталкер')}</span></div><div class="npc-equipment"><b>Снаряжение сталкера</b><div class="npc-equipment-grid">${[['Костюм',eq.suit||n.suit||fallback.suit],['Оружие',eq.weapon||n.weapon||fallback.weapon],['Детектор',eq.detector||eq.tool||fallback.tool],['Рюкзак',eq.backpack||fallback.backpack]].map(x=>`<div><small>${x[0]}</small><b>${escapeHtml(x[1])}</b></div>`).join('')}</div></div><b>Предложение торговца</b><div class="small muted">Касса NPC: ${npcBalance.toLocaleString('ru-RU')} ₽ · твои деньги учитываются отдельно</div><div class="npc-stock">${stock.map(x=>`<div class="npc-stock-row"><span><b>${escapeHtml(x[0])}</b><small>${escapeHtml(x[2])} · ${x[3]} ₽ · запас ${Number(npcStock[x[1]]??5)}</small></span><button onclick="npcBuy('${id}','${x[1]}')">Купить</button></div>`).join('')}</div><b>Продать сталкеру</b><div class="npc-stock">${g.items.filter(x=>x.qty>0).slice(0,10).map(x=>`<div class="npc-stock-row"><span><b>${escapeHtml(x.name)}</b><small>${x.qty} шт. · ориентир ${Math.floor(x.value*.5)} ₽</small></span><button onclick="npcSell('${id}','${x.id}')">Продать</button></div>`).join('')||'<small>В рюкзаке нет вещей для продажи.</small>'}</div><button class="quiet-action" onclick="closeNpcTrade()">Закрыть обмен</button></div>`;}
+function openActiveNpcTrade(){
+ const id=activeNpc;
+ if(!id)return alert('Сначала выбери сталкера, с которым хочешь торговать.');
+ closeTalk();view('people');openNpcTrade(id);
+}
+function openNpcTrade(id){
+ const n=npcBy(id);if(!n||(n.loc||n.location)!==g.loc)return alert('Сталкер должен находиться в текущем секторе.');
+ // The server performs the authoritative distance check for each trade action.
+ activeNpc=id;
+ const eq=n.equipment||serverWorld?.npcState?.[id]?.equipment||{};
+ const role=(n.role||'').toLowerCase();
+ const fallback={suit:role.includes('торгов')?'Куртка торговца':role.includes('учён')||role.includes('исслед')?'Научный комбинезон':'Комбинезон сталкера',weapon:role.includes('охот')?'ТОЗ-34':role.includes('развед')?'АКС-74У':'ПМ',tool:'Обычный детектор',backpack:'Полевой рюкзак'};
+ const npcStock=serverWorld?.npcEconomy?.[id]?.stock||{};
+ const canSellWeapons=['sid','barman','scout','prof','scientist','beard'].includes(id)||role.includes('торгов');
+ // Server-side NPC accounts start with ordinary supplies for every living NPC; only weapons are trader-restricted.
+ const stock=tradeGoods().filter(x=>['Медицина','Еда','Артефакт','Броня','Инструмент','Оружие','Материал'].includes(x[2])&&(x[2]!=='Оружие'||canSellWeapons)&&Number(npcStock[x[1]]??(x[2]==='Оружие'?(canSellWeapons?5:0):5))>0);
+ const npcBalance=Number(serverWorld?.npcEconomy?.[id]?.balance??(canSellWeapons?250000:5000));
+ let panel=$('npcTradePanel');if(!panel){panel=document.createElement('div');panel.id='npcTradePanel';panel.className='npc-trade-panel';$('peopleList').appendChild(panel);}
+ panel.innerHTML=`<div class="npc-trade-window"><div class="npc-trade-title"><b>Полевой обмен — ${escapeHtml(n.name)}</b><span class="tag">${escapeHtml(n.role||'Сталкер')}</span></div><div class="npc-equipment"><b>Снаряжение сталкера</b><div class="npc-equipment-grid">${[['Костюм',eq.suit||n.suit||fallback.suit],['Оружие',eq.weapon||n.weapon||fallback.weapon],['Детектор',eq.detector||eq.tool||fallback.tool],['Рюкзак',eq.backpack||fallback.backpack]].map(x=>`<div><small>${x[0]}</small><b>${escapeHtml(x[1])}</b></div>`).join('')}</div></div><b>Предложение ${canSellWeapons?'торговца':'сталкера'}</b><div class="small muted">Касса NPC: ${npcBalance.toLocaleString('ru-RU')} ₽ · ассортимент и деньги принадлежат этому персонажу</div><div class="npc-stock">${stock.map(x=>`<div class="npc-stock-row"><span><b>${escapeHtml(x[0])}</b><small>${escapeHtml(x[2])} · ${x[3]} ₽ · запас ${Number(npcStock[x[1]]??5)}</small></span><button onclick="npcBuy('${escapeHtml(id)}','${escapeHtml(x[1])}')">Купить</button></div>`).join('')||'<small>У этого сталкера сейчас нет товаров.</small>'}</div><b>Продать сталкеру</b><div class="npc-stock">${g.items.filter(x=>x.qty>0).slice(0,10).map(x=>`<div class="npc-stock-row"><span><b>${escapeHtml(x.name)}</b><small>${x.qty} шт. · ориентир ${Math.floor(x.value*.5)} ₽</small></span><button onclick="npcSell('${escapeHtml(id)}','${escapeHtml(x.id)}')">Продать</button></div>`).join('')||'<small>В рюкзаке нет вещей для продажи.</small>'}</div><button class="quiet-action" onclick="closeNpcTrade()">Закрыть обмен</button></div>`;
+ panel.scrollIntoView?.({behavior:'smooth',block:'nearest'});
+}
 function closeNpcTrade(){const p=$('npcTradePanel');if(p)p.innerHTML='';}
 function npcBuy(npcId,item){if(zoneSocket?.connected){zoneSocket.emit('npc:trade:buy',{npcId,item});return;}alert('Для безопасной торговли с NPC подключись к серверу.');}
 function npcSell(npcId,item){if(zoneSocket?.connected){zoneSocket.emit('npc:trade:sell',{npcId,item,qty:1});return;}alert('Для безопасной торговли с NPC подключись к серверу.');}
@@ -1379,7 +1405,7 @@ async function connectZone(){
  zoneSocket.on('player:spawned',data=>{if(data?.state){applyingServerState=true;g=data.state;migrateWorld();localStorage.setItem('zoneExpandedSave',JSON.stringify(g));applyingServerState=false;render();log(`Ты прибыл на базу группировки: ${spawnNames[data.location]||data.location}.`);}});
  zoneSocket.on('dm:message',m=>{const other=m.fromId===zonePlayerId?m.toId:m.fromId;playerDMHistory[other] ||= [];if(!playerDMHistory[other].some(x=>x.id===m.id))playerDMHistory[other].push(m);if(activePlayerDM===other)renderPlayerDM();else log('Новое личное сообщение от '+(m.fromName||'сталкера')+'.');});
  zoneSocket.on('dm:error',data=>alert(data?.message||'Личный канал недоступен.'));
- zoneSocket.on('npc:trade:result',data=>{if(data?.economy&&activeNpc){serverWorld=serverWorld||{};serverWorld.npcEconomy=serverWorld.npcEconomy||{};serverWorld.npcEconomy[activeNpc]={...(serverWorld.npcEconomy[activeNpc]||{}),...data.economy};}if(data?.state){g=data.state;localStorage.setItem('zoneExpandedSave',JSON.stringify(g));render();renderTrade();if(activeNpc)openNpcTrade(activeNpc);}alert(data?.message||'Обмен завершён.');});
+ zoneSocket.on('npc:trade:result',data=>{if(data?.economy&&activeNpc){serverWorld=serverWorld||{};serverWorld.npcEconomy=serverWorld.npcEconomy||{};serverWorld.npcEconomy[activeNpc]={...(serverWorld.npcEconomy[activeNpc]||{}),...data.economy};}if(data?.state){g=data.state;localStorage.setItem('zoneExpandedSave',JSON.stringify(g));render();if(activeNpc)openNpcTrade(activeNpc);else renderTrade();}alert(data?.message||'Обмен завершён.');});
  zoneSocket.on('world:sync',data=>applyWorldSync(data));
  zoneSocket.on('world:status',data=>renderOnlineWorldStatus(data));
  zoneSocket.on('world:event',ev=>{if(!ev||!Number.isFinite(Number(ev.revision)))return;const current=Number(localStorage.getItem('zoneWorldRevision')||0);if(Number(ev.revision)<=current)return;localStorage.setItem('zoneWorldRevision',String(ev.revision));renderOnlineWorldStatus();handleOnlineWorldEvent(ev);});

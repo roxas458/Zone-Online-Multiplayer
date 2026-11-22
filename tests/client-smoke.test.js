@@ -271,6 +271,27 @@ test('4.12 NPC trade inspects gear, supports buy and sell, and verifies local pr
   assert.match(server,/npc\.location!==p\.location/);
 });
 
+test('4.33.36 NPC dialogue restores authored topics when server dialogue is absent or incomplete', () => {
+  const { context, elements } = bootClient();
+  context.npcInInteractionRange = () => true;
+  assert.doesNotThrow(() => context.startTalk('sid'));
+  const choices = elements.get('dialogueChoices').innerHTML;
+  assert.match(choices,/Кто ты\?/);
+  assert.match(choices,/Что нового\?/);
+  assert.match(choices,/Есть работа\?/);
+  assert.match(choices,/Торговать с этим NPC|Торговать/);
+});
+
+test('4.33.36 dialogue trade action opens the selected NPC trade panel instead of sector default trader', () => {
+  const html = fs.readFileSync(path.join(root,'public/index.html'),'utf8');
+  const client = fs.readFileSync(path.join(root,'public/js/game.js'),'utf8');
+  assert.match(html,/openActiveNpcTrade\(\)/);
+  assert.match(client,/function openActiveNpcTrade\(\)/);
+  assert.match(client,/openNpcTrade\(id\)/);
+  assert.match(client,/Полевой обмен — \${escapeHtml\(n.name\)}/);
+  assert.match(client,/npcStock\[x\[1\]\]\?\?\(x\[2\]==='Оружие'/);
+});
+
 test('4.12 encyclopedia includes expanded anomaly field dossiers and longer reference entries', () => {
   const { context, elements } = bootClient();
   context.renderEncyclopedia();
@@ -439,8 +460,8 @@ test('4.25 field PDA keeps long-page filters and map controls reachable', () => 
 test('4.33 build labels are consistent', () => {
   const html = fs.readFileSync(path.join(root, 'public/index.html'), 'utf8');
   const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
-  assert.equal(pkg.version, '4.33.35');
-  assert.match(html, /BUILD 4\.33\.35/);
+  assert.equal(pkg.version, '4.33.36');
+  assert.match(html, /BUILD 4\.33\.36/);
   assert.match(html, /ZONE ONLINE 4\.33/);
 });
 

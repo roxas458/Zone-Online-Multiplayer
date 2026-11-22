@@ -1,8 +1,8 @@
 {
   "name": "zone-online",
-  "version": "4.33.35",
+  "version": "4.33.36",
   "private": true,
-  "description": "ZONE ONLINE — multiplayer Zone with faction map markers, interactive NPC squads and expanded mutant ecology",
+  "description": "ZONE ONLINE — multiplayer Zone with faction map markers, interactive NPC squads and expanded mutant ecology and restored NPC dialogue/trade",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
