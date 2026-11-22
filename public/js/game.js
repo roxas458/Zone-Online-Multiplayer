@@ -1,4 +1,4 @@
-// ZONE ONLINE 4.41.0 browser client. ZONE REPORTS / STARTER LOADOUT / SQUAD PAGE RESTORE.
+// ZONE ONLINE 4.45.0 browser client. ZONE REPORTS / STARTER LOADOUT / SQUAD PAGE RESTORE.
 const clone=o=>JSON.parse(JSON.stringify(o));
 const base={
  name:"Новичок",money:1450,hp:100,radiation:0,radiationProtectionUntil:0,stamina:85,hunger:18,thirst:20,rep:10,day:1,hour:9,loc:"cordon",faction:"Одиночки",xp:0,meetings:0,completed:0,flags:{metSid:false,metWolf:false,heardBar:false,foundArtifact:false,helpedWolf:false},
@@ -442,7 +442,7 @@ function renderEncyclopedia(){
 }
 function save(){localStorage.setItem("zoneExpandedSave",JSON.stringify(g));render();if($("trade")?.classList.contains("active"))renderTrade()}
 function log(t){g.log.unshift(t);g.log=g.log.slice(0,35)}
-function news(t,b){const c=realClock();g.news.unshift({day:c.day,hour:c.time,title:t,body:b});g.news=g.news.slice(0,40)}
+function news(t,b){const c=realClock();g.news.unshift({day:c.day,hour:c.time,title:t,body:b});g.news=g.news.slice(0,40);if($('world')?.classList.contains('active'))renderMapIntel()}
 function addItem(id,name,type,desc,weight,value,qty=1){let x=g.items.find(i=>i.id===id);if(x)x.qty+=qty;else g.items.push({id,name,type,desc,weight,value,qty})}
 function count(id){return g.items.find(i=>i.id===id)?.qty||0}
 function take(id,n){let x=g.items.find(i=>i.id===id);if(!x||x.qty<n)return false;x.qty-=n;if(x.qty<=0)g.items=g.items.filter(i=>i.id!==id);return true}
@@ -769,7 +769,37 @@ function renderStashes(){const root=$('stashList');if(!root)return;const pos=pla
 function searchStashArea(){if(!zoneSocket?.connected)return alert('Для поиска тайников требуется подключение к серверу.');zoneSocket.emit('stash:search');}
 function lootFieldStash(id){if(!zoneSocket?.connected)return alert('Нет соединения с сервером.');zoneSocket.emit('stash:loot',{stashId:id});}
 function buyStashIntel(npcId){if(!zoneSocket?.connected)return alert('Нет соединения с сервером.');zoneSocket.emit('stash:buy-intel',{npcId});}
+let mapIntelTab='brief';
+function setMapIntelTab(tab){
+ const allowed=['brief','news','tasks','radio','sectors'];if(!allowed.includes(tab))return;
+ mapIntelTab=tab;renderMapIntel();
+}
+function renderMapIntel(){
+ const root=$('mapIntelContent');if(!root)return;
+ document.querySelectorAll('[data-map-intel]').forEach(b=>b.classList.toggle('active',b.dataset.mapIntel===mapIntelTab));
+ const here=(g.locations||[]).find(l=>l.id===g.loc)||{};
+ const active=(g.quests||[]).filter(q=>q.accepted&&!q.done);
+ const currentNpcs=(g.npcs||[]).filter(n=>n.loc===g.loc&&n.alive!==false);
+ const recent=(g.news||[]).slice(0,5);
+ const risk=here.risk||'Неизвестно';
+ if(mapIntelTab==='brief'){
+  const world=g.world||{};
+  root.innerHTML=`<div class="map-intel-brief"><article><small>ТЕКУЩИЙ СЕКТОР</small><b>${escapeHtml(here.icon||'⌖')} ${escapeHtml(here.name||locationName(g.loc))}</b><span>${escapeHtml(here.owner||'Неизвестный контроль')} · риск: ${escapeHtml(risk)}</span></article><article><small>ПОГОДА И СРЕДА</small><b>${escapeHtml(world.weather||'Данные недоступны')}</b><span>${escapeHtml(world.emission||'Нет данных')} · ${escapeHtml(world.mutants||'Следы не отмечены')}</span></article><article><small>ОПЕРАТИВНАЯ СВОДКА</small><b>${active.length} активных заданий</b><span>${currentNpcs.length} известных контактов в секторе</span></article></div><div class="map-intel-actions"><button type="button" onclick="view('zoneReports')">Полевая сводка</button><button type="button" onclick="view('quests')">Мои задания</button><button type="button" onclick="view('radio')">Открыть радиосеть</button></div><div class="map-intel-latest"><b>Последнее сообщение</b><span>${recent.length?escapeHtml(recent[0].title+': '+recent[0].body):'Новых сообщений пока нет.'}</span></div>`;
+ }else if(mapIntelTab==='news'){
+  root.innerHTML=`<div class="map-intel-list">${recent.map(n=>`<article><div><b>${escapeHtml(n.title||'Событие Зоны')}</b><small>День ${Number(n.day)||1} · ${escapeHtml(n.hour||'--:--')}</small></div><p>${escapeHtml(n.body||'')}</p></article>`).join('')||'<div class="mutedbox small">Новостей пока нет.</div>'}</div><div class="map-intel-actions"><button type="button" onclick="view('journal')">Полная лента новостей</button><button type="button" onclick="generateRumor();renderMapIntel()">Запросить слухи</button></div>`;
+ }else if(mapIntelTab==='tasks'){
+  root.innerHTML=`<div class="map-intel-list">${active.slice(0,4).map(q=>`<article><div><b>${escapeHtml(q.title)}</b><small>${Number(q.reward)||0} ₽ · ${Number(q.xp)||0} опыта</small></div><p>${escapeHtml(q.desc||'')}</p></article>`).join('')||'<div class="mutedbox small">Нет принятых заданий. Загляни к сталкерам или открой доску заданий.</div>'}</div><div class="map-intel-actions"><button type="button" onclick="view('quests')">Доска заданий</button><button type="button" onclick="view('people')">Найти заказчиков</button></div>`;
+ }else if(mapIntelTab==='radio'){
+  const messages=(factionRadioMessages||[]).slice(-3).reverse();
+  root.innerHTML=`<div class="map-intel-list">${messages.map(m=>`<article><div><b>${escapeHtml(m.title||m.name||'Входящая передача')}</b><small>${escapeHtml(locationName(m.location||''))}</small></div><p>${escapeHtml(m.text||'')}</p></article>`).join('')||'<div class="mutedbox small">Пока нет свежих передач. Радиосеть принимает сообщения автоматически при подключении.</div>'}</div><div class="map-intel-actions"><button type="button" onclick="view('radio')">Полная радиосеть</button><span class="map-intel-note">Только приём · передача сообщений недоступна</span></div>`;
+ }else{
+  const sectors=(g.locations||[]).filter(l=>l.id!==g.loc).sort((a,b)=>(Number(b.risk==='Критический')-Number(a.risk==='Критический'))).slice(0,6);
+  root.innerHTML=`<div class="map-intel-sector-list">${sectors.map(l=>`<button type="button" onclick="selectLocation('${String(l.id).replace(/[^a-z0-9_-]/gi,'')}')"><span><b>${escapeHtml(l.icon||'⌖')} ${escapeHtml(l.name)}</b><small>${escapeHtml(l.owner||'Неизвестный контроль')}</small></span><em>${escapeHtml(l.risk||'—')}</em></button>`).join('')}</div><div class="map-intel-actions"><span class="map-intel-note">Выбери сектор, чтобы открыть его сведения и маршрут.</span><button type="button" onclick="setMapMode('zone')">Показать всю Зону</button></div>`;
+ }
+ const subtitle=$('mapIntelSubtitle');if(subtitle)subtitle.textContent=`${locationName(g.loc)} · ${({brief:'Сводка сектора',news:'Последние сообщения КПК',tasks:'Принятые поручения',radio:'Входящие передачи группировки',sectors:'Разведданные по секторам'})[mapIntelTab]}`;
+}
 function renderMap(){
+ renderMapIntel();
  if((($("world")?.classList.contains("active")||!zoneMapHasRendered)&&zoneMapDirty))renderZoneMap();
  const host=$("map");if(!host)return;
  const key=JSON.stringify([g.loc,chosenLoc,(g.locations||[]).map(l=>[l.id,l.name,l.icon,l.owner,l.risk,l.travel,l.control])]);
@@ -1723,7 +1753,7 @@ async function connectZone(){
  zoneSocket.on('artifact-expedition:state',data=>renderCoopArtifactExpeditions(data?.expeditions||[]));
  zoneSocket.on('artifact-expedition:update',data=>{if(data?.expeditions)renderCoopArtifactExpeditions(data.expeditions);if(data?.message)log(data.message);});
  zoneSocket.on('artifact-expedition:result',data=>{if(data?.state){g=data.state;save();renderInventory();}if(data?.message)alert(data.message);if(data?.expeditions)renderCoopArtifactExpeditions(data.expeditions);});
- zoneSocket.on('radio:message',message=>{if(!message||message.faction!==g.faction)return;if(!factionRadioMessages.some(x=>x.id===message.id))factionRadioMessages.push(message);factionRadioMessages=factionRadioMessages.slice(-100);renderFactionRadio();});
+ zoneSocket.on('radio:message',message=>{if(!message||message.faction!==g.faction)return;if(!factionRadioMessages.some(x=>x.id===message.id))factionRadioMessages.push(message);factionRadioMessages=factionRadioMessages.slice(-100);renderFactionRadio();renderMapIntel();});
  zoneSocket.on('world:leaderboard',data=>{applyLeaderboard(data);});
  zoneSocket.on('world:players',list=>{onlinePlayers=list||[];renderOnlinePlayers();renderPlayerTrade();renderOnlineWorldStatus();if(activePlayerDM&&!onlinePlayers.some(p=>p.id===activePlayerDM&&p.location===g.loc)){activePlayerDM=null;renderPlayerDM();}});
  zoneSocket.on('player:expedition-result',data=>{updateMoveOrderStatus(data?.message||'Состояние экспедиции обновлено');if(data?.ok&&data.expedition){g.expedition=data.expedition;if(!g.expedition.startedAt)g.expedition.startedAt=Date.now();startExpeditionVisual();zoneMapMode='zone';zoneMapCenter=null;save();if($('world')?.classList.contains('active'))renderZoneMap();}});
