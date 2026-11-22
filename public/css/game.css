@@ -1153,3 +1153,8 @@ body.title-screen-active .quick-use-bar{display:none}
 .guide-fast-travel{border-color:#c5a766!important;color:#f0dda2!important;background:linear-gradient(180deg,#4d4935,#25291f)!important}
 @media(max-width:1050px){.setup-main-grid{grid-template-columns:minmax(250px,1fr) minmax(320px,1.2fr)!important}.setup-extra-panel{grid-column:1/-1;display:grid;grid-template-columns:1fr 1fr;gap:8px}.setup-extra-panel>.setup-panel-title{grid-column:1/-1}.setup-preview-total{grid-column:1/-1;margin-top:0}.setup-panel{max-height:none}}
 @media(max-width:680px){.setup-main-grid{grid-template-columns:1fr!important;min-height:auto}.setup-panel{max-height:none;min-height:0}.setup-extra-panel{grid-column:auto;display:block}.setup-terminal{padding:7px!important}.setup-terminal-foot{position:sticky;bottom:0;z-index:5;background:linear-gradient(90deg,#514b3f,#252821 60%,#34372d)}}
+
+/* 4.41.0: receive-only faction radio and detectable artifact map marks */
+.radio-readonly-note{margin-top:10px;padding:10px 12px;border-top:1px solid rgba(173,150,105,.25);color:#a9a58d;font-size:10px;letter-spacing:.09em;line-height:1.5}.radio-message.radio-help{border-left-color:#c77b68}.radio-message.radio-trade{border-left-color:#c5a66a}.radio-message.radio-anomaly{border-left-color:#a98cc4}.radio-message.radio-sighting,.radio-message.radio-mutants{border-left-color:#bd786d}.marker-artifact{cursor:pointer;filter:drop-shadow(0 0 5px rgba(118,214,193,.8))}.marker-artifact circle{fill:#75c7b1;stroke:#d4fff1;stroke-width:2.5}.marker-artifact text{fill:#10231e;font-size:14px}
+
+.inspect-effects{margin:9px 0;padding:9px;background:rgba(120,150,115,.09);border:1px solid rgba(120,150,115,.2);display:grid;gap:4px}.inspect-effects small{color:#b9c6a7}
