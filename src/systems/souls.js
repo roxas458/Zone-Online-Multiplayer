@@ -10,6 +10,7 @@ const BIOGRAPHY_BITS=[
   'Начинал с охоты за артефактами, но теперь больше ценит надёжных людей и горячий чай.',
   'Считает, что в Зоне главное — не меткая стрельба, а умение вовремя промолчать.'
 ];
+const SQUAD_TYPES=['патруль','разведка','сбор припасов','сопровождение','санитарная группа','курьерская группа'];
 const QUIRKS=['собирает пустые гильзы','боится заводных игрушек','всегда носит лишнюю ложку','пишет заметки на пачках патронов','разговаривает с детектором','мечтает открыть столовую у костра','никогда не садится спиной к двери'];
 function pick(list,random){return list[Math.floor(random()*list.length)]||list[0];}
 function initSouls(world,random=Math.random){
@@ -47,10 +48,15 @@ function initSouls(world,random=Math.random){
       for(let i=0;i+1<members.length;i+=3){
         const group=members.slice(i,i+3);if(group.length<2)continue;
         const id=`squad_${factionSlug(faction)}_${world.npcSquads.length+1}`;
-        const squad={id,name:`${pick(['Кривой маршрут','Последний болт','Тихая смена','Северный чай'],random)} · ${group[0].name}`,faction,leaderId:group[0].id,members:group.map(n=>n.id),location:group[0].location,status:'camped',createdAt:Date.now(),lastRaidAt:0};
-        world.npcSquads.push(squad);for(const n of group)n.squadId=id;
+        const type=SQUAD_TYPES[world.npcSquads.length%SQUAD_TYPES.length];const squad={id,name:`${pick(['Кривой маршрут','Последний болт','Тихая смена','Северный чай'],random)} · ${group[0].name}`,faction,leaderId:group[0].id,members:group.map(n=>n.id),location:group[0].location,status:'camped',type,createdAt:Date.now(),lastRaidAt:0};
+        world.npcSquads.push(squad);for(const n of group){n.squadId=id;n.squadType=type;}
       }
     }
+  }
+  // Migrate older saved squads to a typed role without changing their membership or location.
+  for(const [index,squad] of (world.npcSquads||[]).entries()){
+    squad.type ||= SQUAD_TYPES[index%SQUAD_TYPES.length];
+    for(const id of squad.members||[]){const npc=world.npcState?.[id];if(npc)npc.squadType ||= squad.type;}
   }
   return world;
 }

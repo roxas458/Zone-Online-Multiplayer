@@ -4,6 +4,7 @@ const LAST = []; // All generated stalkers use callsigns only.
 const ROLES = ['сталкер','разведчик','техник','медик','собиратель артефактов','проводник','торговец','охотник'];
 const ICONS = ['◉','⌁','⚙','☢','◆','✚','☼','▣','◈','♟'];
 const NPC_TARGET = 340;
+const SQUAD_TYPES = ['патруль','разведка','сбор припасов','сопровождение','санитарная группа','курьерская группа'];
 const SQUAD_NAMES = ['Северный ветер','Глухари','Ржавые псы','Последний дозор','Серая стая','Болотные тени','Чёрный след','Сухой закон','Кочевники','Тихая тропа','Свинцовый рассвет','Старые волки','Дикий рубеж','Пепельный путь','Кровавый след','Вольные стрелки'];
 const { FACTION_HOME, homeForFaction } = require('./territories');
 const FACTIONS = Object.keys(FACTION_HOME);
@@ -73,7 +74,7 @@ function ensureRandomNpcs(world, count = NPC_TARGET) {
   const byFaction=new Map();
   for(const npc of Object.values(world.npcState)){if(!npc?.generated||npc.alive===false)continue;const key=npc.faction||'Одиночки';if(!byFaction.has(key))byFaction.set(key,[]);byFaction.get(key).push(npc);}
   world.npcGroups=[];
-  for(const [faction,members] of byFaction){members.sort((a,b)=>String(a.id).localeCompare(String(b.id)));let chunks=[];for(let i=0;i<members.length;i+=4)chunks.push(members.slice(i,i+4));if(chunks.length>1&&chunks.at(-1).length===1)chunks[chunks.length-2].push(...chunks.pop());chunks.forEach((group,index)=>{const squadId=`npc_group_${faction.toLowerCase().replace(/[^a-zа-я0-9]+/gi,'_')}_${index+1}`;const name=group[0].squadName||SQUAD_NAMES[index%SQUAD_NAMES.length];for(const npc of group){npc.squadId=squadId;npc.squadName=name;}world.npcGroups.push({id:squadId,name,faction,location:group[0].location,members:group.map(n=>n.id),size:group.length,status:group.every(n=>n.behavior==='camp'||n.behavior==='guard')?'garrison':'field'});});}
+  for(const [faction,members] of byFaction){members.sort((a,b)=>String(a.id).localeCompare(String(b.id)));let chunks=[];for(let i=0;i<members.length;i+=4)chunks.push(members.slice(i,i+4));if(chunks.length>1&&chunks.at(-1).length===1)chunks[chunks.length-2].push(...chunks.pop());chunks.forEach((group,index)=>{const squadType=SQUAD_TYPES[(FACTIONS.indexOf(faction)+index)%SQUAD_TYPES.length];const squadId=`npc_group_${faction.toLowerCase().replace(/[^a-zа-я0-9]+/gi,'_')}_${index+1}`;const name=group[0].squadName||SQUAD_NAMES[index%SQUAD_NAMES.length];for(const npc of group){npc.squadId=squadId;npc.squadName=name;npc.squadType=squadType;}world.npcGroups.push({id:squadId,name,faction,location:group[0].location,members:group.map(n=>n.id),size:group.length,type:squadType,status:group.every(n=>n.behavior==='camp'||n.behavior==='guard')?'garrison':'field'});});}
   return world.npcState;
 }
 module.exports = { ensureRandomNpcs, NPC_TARGET, generatedName };
