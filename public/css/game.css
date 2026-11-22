@@ -1214,7 +1214,7 @@ body.reduce-background .title-atmosphere,body.reduce-background .title-grain,bod
 
 .map-entity-hint{margin:9px 0;padding:8px 10px;border-left:2px solid #b5a36c;background:#ffffff08;color:#d5cba9;font-size:11px;line-height:1.45;overflow-wrap:anywhere}
 
-.marker-keypoint circle{fill:#d2bc74;stroke:#fff0b5;stroke-width:2.5}.marker-keypoint text{fill:#1a2117;font-size:12px}.marker-keypoint{filter:drop-shadow(0 1px 3px #000)}
+.marker-keypoint circle{fill:#d2bc74;stroke:#fff0b5;stroke-width:1.5}.marker-keypoint text{fill:#1a2117;font-size:9px}.marker-keypoint{filter:drop-shadow(0 1px 3px #000)}
 
 /* 4.52.2 — map pan gestures stay inside the map while fullscreen. */
 #zoneMapFrame:fullscreen .zone-map,#zoneMapFrame:fullscreen .zone-map svg,#zoneMapFrame.map-fullscreen-fallback .zone-map,#zoneMapFrame.map-fullscreen-fallback .zone-map svg{touch-action:none}
