@@ -233,7 +233,7 @@ body.reduce-motion *,body.reduce-motion *:before,body.reduce-motion *:after{anim
 .gear-board-head{height:28px;display:flex;justify-content:space-between;align-items:center;padding:0 10px;background:linear-gradient(#454743,#222421);border-bottom:1px solid #74756d;color:#c8c8bb;font:10px monospace;letter-spacing:1.5px}
 .gear-board-head span:last-child{color:#8f927e;font-size:9px}
 .gear-layout{display:grid;grid-template-columns:minmax(72px,1fr) minmax(110px,1.25fr) minmax(72px,1fr);gap:5px;padding:9px 8px 5px;min-height:260px}
-.gear-side-slots{display:grid;grid-template-rows:1fr 1fr;gap:6px}
+.gear-side-slots{display:grid;grid-template-rows:repeat(3,minmax(0,1fr));gap:6px}
 .gear-slot{min-width:0;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:5px;padding:6px 3px;background:linear-gradient(145deg,#111412,#292c29 50%,#151715);border:1px solid #51534e;box-shadow:inset 0 0 12px #000;cursor:pointer;color:#c6c7b9}
 .gear-slot-art{font-size:35px;line-height:1;color:#a6a99a;text-shadow:0 2px 4px #000}
 .gear-slot small,.quick-gear-slot small{font:8px monospace;color:#92958b;letter-spacing:.6px;text-align:center}
@@ -1046,3 +1046,16 @@ body.title-screen-active .quick-use-bar{display:none}
 .armory-item-copy{min-width:0}.armory-item-copy>b{display:block;color:#e2dece;font:16px Georgia,serif}.armory-item-copy>small{display:block;margin-top:3px;color:#aaa995;font:10px monospace}.armory-item-copy>p{margin:6px 0;color:#a6a89d;font:12px/1.45 Georgia,serif}.armory-item-state{display:inline-block;color:#898c80;font:9px monospace;text-transform:uppercase;letter-spacing:.5px}.armory-item-state.found{color:#a9c58b}.armory-item-meta{display:grid;justify-items:end;gap:5px;color:#d6c99e;font:11px monospace}.armory-item-meta small{color:#8e9186}.armory-item-meta button{padding:6px 8px;font-size:9px;border-radius:0}
 .right-intel-content{padding:11px;display:grid;gap:9px}.intel-location-name{font:18px Georgia,serif;color:#e1dccb;border-bottom:1px solid #45483f;padding-bottom:8px}.intel-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}.intel-grid>div{padding:8px;background:#1c211d;border:1px solid #3c443a}.intel-grid small{display:block;color:#838a7c;font:8px monospace;letter-spacing:.5px}.intel-grid b{display:block;margin-top:4px;color:#d5d0b8;font:16px monospace}.intel-grid .intel-friendly{color:#a6c78c}.intel-grid .intel-hostile{color:#d77d70}.intel-footnote{color:#777e72;font:9px/1.4 monospace}.intel-signal-row{display:flex;justify-content:space-between;gap:8px;padding-bottom:6px;border-bottom:1px solid #343a34}.intel-signal-row span{color:#858b7f;font:8px monospace}.intel-signal-row b{color:#c7c3b1;font:10px monospace;text-align:right}.intel-news-list{display:grid;gap:7px;margin-top:3px}.intel-news-list>div{padding:7px;background:#1b201c;border-left:2px solid #777b61}.intel-news-list b{display:block;color:#d0cbb9;font:11px Georgia,serif}.intel-news-list small{display:block;margin-top:3px;color:#92978a;font:10px/1.4 Georgia,serif}
 @media(max-width:760px){.armory-item-card{grid-template-columns:44px minmax(0,1fr);gap:9px}.armory-item-icon{width:42px;height:42px;font-size:22px}.armory-item-meta{grid-column:2;display:flex;align-items:center;justify-content:flex-start;flex-wrap:wrap}.right-intel-content{padding:9px}}
+
+/* 4.37 — expanded equipment slots */
+.gear-slot{min-height:72px}
+.gear-suit{cursor:pointer;color:inherit;font:inherit;padding:0}
+.gear-picker-overlay{z-index:10050}
+.gear-picker{width:min(520px,94vw);max-height:82vh;overflow:auto}
+.gear-picker h2{margin:6px 0;color:#ddd7c1}
+.gear-picker-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin:14px 0}
+.gear-picker-list button{display:grid;grid-template-columns:48px 1fr;grid-template-rows:auto auto;align-items:center;gap:3px 9px;padding:9px;text-align:left;color:#d4d2c5;background:linear-gradient(145deg,#292d29,#111412);border:1px solid #5a6055;cursor:pointer}
+.gear-picker-list button span{grid-row:1/3;display:grid;place-items:center;color:#c7c3a9}
+.gear-picker-list button b{font-size:12px}
+.gear-picker-list button small{font:9px monospace;color:#9b9f90}
+@media(max-width:600px){.gear-picker-list{grid-template-columns:1fr}.gear-slot{min-height:64px}}

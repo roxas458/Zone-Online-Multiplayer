@@ -1,4 +1,14 @@
-# ZONE ONLINE 4.36.0
+# ZONE ONLINE 4.37.0
+
+## 4.37.0 — Expanded Stalker Equipment
+
+- Expanded the inventory mannequin with separate slots for primary weapon, sidearm, suit, helmet, detector, artifact and backpack.
+- Added an equipment picker opened from each slot, with type-safe selection and a remove-equipment action.
+- Added starter helmet and standard backpack items for existing and new saves.
+- Added helmet protection to local combat mitigation.
+- Added field and expedition backpacks with 65 kg and 80 kg carrying capacities; the equipped backpack determines the inventory load limit.
+- Added purchasable helmet and backpack models to the shop and server-side shared shop catalogue.
+- Added responsive PDA styling and regression tests for equipment slot behavior.
 
 ## 4.36.0 — Armory, Contacts & Field Intel
 

@@ -441,8 +441,21 @@ io.on('connection', socket=>{
     const st=safeState(p.state);if(st.money<goods.price){socket.emit('market:result',{ok:false,message:'Недостаточно рублей.'});return;}
     st.state.money=st.money-goods.price;st.state.items ||= [];
     const existing=st.state.items.find(x=>x.id===itemId);
-    if(existing){existing.qty+=goods.qty;if(goods.defense){existing.defense=goods.defense;existing.condition=existing.condition??100;}}else st.state.items.push({id:itemId,name:itemId==='bolt'?'Болт':goods.name,type:goods.type,desc:goods.desc,weight:goods.weight,qty:goods.qty,value:goods.value,...(goods.defense?{defense:goods.defense,condition:100}:{})});
+    if(existing){existing.qty+=goods.qty;if(goods.defense){existing.defense=goods.defense;existing.condition=existing.condition??100;}if(goods.capacity)existing.capacity=goods.capacity;}else st.state.items.push({id:itemId,name:itemId==='bolt'?'Болт':goods.name,type:goods.type,desc:goods.desc,weight:goods.weight,qty:goods.qty,value:goods.value,...(goods.defense?{defense:goods.defense,condition:100}:{}),...(goods.capacity?{capacity:goods.capacity}:{})});
     p.state=st.state;await persistPlayer(p.id,p.state);socket.emit('market:result',{ok:true,message:`Куплено: ${goods.name}.`,state:p.state});
+  });
+  socket.on('player:equipment:update', async input=>{
+    const p=online.get(socket.data.playerId);
+    if(!p){socket.emit('player:equipment:result',{ok:false,message:'Профиль не найден.'});return;}
+    const slot=String(input?.slot||''),itemName=String(input?.itemName||'').slice(0,100);
+    const slotTypes={weapon:['Оружие'],sidearm:['Оружие'],suit:['Броня'],helmet:['Шлем'],tool:['Детектор'],artifact:['Артефакт'],backpack:['Рюкзак']};
+    if(!slotTypes[slot]){socket.emit('player:equipment:result',{ok:false,message:'Неизвестный слот экипировки.'});return;}
+    const st=safeState(p.state);st.state.items ||= [];st.state.equipment ||= {};
+    if(itemName){const item=st.state.items.find(x=>x.name===itemName&&slotTypes[slot].includes(x.type)&&Number(x.qty)>0);if(!item){socket.emit('player:equipment:result',{ok:false,message:'Предмет отсутствует в рюкзаке или не подходит к слоту.'});return;}}
+    if(slot==='weapon'&&itemName&&itemName===st.state.equipment.sidearm){socket.emit('player:equipment:result',{ok:false,message:'Этот предмет уже установлен во второй слот.'});return;}
+    if(slot==='sidearm'&&itemName&&itemName===st.state.equipment.weapon){socket.emit('player:equipment:result',{ok:false,message:'Этот предмет уже установлен в основной слот.'});return;}
+    st.state.equipment[slot]=itemName;p.state=st.state;await persistPlayer(p.id,p.state);
+    socket.emit('player:equipment:result',{ok:true,slot,itemName});
   });
   socket.on('market:sell', async input=>{
     const p=online.get(socket.data.playerId), itemId=String(input?.item||''), amount=Math.max(1,Math.min(99,Math.floor(Number(input?.qty)||1))), st=p?safeState(p.state):null;
@@ -483,7 +496,7 @@ io.on('connection', socket=>{
     for(const row of buyPlan){
       const goods=row.goods,existing=st.state.items.find(x=>x.id===row.id);
       if(existing)existing.qty+=goods.qty*row.qty;
-      else st.state.items.push({id:row.id,name:goods.name,type:goods.type,desc:goods.desc,weight:goods.weight,qty:goods.qty*row.qty,value:goods.value,...(goods.defense?{defense:goods.defense,condition:100}:{})});
+      else st.state.items.push({id:row.id,name:goods.name,type:goods.type,desc:goods.desc,weight:goods.weight,qty:goods.qty*row.qty,value:goods.value,...(goods.defense?{defense:goods.defense,condition:100}:{}),...(goods.capacity?{capacity:goods.capacity}:{})});
     }
     st.state.money=Math.min(99999999,Math.max(0,st.money-cost+payout));
     p.state=st.state;await persistPlayer(p.id,p.state);
