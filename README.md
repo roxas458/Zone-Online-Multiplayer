@@ -1,4 +1,21 @@
-ZONE ONLINE 4.51.0
+# ZONE ONLINE 4.52.0
+
+## 4.52.0 — Living Faction Command & Expanded Strategic Network
+
+- Expanded every one of the 17 sectors from 3 to 10 persistent strategic key points: 170 objects total, with stable IDs for the original 51 objects and seven new locations-specific objects per sector.
+- Added command headquarters and leader profiles for all ten factions. The leader evaluates local pressure, supplies, intelligence and available targets every three minutes.
+- Added squad command assignments: guard, reconnaissance, supply, patrol and capture preparation. Orders are persisted with the shared world and shown in the PDA command-council panel.
+- Supply and reconnaissance assignments contribute to faction resources; guard orders strengthen the assigned key point's garrison; capture orders influence the squad's strategic target selection.
+- If a faction loses every strategic object in its headquarters sector, command relocates to its strongest remaining sector and issues a reinforcement order.
+- Player-led operations are recorded as command requests. The leader weighs the player's reputation/trust and may incorporate the requested target into the next strategic plan, unless urgent defense or supply needs take priority.
+- Command decisions are published to the relevant faction radio channel and the shared PDA event feed. The server world tick continues to advance these decisions without online players.
+- Sector ownership now changes only when one faction controls more than half of its key points. A tie or plurality without a majority does not flip the sector.
+- Expanded local strategic map markers to display all ten objects without the previous linear marker offset.
+- Existing saves retain the ownership and control of their original key points; newly introduced objects are initialized from their sector's current owner.
+- Added regression tests for expanded object counts, majority control, commander decisions and persistent legacy objects.
+
+## 4.51.0 — Strategic faction warfare
+
 
 # ZONE ONLINE 4.39.0
 
