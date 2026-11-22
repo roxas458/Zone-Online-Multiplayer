@@ -1235,3 +1235,21 @@ body.reduce-background .title-atmosphere,body.reduce-background .title-grain,bod
 .zone-map .marker-keypoint text{fill:#10150f;font-weight:900}
 .zone-map .world-squad-marker .marker-dot{fill:currentColor;stroke:#f4edcf;stroke-width:3.5}
 .zone-map .world-squad-marker .marker-pulse{fill:currentColor;opacity:.22}
+
+
+/* Desktop performance: SVG drop-shadows on hundreds of live map markers are
+   disproportionately expensive in Chromium. Keep the same markers and visuals,
+   but let the map use native strokes on fine-pointer devices. */
+@media (pointer:fine) {
+  .zone-map .world-marker,
+  .zone-map .world-marker *,
+  .zone-map .map-route-line,
+  .zone-map .sector,
+  .zone-map .player-sprite {
+    filter:none !important;
+  }
+  .zone-map .marker-pulse,
+  .zone-map .map-live-dot {
+    animation:none !important;
+  }
+}
