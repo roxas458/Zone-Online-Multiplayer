@@ -6,18 +6,16 @@ const path=require('node:path');
 const root=path.join(__dirname,'..');
 const {tickNpcMovement}=require('../src/systems/npc-ai');
 
-test('4.52.2 NPC travel advances in world coordinates and changes sector only on arrival',()=>{
-  const world={npcState:{stalker:{id:'stalker',alive:true,location:'cordon',x:0,y:0,action:'travel',destinationPoint:{x:20,y:0},travelTo:'bar'}}};
+test('4.53 NPC sector changes when coordinates cross the connected-sector boundary',()=>{
+  const world={npcState:{stalker:{id:'stalker',alive:true,location:'cordon',x:463,y:1753,action:'travel',destinationPoint:{x:243,y:1528},travelTo:'agro'}}};
   const first=tickNpcMovement(world,1000,8);
   assert.equal(first.length,1);
-  assert.equal(world.npcState.stalker.x,8);
   assert.equal(world.npcState.stalker.location,'cordon');
-  tickNpcMovement(world,2000,8);
-  tickNpcMovement(world,3000,8);
-  assert.equal(world.npcState.stalker.x,20);
-  assert.equal(world.npcState.stalker.location,'bar');
-  assert.equal(world.npcState.stalker.travelTo,null);
-  assert.equal(world.npcState.stalker.destinationPoint,null);
+  let crossed=false;
+  for(let i=2;i<80;i++){tickNpcMovement(world,1000+i*1000,8);if(world.npcState.stalker.location==='agro'){crossed=true;break;}}
+  assert.equal(crossed,true);
+  assert.equal(world.npcState.stalker.travelTo,'agro');
+  assert.ok(world.npcState.stalker.y>1528);
 });
 
 test('4.52.2 idle NPCs receive short local patrols instead of remaining permanently stationary',()=>{

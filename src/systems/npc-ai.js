@@ -14,6 +14,7 @@ const { buildDialogue, interactDialogue } = require('./npc-dialogue');
 const { createFactionDiplomacy, FACTIONS } = require('../shared/game-data');
 const DEFAULT_DIPLOMACY = createFactionDiplomacy([...FACTIONS]);
 const { npcWorldPosition, inRange, NPC_SKIRMISH_RADIUS, SECTOR_COORDS } = require('./proximity');
+const { resolveSectorAtPosition } = require('./sector-position');
 function isHostileFaction(a,b,diplomacy={}) {
   if (!a || !b || a === b) return false;
   if (a === 'Монолит' || b === 'Монолит') return true;
@@ -89,11 +90,28 @@ function tickNpcMovement(world,now=Date.now(),speed=8){
     const dx=Number(npc.destinationPoint.x)-Number(npc.x),dy=Number(npc.destinationPoint.y)-Number(npc.y),distance=Math.hypot(dx,dy),step=Math.min(distance,Math.max(1,Number(speed)||8));
     if(distance<=step+0.5){npc.x=Number(npc.destinationPoint.x);npc.y=Number(npc.destinationPoint.y);npc.destinationPoint=null;if(npc.travelTo){npc.location=npc.travelTo;npc.travelTo=null;}if(npc.action==='travel')npc.action='patrol';}
     else{npc.x+=dx/distance*step;npc.y+=dy/distance*step;npc.action='travel';}
+    const crossedSector=resolveSectorAtPosition(npc.location,{x:npc.x,y:npc.y});if(crossedSector!==npc.location)npc.location=crossedSector;
     world.npcPositions ||= {};world.npcPositions[npc.id]=npc.location;
     moved.push({id:npc.id,x:npc.x,y:npc.y,location:npc.location,travelTo:npc.travelTo||null,action:npc.action,behavior:npc.behavior});
   }
   return moved;
 }
+function tickNpcProximityCombat(world,now=Date.now(),random=Math.random){
+ const npcs=Object.values(world.npcState||{}).filter(n=>n&&n.alive!==false&&n.location&&n.action!=='dead'),events=[];
+ for(let i=0;i<npcs.length;i++){
+  const a=npcs[i];if(now-(Number(a.lastSkirmishAt)||0)<12000)continue;const pa=npcWorldPosition(a);
+  for(let j=i+1;j<npcs.length;j++){
+   const b=npcs[j];if(b.location!==a.location||b.faction===a.faction||b.alive===false||!isHostileFaction(a.faction,b.faction,world.diplomacy)||now-(Number(b.lastSkirmishAt)||0)<12000)continue;
+   if(!inRange(pa,npcWorldPosition(b),NPC_SKIRMISH_RADIUS))continue;
+   const damageA=2+Math.floor(random()*5),damageB=2+Math.floor(random()*5);a.health=clamp(a.health-damageA,0,100);b.health=clamp(b.health-damageB,0,100);a.action=b.action='combat';a.behavior=b.behavior='combat';a.mood=b.mood='в бою';a.lastSkirmishAt=b.lastSkirmishAt=now;
+   events.push({type:'npc_skirmish',location:a.location,npcIds:[a.id,b.id],text:`В радиусе обнаружения встретились отряды ${a.name} («${a.faction}») и ${b.name} («${b.faction}»). Началась перестрелка в секторе ${a.location}.`,at:now});
+   for(const [victim,killer] of [[a,b],[b,a]])if(victim.health<=0&&victim.alive){victim.alive=false;victim.action='dead';victim.deathCause=`погиб в перестрелке с группировкой «${killer.faction}»`;victim.diedAt=now;victim.combatDeaths=(Number(victim.combatDeaths)||0)+1;killer.combatKills=(Number(killer.combatKills)||0)+1;killer.lastCombatKillAt=now;killer.lastVictim=victim.name;}
+   break;
+  }
+ }
+ return events;
+}
+
 function tickNpcWorld(world, locations, random = Math.random, now = Date.now()) {
   world.npcState ||= {}; world.npcPositions ||= {};
   const events = [], owners=world.territoryOwners||{};
@@ -233,4 +251,4 @@ function interactWithNpc(npc, player, action, now = Date.now(), context = {}) {
   const result=interactDialogue(npc,player,action,context,now);npc.lastInteractionAt=now;
   return { ok:true, ...result, relationship:npc.relationships[player.id], npcId:npc.id };
 }
-module.exports = { NPC_FACTIONS, ROLES, createNpcRoster, tickNpcWorld, tickNpcMovement, interactWithNpc, isHostileFaction, updateNpcNeeds, npcSleepWindow };
+module.exports = { NPC_FACTIONS, ROLES, createNpcRoster, tickNpcWorld, tickNpcMovement, tickNpcProximityCombat, interactWithNpc, isHostileFaction, updateNpcNeeds, npcSleepWindow };

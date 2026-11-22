@@ -1,5 +1,8 @@
 // Lightweight persistent simulation for mutant packs, faction bases, clans and local markets.
 const crypto=require('crypto');
+const { SECTOR_COORDS } = require('./proximity');
+const { TERRITORY_ADJACENCY } = require('./territories');
+const { resolveSectorAtPosition } = require('./sector-position');
 const SPECIES=['плоть','псевдособака','кабан','снорк','контролёр','кровосос','тушкан','зомбированный сталкер'];
 const TARGET_MUTANT_PACKS=54;
 const ZONES=['cordon','dump','bar','agro','dark','yantar','army','red','pripyat','zaton','jupiter','radar','wild','darkhollow','limansk','swamps'];
@@ -14,6 +17,10 @@ function initEcosystem(world){
       e.mutantPacks.push({id,species:SPECIES[(i*5)%SPECIES.length],location:ZONES[(i*11+3)%ZONES.length],count:2+(i*7)%8,aggression:35+(i*17)%66,health:100,updatedAt:Date.now()});existing.add(id);
     }
   }
+  for(const [index,pack] of e.mutantPacks.entries()){
+    const center=SECTOR_COORDS[pack.location]||SECTOR_COORDS.cordon;
+    if(!Number.isFinite(Number(pack.x))||!Number.isFinite(Number(pack.y))){const angle=((index*137.508)%360)*Math.PI/180,radius=24+(index%7)*11;pack.x=center[0]+Math.cos(angle)*radius;pack.y=center[1]+Math.sin(angle)*radius;}
+  }
   if(!e.anomalies.length){const kinds=['Электра','Жарка','Воронка','Кисель','Трамплин','Карусель','Пузырь','Пси-поле'];for(let i=0;i<28;i++)e.anomalies.push({id:`anomaly_${i+1}`,kind:kinds[i%kinds.length],location:ZONES[(i*5+3)%ZONES.length],danger:35+(i*17)%66,stability:45+(i*11)%55,discovered:false,updatedAt:Date.now()});}
   for(const [loc,owner] of Object.entries(world.territoryOwners||{}))e.bases[loc] ||= {location:loc,faction:owner,level:1,fortification:20,supplies:70,updatedAt:Date.now()};
   for(const loc of ZONES)e.markets[loc] ||= {location:loc,priceIndex:1,scarcity:0,updatedAt:Date.now()};
@@ -22,7 +29,7 @@ function initEcosystem(world){
 function addEcoEvent(world,type,text,now=Date.now()){const e=initEcosystem(world);const event={id:crypto.randomUUID(),type,text,at:now};e.events.unshift(event);e.events=e.events.slice(0,40);e.revision++;return event;}
 function tickEcosystem(world,random=Math.random,now=Date.now()){
  const e=initEcosystem(world),events=[];
- for(const pack of e.mutantPacks){if(random()<.24){const from=pack.location;pack.location=ZONES[Math.floor(random()*ZONES.length)];if(from!==pack.location)events.push(addEcoEvent(world,'mutant_migration',`Следы группы «${pack.species}» замечены: ${from} → ${pack.location}.`,now));}
+ for(const pack of e.mutantPacks){if(!pack.travelTo&&random()<.04){const from=pack.location,neighbors=TERRITORY_ADJACENCY[from]||[],next=neighbors.length?neighbors[Math.floor(random()*neighbors.length)]:null;if(next){const center=SECTOR_COORDS[next]||SECTOR_COORDS.cordon;pack.travelTo=next;pack.destinationPoint={x:center[0],y:center[1]};events.push(addEcoEvent(world,'mutant_migration',`Следы группы «${pack.species}» замечены на маршруте ${from} → ${next}.`,now));}}
   if(random()<.12){pack.count=Math.max(1,Math.min(12,pack.count+(random()<.55?1:-1)));pack.aggression=Math.max(10,Math.min(100,pack.aggression+(random()<.5?5:-4)));}
   const nearbyNpcs=Object.values(world.npcState||{}).filter(n=>n.alive!==false&&n.location===pack.location&&now-(Number(n.lastMutantAttackAt)||0)>90000);
   const activeSquads=(world.npcSquads||[]).filter(s=>['travelling','scavenging','returning'].includes(s.status)&&s.location===pack.location);
@@ -62,7 +69,22 @@ function tickEcosystem(world,random=Math.random,now=Date.now()){
  for(const base of Object.values(e.bases)){base.supplies=Math.max(0,base.supplies-(random()<.35?1:0));if(base.supplies<20&&random()<.08)events.push(addEcoEvent(world,'base_supply',`На базе «${base.faction}» в секторе ${base.location} заканчиваются припасы.`,now));}
  return events;
 }
+function tickMutantMovement(world,now=Date.now(),speed=3){
+ const e=initEcosystem(world),updates=[];
+ for(const [index,pack] of e.mutantPacks.entries()){
+  if(!pack||Number(pack.count)<=0)continue;
+  const center=SECTOR_COORDS[pack.location]||SECTOR_COORDS.cordon;
+  if(!pack.destinationPoint&&now>=Number(pack.nextRoamAt||0)){
+   const seed=(index*2654435761+Math.floor(now/30000)*2246822519)>>>0,angle=(seed%10000)/10000*Math.PI*2,radius=22+((seed>>>8)%82);
+   pack.destinationPoint={x:Math.max(4,Math.min(996,center[0]+Math.cos(angle)*radius)),y:Math.max(4,Math.min(1996,center[1]+Math.sin(angle)*radius))};pack.nextRoamAt=now+18000+(seed%27000);
+  }
+  if(pack.destinationPoint){const dx=pack.destinationPoint.x-pack.x,dy=pack.destinationPoint.y-pack.y,d=Math.hypot(dx,dy),step=Math.min(d,Math.max(.5,speed));if(d<=step+.5){pack.x=pack.destinationPoint.x;pack.y=pack.destinationPoint.y;pack.destinationPoint=null;if(pack.travelTo){pack.location=pack.travelTo;pack.travelTo=null;}}else{pack.x+=dx/d*step;pack.y+=dy/d*step;}}
+  const crossed=resolveSectorAtPosition(pack.location,{x:pack.x,y:pack.y});if(crossed!==pack.location)pack.location=crossed;
+  pack.updatedAt=now;updates.push({id:pack.id,x:pack.x,y:pack.y,location:pack.location});
+ }
+ return updates;
+}
 function upgradeBase(world,location,faction,cost=500){const e=initEcosystem(world),b=e.bases[location];if(!b)return {ok:false,reason:'В этом секторе нет оборудованной базы.'};if(b.faction!==faction)return {ok:false,reason:'Улучшать можно только базу своей группировки.'};if(b.level>=5)return {ok:false,reason:'База уже достигла максимального уровня.'};b.level++;b.fortification=Math.min(100,b.fortification+15);b.supplies=Math.min(100,b.supplies+10);b.updatedAt=Date.now();addEcoEvent(world,'base_upgraded',`База «${faction}» в секторе ${location} улучшена до уровня ${b.level}.`);return {ok:true,base:b,cost};}
 function joinClan(world,player,clanId){const e=initEcosystem(world),clan=e.clans[String(clanId||'')];if(!clan)return {ok:false,reason:'Клан не найден.'};if(clan.faction!==player.faction)return {ok:false,reason:'Вступить можно только в клан своей группировки.'};if(clan.members.some(m=>m.id===player.id))return {ok:false,reason:'Ты уже состоишь в этом клане.'};clan.members.push({id:player.id,name:player.name,rank:'боец',joinedAt:Date.now()});addEcoEvent(world,'clan_member_joined',`${player.name} вступил в клан «${clan.name}».`);return {ok:true,clan};}
 function createClan(world,player,name){const e=initEcosystem(world);const clean=String(name||'').trim().replace(/[<>]/g,'').slice(0,24);if(clean.length<3)return {ok:false,reason:'Название клана должно содержать от 3 до 24 символов.'};if(Object.values(e.clans).some(c=>c.name.toLowerCase()===clean.toLowerCase()))return {ok:false,reason:'Такое название клана уже занято.'};const id=crypto.randomUUID();const clan={id,name:clean,leaderId:player.id,leaderName:player.name,faction:player.faction,members:[{id:player.id,name:player.name,rank:'лидер',joinedAt:Date.now()}],createdAt:Date.now(),level:1,stash:{money:0,items:[]}};e.clans[id]=clan;addEcoEvent(world,'clan_created',`Создан клан «${clean}» (${player.faction}).`);return {ok:true,clan};}
-module.exports={initEcosystem,tickEcosystem,upgradeBase,createClan,joinClan,addEcoEvent,TARGET_MUTANT_PACKS};
+module.exports={initEcosystem,tickEcosystem,tickMutantMovement,upgradeBase,createClan,joinClan,addEcoEvent,TARGET_MUTANT_PACKS};

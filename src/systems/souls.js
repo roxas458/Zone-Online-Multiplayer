@@ -1,6 +1,7 @@
 // Persistent social lives for wandering stalkers: biographies, bonds, squads, raids and memorials.
 const { ensureRandomNpcs, generatedName } = require('./npc-roster');
 const { TERRITORY_ADJACENCY } = require('./territories');
+const { SECTOR_COORDS } = require('./proximity');
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,Number(n)||0));
 const BIOGRAPHY_BITS=[
   'Пришёл в Зону после того, как обычная жизнь стала казаться слишком тесной.',
@@ -65,10 +66,13 @@ function initSouls(world,random=Math.random){
   return world;
 }
 function syncNpcGroups(world){
-  const npcs=world.npcState||{};
+  const npcs=world.npcState||{};world.npcPositions ||= {};
   world.npcGroups=(world.npcSquads||[]).map(squad=>{
     const members=(squad.members||[]).map(id=>npcs[id]).filter(n=>n&&n.alive!==false);
+    // The squad's strategic sector is canonical. Repair stale per-NPC sector fields
+    // left behind by older saves or interrupted route updates before publishing the map.
     const location=squad.location||members[0]?.location||'cordon';
+    for(const [memberIndex,member] of members.entries()){const center=SECTOR_COORDS[location]||SECTOR_COORDS.cordon;const staleCoordinates=!Number.isFinite(Number(member.x))||!Number.isFinite(Number(member.y))||Math.hypot(Number(member.x)-center[0],Number(member.y)-center[1])>280;if(member.location!==location||staleCoordinates){member.location=location;world.npcPositions[member.id]=location;const angle=memberIndex*2.399963;const radius=8+(memberIndex%4)*5;member.x=center[0]+Math.cos(angle)*radius;member.y=center[1]+Math.sin(angle)*radius;}}
     return {id:squad.id,name:squad.name,faction:squad.faction,location,members:members.map(n=>n.id),size:members.length,type:squad.type||'патруль',status:squad.status==='camped'?'garrison':'field',missionType:squad.missionType||null,targetPointId:squad.targetPointId||null};
   }).filter(squad=>squad.size>=1);
 }
@@ -142,4 +146,4 @@ function makeReplacement(id,locations,random,now,used){
   const locs=[...locations];const location=pick(locs,random)||'cordon';
   return {id,name,faction:pick(factions,random),role:pick(roles,random),location,destination:null,action:'rest',mood:'насторожен',health:100,morale:60,supplies:55,alive:true,lastActionAt:now,relationships:{},inventory:[],history:[],generated:true,icon:'◉',personality:'новичок',dialogueDay:-1,dialogueVersion:0,dialogueHistory:[],biography:`${name} недавно пришёл в Зону. Пока о нём известно немного; ${pick(BIOGRAPHY_BITS,random)}`,friends:[],rivals:[],squadId:null,memory:[],replacementDueAt:null};
 }
-module.exports={initSouls,tickSouls};
+module.exports={initSouls,syncNpcGroups,tickSouls};

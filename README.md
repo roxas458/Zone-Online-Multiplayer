@@ -1,3 +1,16 @@
+# ZONE ONLINE 4.53.0
+
+## 4.53.0 — Reliable Sector Travel, Correct Squad Locations & Proximity Combat
+
+- Fixed a critical route-cancellation bug: the client now sends `player:expedition-cancel` for inter-sector expeditions instead of only cancelling local movement. The server invalidates the active expedition with a monotonic token, clears pending encounters and prevents stale route ticks from continuing after cancellation.
+- NPC squad sector is now canonical. Squad members with stale saved sector fields are reconciled to the squad's current sector, including their map coordinates; strategic squad transfers update member coordinates as well as sector IDs.
+- Added automatic player sector entry when authoritative world coordinates cross into an adjacent connected sector. The server updates the player's location room and the client immediately updates its current sector.
+- Added the same connected-sector boundary resolution to moving NPCs so their displayed sector changes as they physically cross a sector boundary.
+- Mutant packs now receive persistent world coordinates, choose local roaming targets and move smoothly on the server's one-second motion stream. The map animates mutant markers using compact coordinate deltas. Their long-range migration frequency was reduced to avoid implausible map-wide jumps.
+- Added real-time proximity combat: hostile NPC squads engage when they enter detection radius; hostile NPCs close to a player start an automatic server-authoritative encounter with throttled damage updates.
+- Added regression tests for cancellation semantics, cancellation tokens, automatic sector entry, squad-location reconciliation, mutant movement and proximity combat.
+- Validation: `npm test` passes 308/308; `npm run check` and a full JavaScript syntax sweep pass. Server startup was not executed because dependencies are not installed in this build workspace.
+
 # ZONE ONLINE 4.52.2
 
 ## 4.52.2 — Distributed Map Objects, Real-Time NPC Motion & Fullscreen Map

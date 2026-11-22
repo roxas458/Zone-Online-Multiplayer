@@ -17,13 +17,14 @@ const guestSessionSecret = process.env.ZONE_SESSION_SECRET || crypto.randomBytes
 const guestAuth = createGuestAuth({ secret: guestSessionSecret });
 if (!process.env.ZONE_SESSION_SECRET) console.warn('[auth] ZONE_SESSION_SECRET is not configured; guest sessions will be invalidated when this process restarts.');
 const { createMoveOrder, advanceMoveOrder } = require('./src/systems/player-orders');
+const { resolveSectorAtPosition } = require('./src/systems/sector-position');
 const { createExpedition, advanceExpedition, findRoute } = require('./src/systems/expedition');
 const { initSharedWorld, initDiplomacy } = require('./src/server/world');
 const { WAR_CONFIG, createOperation, deploymentPower, addDeployment, resolveOperation } = require('./src/systems/war');
-const { tickNpcWorld, tickNpcMovement, interactWithNpc, isHostileFaction } = require('./src/systems/npc-ai');
+const { tickNpcWorld, tickNpcMovement, tickNpcProximityCombat, interactWithNpc, isHostileFaction } = require('./src/systems/npc-ai');
 const { npcWorldPosition, inRange, INTERACTION_RADIUS, COMBAT_RADIUS } = require('./src/systems/proximity');
 const { ensureOnlineWorld, appendWorldEvent, buildWorldSync, publicWorldStatus } = require('./src/systems/online-world');
-const { initEcosystem, tickEcosystem, upgradeBase, createClan, joinClan, addEcoEvent } = require('./src/systems/ecosystem');
+const { initEcosystem, tickEcosystem, tickMutantMovement, upgradeBase, createClan, joinClan, addEcoEvent } = require('./src/systems/ecosystem');
 const { initSouls, tickSouls } = require('./src/systems/souls');
 const { initFactionWar, tickFactionWar, aggregateTerritories } = require('./src/systems/faction-war');
 const { tickNpcAftermath, lootCorpse } = require('./src/systems/npc-aftermath');
@@ -375,10 +376,10 @@ io.on('connection', socket=>{
     const squad=squadOf(p.id);if(squad&&squad.leader!==p.id){socket.emit('player:expedition-result',{ok:false,message:'Маршрутом отряда управляет командир.'});return;}
     const result=createExpedition(p,input.destination,['safe','fast','balanced'].includes(input?.mode)?input.mode:'safe');
     if(!result.ok){socket.emit('player:expedition-result',result);return;}
-    p.expedition=result.expedition;p.moveOrder=null;p.travelEncounter=null;
+    p.expeditionToken=(Number(p.expeditionToken)||0)+1;result.expedition.id=`exp_${p.id}_${p.expeditionToken}`;p.expedition=result.expedition;p.moveOrder=null;p.travelEncounter=null;
     socket.emit('player:expedition-result',{ok:true,message:'Экспедиция началась. КПК будет сообщать о переходах между секторами.',expedition:p.expedition});
   });
-  socket.on('player:expedition-cancel',()=>{const p=online.get(socket.data.playerId);if(!p)return;p.expedition=null;socket.emit('player:expedition-result',{ok:true,message:'Экспедиция отменена.'});});
+  socket.on('player:expedition-cancel',()=>{const p=online.get(socket.data.playerId);if(!p)return;p.expeditionToken=(Number(p.expeditionToken)||0)+1;p.expedition=null;p.moveOrder=null;p.travelEncounter=null;socket.emit('player:movement',{x:p.x,y:p.y,moving:false});socket.emit('player:expedition-result',{ok:true,message:'Экспедиция отменена. Дальнейшие переходы маршрута остановлены.',cancelled:true});broadcastOnline();});
   socket.on('player:move-order', input=>{
     const p=online.get(socket.data.playerId);if(!p)return;
     if(input?.location!==p.location){socket.emit('player:move-result',{ok:false,message:'Маршрут должен начинаться в текущем секторе.'});return;}
@@ -387,6 +388,7 @@ io.on('connection', socket=>{
     if(!Number.isFinite(tx)||!Number.isFinite(ty)||Math.abs(tx-center[0])>255||Math.abs(ty-center[1])>255){socket.emit('player:move-result',{ok:false,message:'Точка находится за пределами доступной части сектора.'});return;}
     const result=createMoveOrder(p,{x:tx,y:ty},Date.now(),2.5);
     if(!result.ok){socket.emit('player:move-result',{ok:false,message:result.error});return;}
+    if(p.expedition){p.expeditionToken=(Number(p.expeditionToken)||0)+1;p.expedition=null;socket.emit('player:expedition-result',{ok:true,message:'Экспедиция заменена новым приказом движения.',cancelled:true});}
     p.moveOrder=result.order;p.travelEncounter=null;p.lastSeen=Date.now();
     const risk=({chaes:0.95,radar:0.85,pripyat:0.75,red:0.65,dark:0.6,dump:0.55,swamps:0.4,cordon:0.25,bar:0.2,yantar:0.3})[p.location]??0.35;
     p.moveOrder.encounterAt=Math.random()<(.04+risk*.13)?(.25+Math.random()*.5):null;
@@ -866,8 +868,9 @@ setInterval(async()=>{
     let movedAny=false;
     for(const p of online.values()){
       if(p.expedition?.status==='travelling'){
+        const activeExpeditionId=p.expedition.id,activeExpeditionToken=p.expeditionToken;
         const step=advanceExpedition(p,Date.now());
-        if(step.advanced){p.lastSeen=Date.now();p.state ||= {};const arrivalPoint=SECTOR_COORDS[step.location]||SECTOR_COORDS.cordon;p.x=arrivalPoint[0];p.y=arrivalPoint[1]+24;p.state.worldPosition={x:p.x,y:p.y};const hopRisk=require('./src/systems/expedition').RISK[step.location]||30;const hopCost=require('./public/js/survival').expeditionCost(hopRisk,'overcast',!!p.state.emission?.active);const kit=p.state.survival?.kit;if(kit?.rations>0&&kit?.water>0){p.state.hunger=Math.max(0,(Number(p.state.hunger)||0)-8);p.state.thirst=Math.max(0,(Number(p.state.thirst)||0)-18);p.state.survival.kit=null;}else{hopCost.stamina+=8;hopCost.hunger+=5;hopCost.thirst+=7;}p.state.stamina=Math.max(0,(Number(p.state.stamina)||0)-hopCost.stamina);p.state.hunger=Math.min(100,(Number(p.state.hunger)||0)+hopCost.hunger);p.state.thirst=Math.min(100,(Number(p.state.thirst)||0)+hopCost.thirst);p.state.radiation=Math.min(100,(Number(p.state.radiation)||0)+hopCost.radiation);if(p.state.stamina<=0)p.state.hp=Math.max(1,(Number(p.state.hp)||100)-4);p.state.loc=step.location;await persistPlayer(p.id,p.state);const old=p.expedition.path[p.expedition.index-1];const sock=[...io.sockets.sockets.values()].find(x=>x.data.playerId===p.id);if(sock){sock.leave(`location:${old}`);sock.join(`location:${p.location}`);sock.emit('world:chat:history',recentChat.filter(m=>!m.location||m.location===p.location).slice(-60));}socketSafeEmit(p.id,'player:expedition-step',{location:step.location,arrived:step.arrived,route:p.expedition.path,index:p.expedition.index,state:p.state});
+        if(step.advanced){if(!p.expedition||p.expedition.id!==activeExpeditionId||p.expeditionToken!==activeExpeditionToken)continue;p.lastSeen=Date.now();p.state ||= {};const arrivalPoint=SECTOR_COORDS[step.location]||SECTOR_COORDS.cordon;p.x=arrivalPoint[0];p.y=arrivalPoint[1]+24;p.state.worldPosition={x:p.x,y:p.y};const hopRisk=require('./src/systems/expedition').RISK[step.location]||30;const hopCost=require('./public/js/survival').expeditionCost(hopRisk,'overcast',!!p.state.emission?.active);const kit=p.state.survival?.kit;if(kit?.rations>0&&kit?.water>0){p.state.hunger=Math.max(0,(Number(p.state.hunger)||0)-8);p.state.thirst=Math.max(0,(Number(p.state.thirst)||0)-18);p.state.survival.kit=null;}else{hopCost.stamina+=8;hopCost.hunger+=5;hopCost.thirst+=7;}p.state.stamina=Math.max(0,(Number(p.state.stamina)||0)-hopCost.stamina);p.state.hunger=Math.min(100,(Number(p.state.hunger)||0)+hopCost.hunger);p.state.thirst=Math.min(100,(Number(p.state.thirst)||0)+hopCost.thirst);p.state.radiation=Math.min(100,(Number(p.state.radiation)||0)+hopCost.radiation);if(p.state.stamina<=0)p.state.hp=Math.max(1,(Number(p.state.hp)||100)-4);p.state.loc=step.location;await persistPlayer(p.id,p.state);if(!p.expedition||p.expedition.id!==activeExpeditionId||p.expeditionToken!==activeExpeditionToken)continue;const old=p.expedition.path[p.expedition.index-1];const sock=[...io.sockets.sockets.values()].find(x=>x.data.playerId===p.id);if(sock){sock.leave(`location:${old}`);sock.join(`location:${p.location}`);sock.emit('world:chat:history',recentChat.filter(m=>!m.location||m.location===p.location).slice(-60));}socketSafeEmit(p.id,'player:expedition-step',{location:step.location,arrived:step.arrived,route:p.expedition.path,index:p.expedition.index,state:p.state});
           if(!step.arrived&&Math.random()<Math.min(.42,(require('./src/systems/expedition').RISK[step.location]||30)/260)){p.expedition.status='paused';p.travelEncounter={type:'route_contact',at:Date.now()};io.to(p.id).emit('player:travel-event',{type:'mutants',message:`На подходе к сектору ${step.location} обнаружена опасность: мутанты или неизвестный отряд. Экспедиция остановлена. Продолжить скрытно или отступить?`});}
           const squad=squadOf(p.id);if(squad&&squad.leader===p.id){squad.location=p.location;for(const member of squad.members||[]){const follower=online.get(member.id);if(follower&&follower.id!==p.id){const fsock=[...io.sockets.sockets.values()].find(x=>x.data.playerId===follower.id);if(fsock){fsock.leave(`location:${old}`);fsock.join(`location:${p.location}`);}follower.location=p.location;follower.x=p.x;follower.y=p.y;follower.state ||= {};follower.state.loc=p.location;follower.state.worldPosition={x:p.x,y:p.y};follower.expedition={...p.expedition};persistPlayer(follower.id,follower.state).catch(()=>{});io.to(follower.id).emit('player:expedition-step',{location:p.location,arrived:step.arrived,route:p.expedition.path,index:p.expedition.index});}}}
           io.to(p.id).emit('player:expedition-result',{ok:true,message:step.arrived?'Экспедиция завершена. Ты прибыл в пункт назначения.':`Переход выполнен: ${p.location}.`,expedition:p.expedition});broadcastOnline();persistWorld().catch(()=>{});
@@ -878,7 +881,7 @@ setInterval(async()=>{
       if(!p.moveOrder||p.travelEncounter)continue;
       const order=p.moveOrder;const before=Math.hypot(order.x-p.x,order.y-p.y);
       const result=advanceMoveOrder(p,1);
-      if(result.moved){movedAny=true;p.lastSeen=Date.now();p.state ||= {};p.state.worldPosition={x:p.x,y:p.y};p.state.loc=p.location;if(Date.now()-(p.lastMovePersistAt||0)>10000){p.lastMovePersistAt=Date.now();persistPlayer(p.id,p.state).catch(e=>console.error('movement save:',e.message));}io.to(p.id).emit('player:movement',{x:p.x,y:p.y,moving:!result.arrived,remaining:Math.hypot(order.x-p.x,order.y-p.y)});}
+      if(result.moved){movedAny=true;p.lastSeen=Date.now();p.state ||= {};const previousSector=p.location;const resolved=resolveSectorAtPosition(p.location,{x:p.x,y:p.y});if(resolved!==p.location){p.location=resolved;const moverSocket=p.socketId&&io.sockets.sockets.get(p.socketId);if(moverSocket){for(const room of [...moverSocket.rooms])if(room.startsWith('location:'))moverSocket.leave(room);moverSocket.join(`location:${resolved}`);moverSocket.emit('world:chat:history',recentChat.filter(m=>!m.location||m.location===resolved).slice(-60));}io.to(p.id).emit('player:sector-entered',{location:resolved,previousLocation:previousSector,x:p.x,y:p.y});}p.state.worldPosition={x:p.x,y:p.y};p.state.loc=p.location;if(Date.now()-(p.lastMovePersistAt||0)>10000){p.lastMovePersistAt=Date.now();persistPlayer(p.id,p.state).catch(e=>console.error('movement save:',e.message));}io.to(p.id).emit('player:movement',{x:p.x,y:p.y,location:p.location,moving:!result.arrived,remaining:Math.hypot(order.x-p.x,order.y-p.y)});}
       if(order.encounterAt&&!order.encounterChecked&&before>0&&Math.hypot(order.x-p.x,order.y-p.y)<=order.distance*(1-order.encounterAt)){
         order.encounterChecked=true;
         const groups=(world.npcGroups||[]).filter(g=>g.location===p.location&&g.faction!==p.faction&&g.members?.length>=2);
@@ -900,6 +903,32 @@ setInterval(()=>{
     if(moving.length)io.emit('world:npc-motion',{at:Date.now(),npcs:moving});
   }catch(e){console.error('NPC movement tick:',e.message);}
 },1000).unref();
+
+setInterval(()=>{try{const updates=tickMutantMovement(world,Date.now(),2.8);if(updates.length)io.emit('world:mutant-motion',{at:Date.now(),packs:updates});}catch(e){console.error('Mutant movement tick:',e.message);}},1000).unref();
+
+let proximityCombatRunning=false;
+setInterval(()=>{
+  if(proximityCombatRunning)return;proximityCombatRunning=true;
+  try{
+    const now=Date.now();
+    for(const event of tickNpcProximityCombat(world,now,Math.random)){const ev=appendWorldEvent(world,event.type,event,now);io.emit('world:event',ev);io.emit('world:npc-event',event);}
+    for(const player of online.values()){
+      if(!player.location||!Number.isFinite(Number(player.x))||!Number.isFinite(Number(player.y)))continue;
+      player.state ||= {};
+      for(const npc of Object.values(world.npcState||{})){
+        if(!npc||npc.alive===false||npc.location!==player.location||!isHostileFaction(player.faction,npc.faction,world.diplomacy))continue;
+        const position=npcWorldPosition(npc);if(!inRange({x:player.x,y:player.y},position,COMBAT_RADIUS))continue;
+        npc.playerCombatAt ||= {};if(now-(Number(npc.playerCombatAt[player.id])||0)<2500)continue;npc.playerCombatAt[player.id]=now;
+        const playerDamage=2+Math.floor(Math.random()*4),npcDamage=3+Math.floor(Math.random()*5);
+        player.state.hp=Math.max(1,(Number(player.state.hp)||Number(player.hp)||100)-playerDamage);player.hp=player.state.hp;
+        npc.health=Math.max(0,(Number(npc.health)||100)-npcDamage);npc.action='combat';npc.behavior='combat';npc.mood='в бою';npc.lastPlayerCombatAt=now;
+        if(npc.health<=0){npc.alive=false;npc.action='dead';npc.deathCause=`выведен из строя в столкновении с игроком ${player.name}`;npc.diedAt=now;npc.combatDeaths=(Number(npc.combatDeaths)||0)+1;}
+        io.to(player.id).emit('npc:combat-engaged',{npcId:npc.id,name:npc.name,faction:npc.faction,playerDamage,npcDamage,playerHp:player.state.hp,npcHp:npc.health,npcDown:npc.alive===false,distance:Math.round(Math.hypot(player.x-position.x,player.y-position.y))});
+        persistPlayer(player.id,player.state).catch(()=>{});
+      }
+    }
+  }catch(e){console.error('Proximity combat tick:',e.message);}finally{proximityCombatRunning=false;}
+},1500).unref();
 
 setInterval(async()=>{
   if(npcTickRunning)return; npcTickRunning=true;
