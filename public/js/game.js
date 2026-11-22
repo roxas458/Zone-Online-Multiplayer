@@ -1,4 +1,4 @@
-// ZONE ONLINE 4.33.36 browser client. RESTORED NPC DIALOGUE / NPC-SPECIFIC TRADE.
+// ZONE ONLINE 4.38.0 browser client. ZONE REPORTS / STARTER LOADOUT / SQUAD PAGE RESTORE.
 const clone=o=>JSON.parse(JSON.stringify(o));
 const base={
  name:"Новичок",money:1450,hp:100,radiation:0,radiationProtectionUntil:0,stamina:85,hunger:18,thirst:20,rep:10,day:1,hour:9,loc:"cordon",faction:"Одиночки",xp:0,meetings:0,completed:0,flags:{metSid:false,metWolf:false,heardBar:false,foundArtifact:false,helpedWolf:false},
@@ -390,7 +390,7 @@ function news(t,b){const c=realClock();g.news.unshift({day:c.day,hour:c.time,tit
 function addItem(id,name,type,desc,weight,value,qty=1){let x=g.items.find(i=>i.id===id);if(x)x.qty+=qty;else g.items.push({id,name,type,desc,weight,value,qty})}
 function count(id){return g.items.find(i=>i.id===id)?.qty||0}
 function take(id,n){let x=g.items.find(i=>i.id===id);if(!x||x.qty<n)return false;x.qty-=n;if(x.qty<=0)g.items=g.items.filter(i=>i.id!==id);return true}
-function view(id){if(id!=="people"&&$("npcDialogueOverlay")?.classList.contains("open"))closeTalk();document.querySelectorAll(".view").forEach(v=>v.classList.toggle("active",v.id===id));document.querySelectorAll("[data-v]").forEach(b=>b.classList.toggle("active",b.dataset.v===id));document.querySelector("main>aside.panel")?.classList.remove("mobile-open");if(id==="war")renderWar();if(id==="encyclopedia"){setEncyclopediaMode("knowledge");renderEncyclopedia();}if(id==="stories")renderStories();if(id==="people")renderPeople();if(id==="squads")renderSquads();if(id==="profile")renderProfile();if(id==="inventory")renderInventory();if(id==="trade"){renderTrade();renderPlayerTrade();}if(id==="settings")applyGameOptions();if(id==="world")renderMap();if(id==="ranks"){renderStalkerLeaderboard()}if(id==="factions"){renderFactions();renderFactionLeaderboard();renderDiplomacy()}}
+function view(id){if(id!=="people"&&$("npcDialogueOverlay")?.classList.contains("open"))closeTalk();document.querySelectorAll(".view").forEach(v=>v.classList.toggle("active",v.id===id));document.querySelectorAll("[data-v]").forEach(b=>b.classList.toggle("active",b.dataset.v===id));document.querySelector("main>aside.panel")?.classList.remove("mobile-open");if(id==="war")renderWar();if(id==="encyclopedia"){setEncyclopediaMode("knowledge");renderEncyclopedia();}if(id==="stories")renderStories();if(id==="people")renderPeople();if(id==="zoneReports")renderZoneReports();if(id==="squads")renderSquads();if(id==="profile")renderProfile();if(id==="inventory")renderInventory();if(id==="trade"){renderTrade();renderPlayerTrade();}if(id==="settings")applyGameOptions();if(id==="world")renderMap();if(id==="ranks"){renderStalkerLeaderboard()}if(id==="factions"){renderFactions();renderFactionLeaderboard();renderDiplomacy()}}
 function toggleMobileMenu(){document.querySelector("main>aside.panel")?.classList.toggle("mobile-open")}
 document.addEventListener("keydown",e=>{if(e.key==="Escape"&&$("npcDialogueOverlay")?.classList.contains("open"))closeTalk();});
 document.querySelectorAll("[data-v]").forEach(b=>b.onclick=()=>{view(b.dataset.v);if(b.dataset.v==="inventory")renderInventory()});
@@ -519,6 +519,16 @@ let activePlayerDM=null, playerDMHistory={};
 function openPlayerDM(id){const p=onlinePlayers.find(x=>x.id===id);if(!p||p.location!==g.loc)return alert('Игрок должен находиться в этой локации.');activePlayerDM=id;zoneSocket?.emit('dm:history',{targetId:id});renderPlayerDM();}
 function renderPlayerDM(){const el=$('playerDmPanel');if(!el)return;const target=onlinePlayers.find(x=>x.id===activePlayerDM);if(!target){el.innerHTML='<div class="mutedbox">Выбери игрока в этой локации.</div>';return;}const msgs=playerDMHistory[activePlayerDM]||[];el.innerHTML=`<div class="dm-head"><b>Личный канал: ${escapeHtml(target.name)}</b><span class="tag">${escapeHtml(locationName(target.location))}</span></div><div class="dm-history" id="playerDmHistory">${msgs.map(m=>`<div class="dm-line ${m.fromId===zonePlayerId?'mine':''}"><b>${escapeHtml(m.fromName||'Сталкер')}</b><p>${escapeHtml(m.text)}</p><small>${new Date(m.time).toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'})}</small></div>`).join('')||'<div class="mutedbox small">История сообщений пуста.</div>'}</div><div class="dm-compose"><input id="playerDmInput" maxlength="500" placeholder="Написать личное сообщение…" onkeydown="if(event.key==='Enter')sendPlayerDM()"><button onclick="sendPlayerDM()">Отправить</button></div>`;const h=$('playerDmHistory');if(h)h.scrollTop=h.scrollHeight;}
 function sendPlayerDM(){const input=$('playerDmInput'),text=input?.value?.trim();if(!text||!activePlayerDM)return;if(!zoneSocket?.connected)return alert('Нет соединения с сервером.');zoneSocket.emit('dm:send',{targetId:activePlayerDM,text});input.value='';}
+
+let npcApproachHistory=[];
+function renderZoneReports(){
+ const approach=$('npcApproachFeed');
+ if(approach)approach.innerHTML=npcApproachHistory.length?npcApproachHistory.slice(0,15).map(a=>{const n=npcBy(a.npcId);return `<article class="npc-approach-card">${n?portraitMarkup(n):'<span class="npc-portrait">☻</span>'}<div><b>${escapeHtml(a.name||n?.name||'Сталкер')} ${a.name||n?.name?'обратился к тебе':''}</b><p>${escapeHtml(a.text||'Сталкер хочет поговорить.')}</p><small>${escapeHtml(a.location||locationName(a.locationId||g.loc))} · ${new Date(a.at||Date.now()).toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'})}</small>${n?`<button onclick="meet('${String(n.id).replace(/'/g,"\\'")}')">Поговорить</button>`:''}</div></article>`}).join(''):'<div class="mutedbox small">Пока никто не обращался к тебе. Встречи и инициативные разговоры появятся здесь.</div>';
+ const memorial=(serverWorld?.npcMemorial||[]).slice(0,8).map(m=>`<div class="item"><b>☠ ${escapeHtml(m.name)}</b><div class="desc">Погиб: ${escapeHtml(m.cause)} · ${escapeHtml(locationName(m.location))}</div></div>`).join('');
+ const rescues=(serverWorld?.rescueOperations||[]).slice(0,10).map(op=>`<div class="item"><b>${escapeHtml(op.status==='completed'?'✓ Спасение завершено':'✚ Операция спасения')} · ${escapeHtml(op.patientName||'Раненый сталкер')}</b><div class="desc">${escapeHtml(op.faction||'')} · ${escapeHtml(locationName(op.target))} → ${escapeHtml(locationName(op.rescueBase))} · ${escapeHtml(op.squadName||'Отряд')}</div></div>`).join('');
+ const feed=$('peopleWorldFeed');if(feed)feed.innerHTML=(rescues+memorial)||'<div class="mutedbox small">Операции спасения и записи памяти появятся здесь по мере событий в Зоне.</div>';
+ renderFactionCasualtyNotices();
+}
 let selectedContactNpcId=null;
 function renderPeople(){
  syncNpcRosterToClient();
@@ -534,10 +544,6 @@ function renderPeople(){
   return `<button type="button" class="pda-contact-row ${selectedContactNpcId===n.id?'selected':''}" onclick="selectContactNpc('${String(n.id).replace(/'/g,"\\'")}')"><span class="pda-contact-status ${enemy?'enemy':''}"></span>${portraitMarkup(n)}<span class="pda-contact-main"><b>${escapeHtml(n.name)}</b><small>${escapeHtml(n.faction||'Одиночка')} · ${escapeHtml(n.role||'Сталкер')}</small><small class="pda-contact-meta">${escapeHtml(n.rank||n.title||'Новичок')} · ${escapeHtml(state)}</small></span><span class="pda-contact-relation ${rel<0?'negative':rel>0?'positive':''}">${rel>0?'+':''}${rel}</span></button>`;
  }).join('')||'<div class="pda-contact-empty">В этом секторе контактов не обнаружено.</div>';
  renderContactDetail();
- const memorial=(serverWorld?.npcMemorial||[]).slice(0,5).map(m=>`<div class="item"><b>☠ ${escapeHtml(m.name)}</b><div class="desc">Погиб: ${escapeHtml(m.cause)} · ${escapeHtml(locationName(m.location))}</div></div>`).join('');
- const rescues=(serverWorld?.rescueOperations||[]).slice(0,8).map(op=>`<div class="item"><b>${escapeHtml(op.status==='completed'?'✓ Спасение завершено':'✚ Операция спасения')} · ${escapeHtml(op.patientName||'Раненый сталкер')}</b><div class="desc">${escapeHtml(op.faction||'')} · ${escapeHtml(locationName(op.target))} → ${escapeHtml(locationName(op.rescueBase))} · ${escapeHtml(op.squadName||'Отряд')}</div></div>`).join('');
- // Операции спасения отображаются в общей полевой сводке контактов.
- const feed=$('peopleWorldFeed');if(feed)feed.innerHTML=(rescues||'')+(memorial||'')||'<div class="mutedbox small">Пока нет дополнительных сводок.</div>';
 
 }
 function selectContactNpc(id){selectedContactNpcId=id;renderPeople();}
@@ -669,13 +675,13 @@ function repairAllGear(npcId){
  log(`${npc.name} полностью обслужил снаряжение. Отремонтировано предметов: ${gear.length}. Потрачено ${total} RU.`);save();repairSelectedItemId=null;openRepairWorkshop(npcId);
 }
 let lastNpcApproach=null;
-function showNpcApproach(data){const n=npcBy(data?.npcId);if(!n)return;lastNpcApproach=data.npcId;const el=$('npcApproachFeed');if(!el)return;el.innerHTML=`<div class="npc-approach-card">${portraitMarkup(n)}<div><b>${escapeHtml(n.name)} подошёл к тебе</b><p>${escapeHtml(data.text||'Сталкер хочет поговорить.')}</p><button onclick="meet('${n.id}')">Поговорить</button></div></div>`;}
+function showNpcApproach(data){const n=npcBy(data?.npcId);if(!n)return;lastNpcApproach=data.npcId;npcApproachHistory.unshift({npcId:n.id,name:n.name,text:data.text||'Сталкер хочет поговорить.',location:locationName(g.loc),at:Date.now()});npcApproachHistory=npcApproachHistory.slice(0,20);renderZoneReports();}
 function squadAction(action,targetId){if(!zoneSocket?.connected)return alert('Для отряда требуется подключение к серверу.');zoneSocket.emit('squad:'+action,{targetId});}
 function squadRole(memberId,role){zoneSocket?.emit('squad:role',{memberId,role});}
 function squadEscort(npcId){zoneSocket?.emit('squad:escort',{npcId});}
 function renderPlayerSquad(data){const el=$('playerSquadPanel');if(!el)return;const squad=data?.squad;if(!squad){activePlayerSquad=null;el.innerHTML=`<div class="mutedbox small">Ты пока не состоишь в отряде.</div><button onclick="squadAction('create')">Создать отряд</button>`;return;}activePlayerSquad=squad;const leader=squad.leader===zonePlayerId;const roles={leader:'Командир',scout:'Разведчик',medic:'Медик',rifleman:'Стрелок',technician:'Техник'};const members=squad.members.map(m=>`<div class="squad-member"><div><b>${escapeHtml(m.name)}</b><small>${escapeHtml(m.faction)} · ${roles[m.role]||'Стрелок'} ${m.id===squad.leader?' · ЛИДЕР':''}</small></div>${leader&&m.id!==squad.leader?`<select aria-label="Роль бойца" onchange="squadRole('${m.id}',this.value)"><option value="scout" ${m.role==='scout'?'selected':''}>Разведчик</option><option value="medic" ${m.role==='medic'?'selected':''}>Медик</option><option value="rifleman" ${m.role==='rifleman'?'selected':''}>Стрелок</option><option value="technician" ${m.role==='technician'?'selected':''}>Техник</option></select>`:''}</div>`).join('');const journal=(squad.journal||[]).slice(0,8).map(e=>`<div class="squad-log-entry"><small>${new Date(e.at).toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'})}</small> ${escapeHtml(e.text)}</div>`).join('')||'<small class="muted">Журнал пока пуст.</small>';const escort=squad.escortNpcId?`<div class="desc">Сопровождает NPC: ${escapeHtml(npcBy(squad.escortNpcId)?.name||squad.escortNpcId)}</div>`:'';const candidates=(g.npcs||[]).filter(n=>n.loc===g.loc&&n.alive!==false&&(n.faction===g.faction||Number(n.relationship||0)>=15)).slice(0,8);el.innerHTML=`<div class="item block"><div class="squad-heading"><b>Отряд «${escapeHtml(squad.name)}»</b><span class="tag">${squad.members.length}/4</span></div><div class="desc">${escapeHtml(locationName(squad.location))} · ${leader?'Ты командуешь':'Следуй за командиром'}</div>${members}${escort}${leader&&candidates.length?`<label class="small">Пригласить NPC в сопровождение</label><select id="squadEscortNpc" class="field">${candidates.map(n=>`<option value="${escapeHtml(n.id)}">${escapeHtml(n.name)} · ${escapeHtml(n.role||'сталкер')}</option>`).join('')}</select><button onclick="squadEscort(document.getElementById('squadEscortNpc').value)">Попросить сопровождать</button>`:''}<div class="section">Журнал отряда</div><div class="squad-journal">${journal}</div><button class="quiet-action" onclick="squadAction('leave')">Покинуть отряд</button></div>`;}
 function friendRequest(targetId){if(!zoneSocket?.connected)return alert('Для добавления друзей требуется подключение к серверу.');zoneSocket.emit('friend:request',{targetId});}
-function renderSquads(){const overview=$('squadOverview');if(overview){const squad=activePlayerSquad;overview.innerHTML=squad?`<div class="squad-overview-card"><b>Отряд «${escapeHtml(squad.name)}»</b><span>${squad.members?.length||0}/4 бойцов · ${escapeHtml(locationName(squad.location))}</span></div>`:'<div class="mutedbox small">Ты пока не состоишь в отряде. Создай группу или прими приглашение от другого сталкера.</div>';}const list=$('localNpcSquads');if(list){const buckets=new Map();for(const n of (g.npcs||[]).filter(n=>n.loc===g.loc&&n.alive!==false)){const key=n.squadId||`solo:${n.id}`;if(!buckets.has(key))buckets.set(key,[]);buckets.get(key).push(n);}list.innerHTML=[...buckets.values()].map(m=>`<div class="item"><div><b>${escapeHtml(m[0].squadName||m[0].name||'Группа сталкеров')}</b><div class="desc">${m.length} бойца · ${escapeHtml(m[0].faction||'Нейтралы')}</div></div><span class="tag">${escapeHtml(m[0].behavior||m[0].action||'на месте')}</span></div>`).join('')||'<div class="mutedbox small">В этом секторе пока не замечено групп.</div>';}}
+function renderSquads(){renderPlayerSquad({squad:activePlayerSquad||null});const overview=$('squadOverview');if(overview){const squad=activePlayerSquad;overview.innerHTML=squad?`<div class="squad-overview-card"><b>Отряд «${escapeHtml(squad.name)}»</b><span>${squad.members?.length||0}/4 бойцов · ${escapeHtml(locationName(squad.location))}</span></div>`:'<div class="mutedbox small">Ты пока не состоишь в отряде. Создай группу или прими приглашение от другого сталкера.</div>';}const list=$('localNpcSquads');if(list){const buckets=new Map();for(const n of (g.npcs||[]).filter(n=>n.loc===g.loc&&n.alive!==false)){const key=n.squadId||`solo:${n.id}`;if(!buckets.has(key))buckets.set(key,[]);buckets.get(key).push(n);}list.innerHTML=[...buckets.values()].map(m=>`<div class="item"><div><b>${escapeHtml(m[0].squadName||m[0].name||'Группа сталкеров')}</b><div class="desc">${m.length} бойца · ${escapeHtml(m[0].faction||'Нейтралы')}</div></div><span class="tag">${escapeHtml(m[0].behavior||m[0].action||'на месте')}</span></div>`).join('')||'<div class="mutedbox small">В этом секторе пока не замечено групп.</div>';}}
 function renderPlayerFriends(list=[]){const el=$('playerFriendsPanel');if(!el)return;el.innerHTML=(list||[]).map(f=>`<div class="small">★ ${escapeHtml(f.name)} · ${escapeHtml(f.faction||'Сталкер')}</div>`).join('')||'<div class="mutedbox small">Пока нет друзей в Зоне.</div>'; }
 
 function renderQuick(){}
@@ -1161,24 +1167,85 @@ const factionLore={
  'Чистое небо':'Исследователи, стремящиеся понять природу Зоны.'
 };
 let setupFaction='Одиночки';
+const STARTER_BUDGET=400;
+const STARTER_GEAR={
+ weapon_none:{id:'weapon_none',name:'Без основного оружия',type:'Оружие',desc:'Начать без основного оружия.',weight:0,value:0,points:0,slot:'weapon'},
+ weapon_pm:{id:'weapon_pm',name:'Пистолет ПМ',type:'Оружие',desc:'Компактное оружие для первых вылазок.',weight:.9,value:420,power:13,price:850,points:55,slot:'weapon'},
+ weapon_toz34:{id:'weapon_toz34',name:'ТОЗ-34',type:'Оружие',desc:'Охотничье ружьё для полевых условий.',weight:3.1,value:1700,power:20,price:3100,points:105,slot:'weapon'},
+ weapon_aks74u:{id:'weapon_aks74u',name:'АКС-74У',type:'Оружие',desc:'Компактный автомат для опытного новичка.',weight:2.7,value:2300,power:18,price:4200,points:145,slot:'weapon'},
+ armor_none:{id:'armor_none',name:'Без бронекостюма',type:'Броня',desc:'Обычная одежда.',weight:0,value:0,points:0,slot:'suit'},
+ armor_leather:{id:'armor_leather',name:'Кожаная куртка с пластинами',type:'Броня',desc:'Лёгкая защита для первых переходов.',weight:.7,value:280,defense:2,price:520,points:65,slot:'suit'},
+ armor_stalker:{id:'armor_stalker',name:'Комбинезон сталкера М-2',type:'Броня',desc:'Сбалансированный полевой костюм.',weight:1.1,value:1050,defense:3,price:1850,points:115,slot:'suit'},
+ armor_zarya:{id:'armor_zarya',name:'Заря',type:'Броня',desc:'Усиленный комбинезон с повышенной защитой.',weight:1.5,value:2200,defense:5,price:3850,points:175,slot:'suit'},
+ detector_none:{id:'detector_none',name:'Без детектора',type:'Детектор',desc:'Поиск артефактов без прибора.',weight:0,value:0,points:0,slot:'tool'},
+ detector_echo:{id:'detector_echo',name:'Детектор «Отклик»',type:'Детектор',desc:'Базовый прибор для поиска аномальных объектов.',weight:.6,value:220,price:650,points:65,slot:'tool'},
+ detector_bear:{id:'detector_bear',name:'Детектор «Медведь»',type:'Детектор',desc:'Более удобный прибор с расширенным диапазоном.',weight:.8,value:650,price:1650,points:115,slot:'tool'},
+ backpack_standard:{id:'backpack_standard',name:'Стандартный рюкзак',type:'Рюкзак',desc:'Базовая вместимость 50 кг.',weight:1,value:300,capacity:50,points:0,slot:'backpack'},
+ backpack_field:{id:'backpack_field',name:'Полевой рюкзак',type:'Рюкзак',desc:'Вместимость 65 кг.',weight:1.4,value:650,capacity:65,price:1250,points:45,slot:'backpack'},
+ backpack_expedition:{id:'backpack_expedition',name:'Экспедиционный рюкзак',type:'Рюкзак',desc:'Вместимость 80 кг.',weight:1.8,value:1500,capacity:80,price:2850,points:75,slot:'backpack'},
+ med:{id:'med',name:'Аптечка',type:'Медицина',desc:'Полевой медицинский набор.',weight:.4,value:100,points:25},
+ bandage:{id:'bandage',name:'Бинт',type:'Медицина',desc:'Расходный перевязочный материал.',weight:.2,value:45,points:10},
+ anti_rad:{id:'anti_rad',name:'Антирад',type:'Медицина',desc:'Средство от радиационного заражения.',weight:.1,value:100,points:20},
+ bread:{id:'bread',name:'Хлеб',type:'Еда',desc:'Простой запас еды.',weight:.3,value:35,points:10},
+ canned:{id:'canned',name:'Консервы',type:'Еда',desc:'Сытный полевой паёк.',weight:.45,value:65,points:15},
+ water:{id:'water',name:'Бутылка воды',type:'Еда',desc:'Запас питьевой воды.',weight:.5,value:25,points:10}
+};
+let setupLoadout={weapon:'weapon_pm',suit:'armor_leather',tool:'detector_echo',backpack:'backpack_standard',supplies:['med','bread','bread','bandage','water']};
+function setupSelectedItems(){return [setupLoadout.weapon,setupLoadout.suit,setupLoadout.tool,setupLoadout.backpack,...setupLoadout.supplies].filter(id=>id&&id!=='weapon_none'&&id!=='armor_none'&&id!=='detector_none');}
+function setupSpent(){return setupSelectedItems().reduce((sum,id)=>sum+(STARTER_GEAR[id]?.points||0),0);}
+function renderSetupLoadout(){
+ const root=$('setupLoadoutChoices');if(!root)return;
+ const fields=[['weapon','Основное оружие',['weapon_none','weapon_pm','weapon_toz34','weapon_aks74u']],['suit','Бронекостюм',['armor_none','armor_leather','armor_stalker','armor_zarya']],['tool','Детектор',['detector_none','detector_echo','detector_bear']],['backpack','Рюкзак',['backpack_standard','backpack_field','backpack_expedition']]];
+ const select=(key,label,ids)=>`<label class="setup-choice"><span>${label}</span><select class="field" data-setup-slot="${key}" onchange="changeSetupSlot('${key}',this.value)">${ids.map(id=>{const item=STARTER_GEAR[id];return `<option value="${id}" ${setupLoadout[key]===id?'selected':''}>${item.name} · ${item.points} очк.</option>`}).join('')}</select><small>${escapeHtml(STARTER_GEAR[setupLoadout[key]]?.desc||'')}</small></label>`;
+ const supplies=[['med','Аптечка'],['bandage','Бинт'],['anti_rad','Антирад'],['bread','Хлеб'],['canned','Консервы'],['water','Вода']];
+ root.innerHTML=`<div class="setup-choice-grid">${fields.map(f=>select(...f)).join('')}</div><div class="setup-supplies-head">ПРИПАСЫ / ДОБАВЛЯЙ ИЛИ УБИРАЙ</div><div class="setup-supplies">${supplies.map(([id,label])=>{const count=setupLoadout.supplies.filter(x=>x===id).length;return `<div class="setup-supply-row"><span>${label} <small>${STARTER_GEAR[id].points} очк. · ${count} шт.</small></span><div><button type="button" onclick="changeSetupSupply('${id}',-1)" aria-label="Убрать ${label}">−</button><b>${count}</b><button type="button" onclick="changeSetupSupply('${id}',1)" aria-label="Добавить ${label}">+</button></div></div>`}).join('')}</div>`;
+ updateSetupBudget();
+}
+function changeSetupSlot(slot,id){if(!Object.hasOwn(STARTER_GEAR,id))return;setupLoadout[slot]=id;renderSetupLoadout();}
+function changeSetupSupply(id,delta){const current=setupLoadout.supplies.filter(x=>x===id).length;if(delta>0){if(current>=5)return;setupLoadout.supplies.push(id);}else{const index=setupLoadout.supplies.lastIndexOf(id);if(index>=0)setupLoadout.supplies.splice(index,1);}renderSetupLoadout();}
+function updateSetupBudget(){
+ const spent=setupSpent(),left=STARTER_BUDGET-spent,spentEl=$('setupPointsSpent'),leftEl=$('setupPointsLeft'),bar=$('setupBudgetBar'),note=$('setupLoadoutNote');
+ if(spentEl)spentEl.textContent=spent;if(leftEl)leftEl.textContent=Math.max(0,left);if(bar)bar.style.width=Math.min(100,spent/STARTER_BUDGET*100)+'%';
+ if(note){note.textContent=left<0?'Превышен лимит. Убери несколько предметов.':`Осталось ${left} очков снабжения. Неиспользованные очки не сгорают.`;note.classList.toggle('over-budget',left<0);}
+ const start=$('setupStartButton');if(start)start.disabled=left<0;
+}
+function updateSetupPreview(){
+ const name=($('setupCallsign')?.value||'').trim()||'НОВЫЙ СТАЛКЕР',spawn=factionSpawn[setupFaction]||'cordon';
+ if($('setupPreviewName'))$('setupPreviewName').textContent=name.toUpperCase();
+ if($('setupPreviewFaction'))$('setupPreviewFaction').textContent=setupFaction;
+ if($('setupPreviewSpawn'))$('setupPreviewSpawn').textContent=`Точка появления: ${spawnNames[spawn]||spawn}`;
+ if($('setupStarterContract'))$('setupStarterContract').textContent=setupFaction==='Одиночки'?'На Кордоне Волк поможет освоиться, а Сидорович предложит первую работу.':`На базе «${setupFaction}» тебя встретит представитель группировки и выдаст первое поручение.`;
+}
+function resetStarterLoadout(){setupLoadout={weapon:'weapon_pm',suit:'armor_leather',tool:'detector_echo',backpack:'backpack_standard',supplies:['med','bread','bread','bandage','water']};renderSetupLoadout();}
+function randomizeStarterLoadout(){
+ const groups={weapon:['weapon_none','weapon_pm','weapon_toz34','weapon_aks74u'],suit:['armor_none','armor_leather','armor_stalker','armor_zarya'],tool:['detector_none','detector_echo','detector_bear'],backpack:['backpack_standard','backpack_field','backpack_expedition']};
+ let tries=0;do{for(const [slot,ids] of Object.entries(groups))setupLoadout[slot]=ids[Math.floor(Math.random()*ids.length)];setupLoadout.supplies=['med','bread','bandage'];if(Math.random()>.5)setupLoadout.supplies.push('anti_rad');if(Math.random()>.5)setupLoadout.supplies.push('water');tries++;}while(setupSpent()>STARTER_BUDGET&&tries<100);
+ renderSetupLoadout();
+}
 function openCharacterSetup(){
  const root=$('characterSetup');if(!root)return;
  $('setupCallsign').value=g.name==='Новичок'?'':g.name;
  $('setupFactions').innerHTML=g.factions.map(f=>`<button type="button" class="faction-choice ${setupFaction===f.name?'selected':''}" onclick="selectSetupFaction('${f.name.replace(/'/g,"\\'")}')"><b>${f.icon||'◉'} ${f.name}</b><div class="desc">${f.style||''}</div></button>`).join('');
  $('factionDescription').textContent=factionLore[setupFaction]||'Выбранная сторона Зоны.';const spawn=factionSpawn[setupFaction]||'cordon';if($('setupSpawnInfo'))$('setupSpawnInfo').textContent=`Точка появления: ${spawnNames[spawn]||spawn}. Ты начнёшь игру у базы своей группировки.`;
- root.classList.add('show');
+ renderSetupLoadout();updateSetupPreview();root.classList.add('show');
 }
-function selectSetupFaction(name){const current=$('setupCallsign').value;setupFaction=name;openCharacterSetup();$('setupCallsign').value=current;}
+function selectSetupFaction(name){const current=$('setupCallsign').value;setupFaction=name;openCharacterSetup();$('setupCallsign').value=current;updateSetupPreview();}
 function confirmCharacter(){
  const name=$('setupCallsign').value.trim().replace(/[<>]/g,'').slice(0,24);
  if(name.length<2)return alert('Позывной должен содержать минимум 2 символа.');
  if(!g.factions.some(f=>f.name===setupFaction))return alert('Выбери группировку из списка.');
+ const spent=setupSpent();if(spent>STARTER_BUDGET)return alert('Комплект превышает лимит очков снабжения.');
  g.name=name;g.faction=setupFaction;g.characterCreated=true;const spawn=factionSpawn[setupFaction]||'cordon';g.loc=spawn;g.visitedLocations=[...new Set([...(g.visitedLocations||[]),spawn])];g.worldPosition=null;
- g.news.unshift({day:realClock().day,hour:realClock().time,title:'Регистрация завершена',body:`Сталкер ${name} зарегистрирован в КПК. Группировка: ${setupFaction}.`});
- g.log.unshift(`Позывной: ${name}. Группировка: ${setupFaction}. Начальная база: ${spawnNames[spawn]||spawn}.`);
- $('characterSetup').classList.remove('show');document.body.classList.remove('title-screen-active');save();mpSyncLocation();
+ // A new character receives only the selected starter kit; the loadout is real inventory, not a visual-only preview.
+ g.items=[];g.equipment={weapon:'',sidearm:'',suit:'',tool:'',helmet:'',artifact:'',backpack:''};
+ const counts={};for(const id of setupSelectedItems())counts[id]=(counts[id]||0)+1;
+ for(const [id,qty] of Object.entries(counts)){const item=STARTER_GEAR[id];if(!item)continue;g.items.push({id:item.id,name:item.name,type:item.type,desc:item.desc,weight:item.weight||0,value:item.value||0,qty,price:item.price||0,defense:item.defense||0,power:item.power||0,capacity:item.capacity||0,condition:100});}
+ for(const slot of ['weapon','suit','tool','backpack']){const item=STARTER_GEAR[setupLoadout[slot]];if(item&&item.id&&!item.id.endsWith('_none'))g.equipment[slot]=item.name;}
+ g.startingSupplyPoints={spent,budget:STARTER_BUDGET};
+ g.news.unshift({day:realClock().day,hour:realClock().time,title:'Регистрация завершена',body:`Сталкер ${name} зарегистрирован в КПК. Группировка: ${setupFaction}. Стартовый комплект: ${spent}/${STARTER_BUDGET} очков снабжения.`});
+ g.log.unshift(`Позывной: ${name}. Группировка: ${setupFaction}. Начальная база: ${spawnNames[spawn]||spawn}. Стартовый комплект: ${spent}/${STARTER_BUDGET} очков.`);
+ $('characterSetup').classList.remove('show');document.body.classList.remove('title-screen-active');save();mpSyncLocation();renderInventory();
 }
-
 // Turn-based fictional combat. It uses abstract game stats, not real-world tactics.
 let battle=null;
 const enemyTemplates=[
@@ -1535,7 +1602,7 @@ async function connectZone(){
  zoneSocket.on('stash:search:result',data=>{if(data?.state){g={...g,...data.state};localStorage.setItem('zoneExpandedSave',JSON.stringify(g));renderInventory();}if(data?.stashes)currentStashes=data.stashes;if(data?.note){g.stashNotes||=[];g.stashNotes.unshift({text:data.note,location:g.loc,at:Date.now()});g.stashNotes=g.stashNotes.slice(0,40);localStorage.setItem('zoneExpandedSave',JSON.stringify(g));}if(data?.message){log(data.message);alert(data.message);}renderStashes();});
  zoneSocket.on('stash:loot:result',data=>{if(data?.state){g={...g,...data.state};localStorage.setItem('zoneExpandedSave',JSON.stringify(g));renderInventory();render();}if(data?.message){log(data.message);alert(data.message);}zoneSocket.emit('stash:state');});
  zoneSocket.on('stash:buy-intel:result',data=>{if(data?.state){g={...g,...data.state};localStorage.setItem('zoneExpandedSave',JSON.stringify(g));render();}if(data?.stashes)currentStashes=data.stashes;if(data?.message){log(data.message);alert(data.message);}renderStashes();if(activeNpc)openNpcTrade(activeNpc);});
- zoneSocket.on('world:npc-state',data=>{const previousVersion=activeNpc?npcBy(activeNpc)?.dialogueVersion:null;serverWorld=serverWorld||{};serverWorld.npcState=data?.npcs||{};serverWorld.npcEvents=data?.events||[];zoneMapDirty=true;serverWorld.npcSquads=data?.squads||[];serverWorld.npcMemorial=data?.memorial||[];serverWorld.npcCorpses=data?.corpses||[];serverWorld.factionNotices=data?.factionNotices||[];serverWorld.rescueOperations=data?.rescueOperations||[];serverWorld.battlefronts=data?.battlefronts||[];serverWorld.convoys=data?.convoys||[];serverWorld.factionBases=data?.factionBases||[];serverWorld.frontlineOrders=data?.frontlineOrders||[];syncNpcRosterToClient();const active=npcBy(activeNpc);if(active&&previousVersion!==null&&previousVersion!==active.dialogueVersion){const box=dialogueTarget(),choices=box?.querySelector('.choices');if(choices)choices.innerHTML=(active.topics||[]).map((t,i)=>`<button onclick="topic('${active.id}',${i})">› ${escapeHtml(t[0])}</button>`).join('')+`<button onclick="closeTalk()">Попрощаться</button>`;const hint=box?.querySelector('.dialogue-top .small');if(hint)hint.textContent='Темы разговора обновились · доверие: '+(Number(active.relationship)||0);}renderPeople();renderQuick();renderWar();if($('world')?.classList.contains('active'))renderMap();renderCorpseRecovery();});
+ zoneSocket.on('world:npc-state',data=>{const previousVersion=activeNpc?npcBy(activeNpc)?.dialogueVersion:null;serverWorld=serverWorld||{};serverWorld.npcState=data?.npcs||{};serverWorld.npcEvents=data?.events||[];zoneMapDirty=true;serverWorld.npcSquads=data?.squads||[];serverWorld.npcMemorial=data?.memorial||[];serverWorld.npcCorpses=data?.corpses||[];serverWorld.factionNotices=data?.factionNotices||[];serverWorld.rescueOperations=data?.rescueOperations||[];serverWorld.battlefronts=data?.battlefronts||[];serverWorld.convoys=data?.convoys||[];serverWorld.factionBases=data?.factionBases||[];serverWorld.frontlineOrders=data?.frontlineOrders||[];syncNpcRosterToClient();const active=npcBy(activeNpc);if(active&&previousVersion!==null&&previousVersion!==active.dialogueVersion){const box=dialogueTarget(),choices=box?.querySelector('.choices');if(choices)choices.innerHTML=(active.topics||[]).map((t,i)=>`<button onclick="topic('${active.id}',${i})">› ${escapeHtml(t[0])}</button>`).join('')+`<button onclick="closeTalk()">Попрощаться</button>`;const hint=box?.querySelector('.dialogue-top .small');if(hint)hint.textContent='Темы разговора обновились · доверие: '+(Number(active.relationship)||0);}renderPeople();if($('zoneReports')?.classList.contains('active'))renderZoneReports();renderQuick();renderWar();if($('world')?.classList.contains('active'))renderMap();renderCorpseRecovery();});
  zoneSocket.on('world:ecosystem',data=>{serverWorld=serverWorld||{};serverWorld.ecosystem=data;renderLivingZone();});
  zoneSocket.on('ecosystem:result',data=>{if(data?.state){g=data.state;localStorage.setItem('zoneExpandedSave',JSON.stringify(g));render();}alert(data?.message||'');renderLivingZone();});
  zoneSocket.on('survival:hunt:result',data=>{if(data?.state){g=data.state;localStorage.setItem('zoneExpandedSave',JSON.stringify(g));}if(data?.ecosystem){serverWorld=serverWorld||{};serverWorld.ecosystem=data.ecosystem;}if(data?.message){survivalEvent(data.message,!data.ok);log(data.message);alert(data.message);}save();renderInventory();renderLivingZone();if($('world')?.classList.contains('active'))renderZoneMap();});

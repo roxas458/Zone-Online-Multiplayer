@@ -1,8 +1,8 @@
 {
   "name": "zone-online",
-  "version": "4.37.0",
+  "version": "4.38.0",
   "private": true,
-  "description": "ZONE ONLINE — expanded stalker equipment slots and backpack capacity",
+  "description": "ZONE ONLINE — character creation loadout, Zone reports and restored squad display",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",

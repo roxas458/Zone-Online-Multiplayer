@@ -1,6 +1,6 @@
-# ZONE ONLINE 4.37.0
+# ZONE ONLINE 4.38.0
 
-## 4.37.0 — Expanded Stalker Equipment
+## 4.38.0 — Expanded Stalker Equipment
 
 - Expanded the inventory mannequin with separate slots for primary weapon, sidearm, suit, helmet, detector, artifact and backpack.
 - Added an equipment picker opened from each slot, with type-safe selection and a remove-equipment action.
@@ -138,3 +138,10 @@
 - The encyclopedia opens as a full-screen PDA workspace.
 - The armory catalogue is now an encyclopedia section instead of a sidebar destination.
 - The characters view is redesigned as a searchable two-pane contacts directory with portrait rows and detailed NPC dossiers.
+
+
+## 4.38.0 — Character setup and Zone reports
+- Restored the player squad panel when opening the Squads tab.
+- Moved NPC approaches, faction casualty notices, rescue operations and Zone memorial entries into a dedicated Zone Reports tab.
+- Reworked character creation into a three-panel PDA registration screen with a 400-point starter equipment budget.
+- Selected starter equipment and supplies are added to the actual inventory and equipped at character creation.
