@@ -1,4 +1,4 @@
-# ZONE ONLINE 4.33.40
+# ZONE ONLINE 4.33.41
 
 Обновление главного меню: атмосферный стартовый экран, продолжение и загрузка локального сохранения, запуск новой игры с выбором группировки и позывного, переход к сетевой игре и опциям. Адаптивная компоновка для мобильных экранов.
 
@@ -53,7 +53,7 @@
 - Documentation is consolidated in this single `README.md`; no separate release-note Markdown files are shipped.
 
 
-## 4.33.40 — A-Life: mutant encounters and squad survival
+## 4.33.41 — A-Life: mutant encounters and squad survival
 
 - Mutant packs can engage NPC squads that are travelling, scavenging, or returning through the same sector.
 - Each encounter applies bounded damage to a stalker and to the mutant pack; the event is stored in the shared ecosystem event history.
@@ -62,3 +62,11 @@
 - Existing solo NPC-versus-mutant encounters remain available when no active squad is present.
 - Added deterministic tests for squad combat, companion rescue, and route-based retreat.
 - Documentation remains consolidated in this single `README.md`; no separate Markdown release notes are shipped.
+
+
+## 4.33.41 — последствия потерь и восстановление NPC
+- Раненые NPC постепенно восстанавливают здоровье на безопасных стоянках, расходуя припасы.
+- После гибели NPC остаётся тело с ограниченным по времени тайником; обыск проверяет сектор и расстояние на сервере.
+- Выжившие напарники запоминают потерю, переживают стресс и меняют настроение.
+- Накапливаются сообщения группировок о гибели сталкеров; тела и уведомления сохраняются в состоянии мира.
+- Сохранены прежние поля мира и обратная совместимость старых сохранений.

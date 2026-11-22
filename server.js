@@ -19,6 +19,7 @@ const { npcWorldPosition, inRange, INTERACTION_RADIUS, COMBAT_RADIUS } = require
 const { ensureOnlineWorld, appendWorldEvent, buildWorldSync, publicWorldStatus } = require('./src/systems/online-world');
 const { initEcosystem, tickEcosystem, upgradeBase, createClan, joinClan, addEcoEvent } = require('./src/systems/ecosystem');
 const { initSouls, tickSouls } = require('./src/systems/souls');
+const { tickNpcAftermath, lootCorpse } = require('./src/systems/npc-aftermath');
 const { tickEmission, emissionDamage, publicEmissionState } = require('./src/systems/emissions');
 
 const online = new Map();
@@ -181,7 +182,7 @@ function publicWorldSync(sinceRevision){
   }
   return sync;
 }
-function emitNpcState(target=io){target.emit('world:npc-state',{npcs:publicNpcRoster(),events:(world.npcEvents||[]).slice(-20),squads:world.npcSquads||[],memorial:world.npcMemorial||[],battlefronts:world.battlefronts||[],convoys:world.convoys||[],factionBases:world.factionBases||[],frontlineOrders:world.frontlineOrders||[]});}
+function emitNpcState(target=io){target.emit('world:npc-state',{npcs:publicNpcRoster(),events:(world.npcEvents||[]).slice(-20),squads:world.npcSquads||[],memorial:world.npcMemorial||[],corpses:(world.npcCorpses||[]).map(({loot,...c})=>c),factionNotices:(world.factionNotices||[]).slice(0,30),battlefronts:world.battlefronts||[],convoys:world.convoys||[],factionBases:world.factionBases||[],frontlineOrders:world.frontlineOrders||[]});}
 function broadcastOnline(){ io.emit('world:players',onlineList()); }
 function systemMessage(text){ const m={id:crypto.randomUUID(),system:true,name:'Система',text:clean(text,240),time:Date.now()}; recentChat.push(m); if(recentChat.length>80)recentChat.shift(); io.emit('world:chat',m); }
 initDiplomacy(world, FACTIONS); initSharedWorld(world, NPC_HOME, LOCATIONS, COOP_TEMPLATES); initSouls(world); ensureOnlineWorld(world);
@@ -605,6 +606,15 @@ io.on('connection', socket=>{
   socket.on('squad:leave', async()=>{const p=online.get(socket.data.playerId);if(!p)return;const squad=squadOf(p.id);if(squad){squad.members=squad.members.filter(m=>m.id!==p.id);squadJournal(squad,'left',`${p.name} покинул отряд.`);if(!squad.members.length)delete world.playerSquads[squad.id];else if(squad.leader===p.id){squad.leader=squad.members[0].id;squad.members[0].role='leader';squadJournal(squad,'leader',`${squad.members[0].name} принял командование.`);}publishSquad(squad);}await persistWorld();socket.emit('squad:state',{squad:null});});
   socket.on('squad:role',async input=>{const p=online.get(socket.data.playerId),squad=p&&squadOf(p.id),member=squad?.members.find(m=>m.id===String(input?.memberId||'')),role=String(input?.role||'');if(!p||!squad||squad.leader!==p.id||!member||!SQUAD_ROLES.has(role)||member.id===squad.leader){socket.emit('squad:result',{ok:false,message:'Нельзя назначить эту роль.'});return;}member.role=role;squadJournal(squad,'role',`${member.name} назначен: ${role}.`);await persistWorld();publishSquad(squad);socket.emit('squad:result',{ok:true,message:'Роль бойца обновлена.'});});
   socket.on('squad:escort',async input=>{const p=online.get(socket.data.playerId),squad=p&&squadOf(p.id),npcId=String(input?.npcId||''),npc=world.npcState?.[npcId];if(!p||!squad||squad.leader!==p.id||!npc||npc.alive===false||npc.location!==squad.location){socket.emit('squad:result',{ok:false,message:'Нужен живой NPC в вашем секторе; приказ отдаёт лидер.'});return;}const friendly=npc.faction===p.faction||Number(npc.relationships?.[p.id]||npc.relationship||0)>=15;if(!friendly){socket.emit('squad:result',{ok:false,message:'Этот сталкер не доверяет вашему отряду.'});return;}squad.escortNpcId=npcId;npc.escortSquadId=squad.id;squadJournal(squad,'escort',`${npc.name} согласился сопровождать отряд.`);await persistWorld();publishSquad(squad);socket.emit('squad:result',{ok:true,message:`${npc.name} присоединился к сопровождению.`});});
+  socket.on('npc:corpse:loot', async input=>{
+    const p=online.get(socket.data.playerId);if(!p)return;
+    const result=lootCorpse(world,p,String(input?.corpseId||''),Date.now());
+    if(!result.ok){socket.emit('npc:corpse:loot:result',{ok:false,message:result.reason});return;}
+    p.state=result.state;await persistPlayer(p.id,p.state);await persistWorld();
+    const message=`Ты обыскал тело и нашёл ${result.money} ₽${result.items.length?` и предметов: ${result.items.map(x=>x.name).join(', ')}`:''}.`;
+    io.emit('world:npc-state',{npcs:publicNpcRoster(),events:(world.npcEvents||[]).slice(-20),squads:world.npcSquads||[],memorial:world.npcMemorial||[],corpses:(world.npcCorpses||[]).map(({loot,...c})=>c),factionNotices:(world.factionNotices||[]).slice(0,30),battlefronts:world.battlefronts||[],convoys:world.convoys||[],factionBases:world.factionBases||[],frontlineOrders:world.frontlineOrders||[]});
+    socket.emit('npc:corpse:loot:result',{ok:true,message,state:p.state,money:result.money,items:result.items});
+  });
   socket.on('npc:combat:kill', async input=>{
     const p=online.get(socket.data.playerId);if(!p)return;
     const npcId=String(input?.npcId||'').slice(0,48),npc=world.npcState?.[npcId];
@@ -777,10 +787,11 @@ setInterval(async()=>{
     for(const p of online.values()){for(const npc of Object.values(world.npcState||{})){if(!npc.alive||npc.location!==p.location)continue;const near=inRange(p,npcWorldPosition(npc),COMBAT_RADIUS),hostile=isHostileFaction(p.faction,npc.faction,world.diplomacy);if(near&&hostile){npc.playerThreatAt ||= {};if(now-(npc.playerThreatAt[p.id]||0)>45000){npc.playerThreatAt[p.id]=now;io.to(p.id).emit('npc:threat',{npcId:npc.id,name:npc.name,faction:npc.faction,distance:Math.round(Math.hypot(p.x-npcWorldPosition(npc).x,p.y-npcWorldPosition(npc).y))});}}else if(!hostile&&near){npc.lastApproachAt ||= 0;if(now-npc.lastApproachAt>8*60*1000&&Math.random()<.12){npc.lastApproachAt=now;io.to(p.id).emit('npc:approach',{npcId:npc.id,text:`${npc.name} замечает тебя и подходит поговорить. «Эй, сталкер. Есть минутка?»`});}}}}
     const ecoEvents=tickEcosystem(world,Math.random,now);
     const soulEvents=tickSouls(world,LOCATIONS,Math.random,now);
+    const aftermathEvents=tickNpcAftermath(world,now);
     world.onlineMetrics ||= {totalJoins:0,totalMoves:0,lastTickAt:0}; world.onlineMetrics.lastTickAt=now;
     const tickEvent=appendWorldEvent(world,'world_tick',{npcEvents:events.length,activeNpcs:Object.values(world.npcState||{}).filter(n=>n.alive).length},now);
     io.emit('world:event',tickEvent);
-    for(const event of [...events,...ecoEvents,...soulEvents]){const ev=appendWorldEvent(world,event.type,{...event},now);io.emit('world:event',ev);io.emit('world:npc-event',event);if(['npc_skirmish','mutant_npc_combat','mutant_squad_encounter','mutant_squad_retreat','mutant_squad_rescue','mutant_pack_defeated','mutant_migration','anomaly_migration','convoy_ambush','convoy_started'].includes(event.type))systemMessage(event.text);}
+    for(const event of [...events,...ecoEvents,...soulEvents,...aftermathEvents]){const ev=appendWorldEvent(world,event.type,{...event},now);io.emit('world:event',ev);io.emit('world:npc-event',event);if(['npc_skirmish','npc_casualty_report','npc_companion_mourning','npc_injury_recovery','mutant_npc_combat','mutant_squad_encounter','mutant_squad_retreat','mutant_squad_rescue','mutant_pack_defeated','mutant_migration','anomaly_migration','convoy_ambush','convoy_started'].includes(event.type))systemMessage(event.text);}
     await persistWorld(); io.emit('world:npcs',world.npcPositions);
     emitNpcState();io.emit('world:leaderboard',leaderboardPayload());io.emit('world:ecosystem',world.ecosystem);
     io.emit('world:status',publicWorldStatus(world,online.size));
