@@ -1,4 +1,4 @@
-ZONE ONLINE 4.43.0
+ZONE ONLINE 4.44.0
 
 # ZONE ONLINE 4.39.0
 
@@ -161,3 +161,11 @@ ZONE ONLINE 4.43.0
 - Added 14 faction-specific armor variants covering Duty, Freedom, Military, Mercenaries, Clear Sky, Loners, Monolith, Bandits, Renegades and Scientists.
 - New armor variants can be selected in character creation and use the existing suit equipment/defense/condition systems.
 - Added the new weapons and armor to shared NPC shop data and the player-trade allowlist.
+
+
+## 4.44.0 — Comfort settings and character identity
+- Added persistent interface scale (90–130%), high contrast, larger touch controls, compact layout, reduced motion and reduced background effects.
+- Added matching settings to the title screen and in-game settings panel, plus a reset-to-defaults action.
+- Character creation now generates a first name and a callsign only; legacy full-name values are normalized to the first name.
+- Profile display now shows the character as “Имя Позывной” and stores the two values separately for multiplayer compatibility.
+- Fixed the UI-scale setting to work in the lightweight browser test environment as well as normal browsers.

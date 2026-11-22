@@ -1,8 +1,8 @@
 {
   "name": "zone-online",
-  "version": "4.43.0",
+  "version": "4.44.0",
   "private": true,
-  "description": "ZONE ONLINE — expanded faction equipment and Zone armory",
+  "description": "ZONE ONLINE — comfort settings, character identity and bug-fix update",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
