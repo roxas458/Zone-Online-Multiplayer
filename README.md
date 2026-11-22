@@ -1,3 +1,15 @@
+# ZONE ONLINE 4.52.1
+
+## 4.52.1 — Bugfix & UI Stability
+
+- Fixed player identity display: the real name and callsign now appear together as `Денис Шаман`; the callsign remains the canonical multiplayer name and can still be changed independently.
+- Fixed navigation from the fullscreen map to the full radio network, news journal and other PDA sections. Navigation exits native fullscreen and removes the CSS fallback fullscreen state before switching views.
+- Fixed NPC dialogue visibility in native fullscreen map mode by moving the dialogue overlay into the fullscreen map subtree and restoring it to its original DOM position on close or fullscreen exit.
+- Expanded map zoom from 4x to 24x with multiplicative zoom steps, so the whole-Zone map can be inspected much more closely without dozens of button presses.
+- Disabled page touch gestures while the map is fullscreen so dragging pans the map instead of scrolling the hidden page.
+- Escaped news and event-log text before HTML insertion. Sanitized player callsigns entered through the profile rename and multiplayer rename controls.
+- Added regression tests for player identity, fullscreen navigation, dialogue overlay lifecycle, 24x map zoom and safe news rendering.
+
 # ZONE ONLINE 4.52.0
 
 ## 4.52.0 — Living Faction Command & Expanded Strategic Network
