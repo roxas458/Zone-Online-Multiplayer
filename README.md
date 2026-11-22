@@ -1,4 +1,4 @@
-ZONE ONLINE 4.44.0
+ZONE ONLINE 4.45.0
 
 # ZONE ONLINE 4.39.0
 
@@ -163,9 +163,20 @@ ZONE ONLINE 4.44.0
 - Added the new weapons and armor to shared NPC shop data and the player-trade allowlist.
 
 
-## 4.44.0 — Comfort settings and character identity
+## 4.45.0 — Comfort settings and character identity
 - Added persistent interface scale (90–130%), high contrast, larger touch controls, compact layout, reduced motion and reduced background effects.
 - Added matching settings to the title screen and in-game settings panel, plus a reset-to-defaults action.
 - Character creation now generates a first name and a callsign only; legacy full-name values are normalized to the first name.
 - Profile display now shows the character as “Имя Позывной” and stores the two values separately for multiplayer compatibility.
 - Fixed the UI-scale setting to work in the lightweight browser test environment as well as normal browsers.
+
+
+## 4.45.0 — PDA map intelligence and living Zone dashboard
+
+- Added an integrated intelligence center inside the map with Overview, News, Tasks, Radio and Sectors tabs.
+- Overview combines current-sector control/risk, weather, emission status, active assignments and local contacts.
+- News tab shows the latest PDA reports and provides access to the full news journal and rumor requests.
+- Tasks tab summarizes accepted unfinished assignments and links to the quest board and contacts.
+- Radio tab previews incoming faction transmissions only; the existing receive-only radio rules remain unchanged.
+- Sectors tab lists nearby strategic sectors and opens their map details without leaving the map screen.
+- Added responsive styling for mobile and full-screen map layouts.
