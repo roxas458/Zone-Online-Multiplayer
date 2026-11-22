@@ -1,4 +1,4 @@
-ZONE ONLINE 4.50.0
+ZONE ONLINE 4.51.0
 
 # ZONE ONLINE 4.39.0
 
@@ -229,3 +229,17 @@ ZONE ONLINE 4.50.0
 - NPC marker pointer/click events stop propagation so they cannot be interpreted as clicks on the map background.
 - Reworked the NPC interaction card layout: action buttons are consistently full-width and vertically aligned, with long labels wrapping cleanly.
 - Existing talk radius remains 8 m; if the player is already within range, the explicit approach action opens dialogue directly.
+
+
+## 4.51.0 — Strategic faction warfare
+
+- Added 51 persistent strategic key points (three per sector) with owners, control, capture pressure, garrisons and production.
+- Added distinct strategic objectives and capped resource pools for all ten factions.
+- Added server-side NPC squad campaigns: squads select objectives using faction priorities, follow connected sector routes, hold an objective, build capture pressure, then return.
+- Sector ownership is now derived from the majority of its key points; one local clash or one captured object cannot instantly flip a whole sector.
+- Player-led war operations now target one key point and update sector ownership only through the shared majority calculation.
+- Removed the legacy sector-wide NPC assault scheduler and direct whole-sector capture on local skirmish resolution.
+- Consolidated `npcGroups` into a compatibility snapshot derived from `npcSquads`; `souls.js` is the single owner of persistent NPC squad membership.
+- The War PDA now displays faction objectives, strategic resources and key points. Local map view displays the three key objects in the current sector.
+
+The simulation is server-authoritative and is persisted as part of the shared world state. Without PostgreSQL, the existing memory fallback remains temporary across server restarts.

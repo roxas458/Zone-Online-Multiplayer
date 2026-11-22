@@ -70,11 +70,8 @@ function ensureRandomNpcs(world, count = NPC_TARGET) {
     npc.homeLocation ||= npc.location; npc.baseLocation ||= npc.homeLocation; npc.behavior ||= npc.action==='travel'?'patrol':'camp';
     npc.nextDecisionAt ||= Date.now()+5*60000;
   }
-  // Rebuild stable named 2–5 person squads; old generated saves are migrated from one-person wanderers.
-  const byFaction=new Map();
-  for(const npc of Object.values(world.npcState)){if(!npc?.generated||npc.alive===false)continue;const key=npc.faction||'Одиночки';if(!byFaction.has(key))byFaction.set(key,[]);byFaction.get(key).push(npc);}
-  world.npcGroups=[];
-  for(const [faction,members] of byFaction){members.sort((a,b)=>String(a.id).localeCompare(String(b.id)));let chunks=[];for(let i=0;i<members.length;i+=4)chunks.push(members.slice(i,i+4));if(chunks.length>1&&chunks.at(-1).length===1)chunks[chunks.length-2].push(...chunks.pop());chunks.forEach((group,index)=>{const squadType=SQUAD_TYPES[(FACTIONS.indexOf(faction)+index)%SQUAD_TYPES.length];const squadId=`npc_group_${faction.toLowerCase().replace(/[^a-zа-я0-9]+/gi,'_')}_${index+1}`;const name=group[0].squadName||SQUAD_NAMES[index%SQUAD_NAMES.length];for(const npc of group){npc.squadId=squadId;npc.squadName=name;npc.squadType=squadType;}world.npcGroups.push({id:squadId,name,faction,location:group[0].location,members:group.map(n=>n.id),size:group.length,type:squadType,status:group.every(n=>n.behavior==='camp'||n.behavior==='guard')?'garrison':'field'});});}
+  // Squad membership is owned by souls.js (world.npcSquads). npcGroups is a
+  // derived compatibility view and is rebuilt there; do not create a second roster here.
   return world.npcState;
 }
 module.exports = { ensureRandomNpcs, NPC_TARGET, generatedName };

@@ -23,6 +23,9 @@ function initSouls(world,random=Math.random){
   }
   world.npcSquads ||= [];
   world.npcMemorial ||= [];
+  const assignedMembers=new Set((world.npcSquads||[]).flatMap(squad=>squad.members||[]));
+  for(const npc of npcs){if(!assignedMembers.has(npc.id))npc.squadId=null;}
+  for(const squad of world.npcSquads||[])for(const id of squad.members||[]){const member=world.npcState?.[id];if(member)member.squadId=squad.id;}
   // Seed a few social links once; links are persisted with the world state.
   const linked=new Set();
   for(const npc of npcs){
@@ -58,7 +61,16 @@ function initSouls(world,random=Math.random){
     squad.type ||= SQUAD_TYPES[index%SQUAD_TYPES.length];
     for(const id of squad.members||[]){const npc=world.npcState?.[id];if(npc)npc.squadType ||= squad.type;}
   }
+  syncNpcGroups(world);
   return world;
+}
+function syncNpcGroups(world){
+  const npcs=world.npcState||{};
+  world.npcGroups=(world.npcSquads||[]).map(squad=>{
+    const members=(squad.members||[]).map(id=>npcs[id]).filter(n=>n&&n.alive!==false);
+    const location=squad.location||members[0]?.location||'cordon';
+    return {id:squad.id,name:squad.name,faction:squad.faction,location,members:members.map(n=>n.id),size:members.length,type:squad.type||'патруль',status:squad.status==='camped'?'garrison':'field',missionType:squad.missionType||null,targetPointId:squad.targetPointId||null};
+  }).filter(squad=>squad.size>=1);
 }
 function factionSlug(s){return String(s).toLowerCase().replace(/[^а-яa-z0-9]+/gi,'_').slice(0,18);}
 function tickSouls(world,locations,random=Math.random,now=Date.now()){
@@ -80,7 +92,7 @@ function tickSouls(world,locations,random=Math.random,now=Date.now()){
   }
   for(const squad of world.npcSquads||[]){
     let living=squad.members.map(id=>npcs[id]).filter(n=>n&&n.alive);
-    if(!['travelling','scavenging','returning'].includes(squad.status)){
+    if(!['travelling','scavenging','returning','war_moving','holding_objective'].includes(squad.status)){
       const togetherAtBase=living.filter(n=>n.location===squad.location);
       for(const n of living.filter(n=>n.location!==squad.location)){n.squadId=null;}
       living=togetherAtBase;squad.members=living.map(n=>n.id);
@@ -109,7 +121,7 @@ function tickSouls(world,locations,random=Math.random,now=Date.now()){
         if(squad.routeIndex>=squad.route.length-1){squad.status='camped';squad.lastReturnedAt=now;squad.route=[];squad.routeIndex=0;for(const n of together){n.action='camp';n.behavior='camp';n.duty='rest_at_base';n.nextDecisionAt=now+5*60*1000;}}
         events.push({type:'npc_squad_return',squadId:squad.id,from,location:next,text:`Отряд «${squad.name}» возвращается через сектор ${next}.`,at:now});}
       else {squad.status='camped';squad.route=[];}
-    } else if((squad.status==='camped'||!squad.status)&&living.length>=2&&together.length>=2&&now-(squad.lastRaidAt||0)>=20*60*1000&&random()<.08){
+    } else if(!squad.missionType&&(squad.status==='camped'||!squad.status)&&living.length>=2&&together.length>=2&&now-(squad.lastRaidAt||0)>=20*60*1000&&random()<.08){
       const origin=squad.location;const reachable=[];const queue=[[origin,[origin]]];const seen=new Set([origin]);
       while(queue.length){const [sector,path]=queue.shift();if(path.length>=2&&path.length<=4)reachable.push({sector,path});if(path.length>=4)continue;for(const next of TERRITORY_ADJACENCY[sector]||[]){if(!seen.has(next)){seen.add(next);queue.push([next,[...path,next]]);}}}
       const candidates=reachable.filter(x=>locations.has?locations.has(x.sector):[...locations].includes(x.sector));
@@ -120,6 +132,7 @@ function tickSouls(world,locations,random=Math.random,now=Date.now()){
     squad.size=living.length;
   }
   for(const ev of events){world.npcEvents ||= [];world.npcEvents.push(ev);}world.npcEvents=(world.npcEvents||[]).slice(-100);
+  syncNpcGroups(world);
   return events;
 }
 function makeReplacement(id,locations,random,now,used){

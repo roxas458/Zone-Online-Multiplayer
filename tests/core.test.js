@@ -194,16 +194,15 @@ test('4.20 NPCs stay at their post between decisions instead of teleport-wanderi
 });
 
 
-test('4.20 faction AI launches border assaults only across hostile adjacent sectors', () => {
+test('4.51 local NPC AI no longer launches conflicting sector-wide assaults', () => {
   const { TERRITORY_ADJACENCY } = require('../src/systems/territories');
   assert.ok(TERRITORY_ADJACENCY.bar.includes('dump'));
   const world={territoryOwners:{bar:'Долг',dump:'Бандиты'},territoryControl:{bar:70,dump:60},npcPositions:{},npcState:{}};
   for(let i=0;i<6;i++){const id=`duty_${i}`;world.npcState[id]={id,name:`Долговец ${i}`,faction:'Долг',location:'bar',homeLocation:'bar',baseLocation:'bar',alive:true,health:100,morale:70,supplies:70,action:'guard',behavior:'guard',duty:'base_guard',guardPost:true,nextDecisionAt:9999999,squadId:'duty_squad'};world.npcPositions[id]='bar';}
   const events=tickNpcWorld(world,new Set(['bar','dump']),()=>0,1000);
-  assert.ok(events.some(e=>e.type==='faction_assault'));
-  assert.equal(world.frontlineOrders[0].target,'dump');
-  assert.equal(world.npcState.duty_0.missionOrder.target,'dump');
-  assert.equal(world.territoryOrders.dump.faction,'Долг');
+  assert.ok(!events.some(e=>e.type==='faction_assault'));
+  assert.equal(world.npcState.duty_0.missionOrder,undefined);
+  assert.equal(world.territoryOwners.dump,'Бандиты');
 });
 
 test('NPC faction hostility matrix distinguishes enemy and neutral factions', () => {

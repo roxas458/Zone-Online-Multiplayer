@@ -1,8 +1,8 @@
 // WAR SYSTEM domain rules. All inputs are validated by the caller before persistence.
 const WAR_CONFIG = Object.freeze({ operationCost: 350, deploymentCost: 100, maxParticipants: 24, maxActiveOperations: 8, minimumDeployments: 2 });
 const clamp = (n, min, max) => Math.max(min, Math.min(max, Number(n) || 0));
-function createOperation({ id, location, attacker, defender, createdBy, now = Date.now(), territoryControl = 50 }) {
-  return { id, location, attacker, defender, createdBy, createdAt: now, status: 'active', phase: 'mobilization', participants: [], attackScore: 0, defenseScore: clamp(territoryControl, 20, 100), log: [{ at: now, text: `Началась операция: ${attacker} против ${defender}.` }] };
+function createOperation({ id, location, pointId = null, pointName = null, attacker, defender, createdBy, now = Date.now(), territoryControl = 50 }) {
+  return { id, location, pointId, pointName, attacker, defender, createdBy, createdAt: now, status: 'active', phase: 'mobilization', participants: [], attackScore: 0, defenseScore: clamp(territoryControl, 20, 100), log: [{ at: now, text: `Началась операция: ${attacker} против ${defender}.` }] };
 }
 function deploymentPower({ xp = 0, rep = 0, action = 'attack' }) {
   return clamp(10 + Math.floor(clamp(xp, 0, 1e7) / 100) + Math.floor(clamp(rep, -1000, 1000) / 20) + (action === 'defend' ? 4 : 0), 10, 80);

@@ -84,7 +84,7 @@ function tickNpcWorld(world, locations, random = Math.random, now = Date.now()) 
     if(!Number.isFinite(Number(npc.x))||!Number.isFinite(Number(npc.y))){const initial=npcWorldPosition(npc);npc.x=initial.x;npc.y=initial.y;}
     if(npc.destinationPoint){const dx=npc.destinationPoint.x-npc.x,dy=npc.destinationPoint.y-npc.y,dist=Math.hypot(dx,dy),step=Math.min(dist,5+random()*5);if(dist<=step+1){npc.x=npc.destinationPoint.x;npc.y=npc.destinationPoint.y;npc.destinationPoint=null;if(npc.action==='travel')npc.action='patrol';}else{npc.x+=dx/dist*step;npc.y+=dy/dist*step;npc.action='travel';npc.behavior='patrol';}}
     // No unauthorized faction migration: old-save NPCs return to their own nearest friendly sector.
-    const activeSquad=(world.npcSquads||[]).find(s=>s.id===npc.squadId&&['travelling','scavenging','returning'].includes(s.status));
+    const activeSquad=(world.npcSquads||[]).find(s=>s.id===npc.squadId&&['travelling','scavenging','returning','war_moving','holding_objective'].includes(s.status));
     if(activeSquad){world.npcPositions[npc.id]=npc.location;continue;}
     const hasOrder=!!npc.missionOrder;
     const occupied=!!npc.occupationGarrison&&owners[npc.location]===npc.faction;
@@ -129,29 +129,10 @@ function tickNpcWorld(world, locations, random = Math.random, now = Date.now()) 
     npc.destination=null;
     world.npcPositions[npc.id]=npc.location;
   }
-  // Border commands: send a small, persistent assault squad only across a real hostile frontier.
-  world.territoryOrders ||= {}; world.frontlineOrders ||= []; world.battlefronts ||= []; world.convoys ||= [];
+  // Strategic campaigns are managed by faction-war.js against explicit key points.
+  world.territoryOrders ||= {}; world.battlefronts ||= []; world.convoys ||= [];
   for(const [sector,order] of Object.entries(world.territoryOrders))if(order.expiresAt&&order.expiresAt<=now)delete world.territoryOrders[sector];
-  const borders=[];const seenBorders=new Set();
-  for(const [from,neighbors] of Object.entries(TERRITORY_ADJACENCY))for(const to of neighbors){
-    const key=[from,to].sort().join('|');if(seenBorders.has(key))continue;seenBorders.add(key);
-    const fromFaction=owners[from],toFaction=owners[to];
-    if(fromFaction&&toFaction&&fromFaction!==toFaction&&isHostileFaction(fromFaction,toFaction,world.diplomacy))borders.push({from,to,attacker:fromFaction,defender:toFaction});
-  }
-  if(borders.length&&random()<.14){
-    const border=choose(borders,random);
-    const alreadyActive=world.frontlineOrders.some(o=>o.target===border.to&&o.status==='active'&&o.attacker===border.attacker);
-    if(!alreadyActive&&!world.battlefronts.some(b=>b.location===border.to&&b.status==='active')){
-      const squad=Object.values(world.npcState).filter(n=>n.alive&&n.faction===border.attacker&&n.location===border.from&&!n.missionOrder&&!n.occupationGarrison).slice(0,6);
-      if(squad.length>=3){
-        const order={id:`front_${border.from}_${border.to}_${now}`,from:border.from,target:border.to,attacker:border.attacker,defender:border.defender,status:'active',launchedAt:now,squad:squad.map(n=>n.id)};
-        world.frontlineOrders.unshift(order);world.frontlineOrders=world.frontlineOrders.slice(0,24);
-        world.territoryOrders[border.to]={faction:border.attacker,type:'attack',expiresAt:now+45*60000};
-        for(const npc of squad){npc.missionOrder={type:'attack',target:border.to,orderId:order.id};npc.nextDecisionAt=now;npc.action='travel';npc.behavior='assault';npc.duty='assault_squad';npc.guardPost=false;}
-        events.push({type:'faction_assault',location:border.to,attacker:border.attacker,defender:border.defender,text:`Отряд группировки «${border.attacker}» выдвинулся из ${border.from} к сектору ${border.to}, который контролирует «${border.defender}».`,at:now});
-      }
-    }
-  }
+  // This replaces the legacy sector-wide border assault scheduler.
   // Persistent faction warfare: hostile units that meet in a sector exchange fire.
   const byLocation = new Map();
   for (const npc of Object.values(world.npcState)) if (npc.alive) { const group = byLocation.get(npc.location) || []; group.push(npc); byLocation.set(npc.location, group); }
@@ -175,11 +156,15 @@ function tickNpcWorld(world, locations, random = Math.random, now = Date.now()) 
       engagement.status='resolved';engagement.endedAt=now;
       const winner=attackAlive===defenseAlive?(attackAlive>0?(random()<.5?engagement.attacker:engagement.defender):null):(attackAlive>defenseAlive?engagement.attacker:engagement.defender);
       engagement.winner=winner;
-      if(winner){world.territoryOwners ||= {};world.territoryControl ||= {};world.territoryOwners[location]=winner;world.territoryControl[location]=55;
-        for(const survivor of group.filter(n=>n.alive&&n.faction===winner)){survivor.occupationGarrison=true;survivor.duty='occupation_garrison';survivor.action='guard';survivor.behavior='guard';survivor.guardPost=true;}
-        for(const order of world.frontlineOrders||[])if(order.target===location&&order.status==='active'){order.status=winner===order.attacker?'captured':'repelled';order.resolvedAt=now;order.winner=winner;}
-        delete world.territoryOrders?.[location];
-        events.push({type:'territory_captured',location,winner,text:`Группировка «${winner}» установила контроль над сектором ${location} после столкновения.`,at:now});}
+      if(winner){
+        // A local NPC clash is not enough to transfer an entire sector.
+        // Key-point ownership and sector aggregation are handled centrally by faction-war.js.
+        for(const survivor of group.filter(n=>n.alive&&n.faction===winner)){
+          survivor.lastClashWinner=winner;
+          survivor.morale=clamp((Number(survivor.morale)||50)+3,0,100);
+        }
+        events.push({type:'faction_clash_resolved',location,winner,text:`Столкновение в секторе ${location} завершилось в пользу группировки «${winner}». Контроль ключевых объектов пока не изменился.`,at:now});
+      }
     }
     events.push({type:'npc_skirmish',location,participants:[a.id,b.id],attacker:engagement.attacker,defender:engagement.defender,text:`Перестрелка: ${engagement.attacker} и ${engagement.defender} ведут бой в секторе ${location}.`,at:now});
   }
