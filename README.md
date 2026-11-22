@@ -1,4 +1,4 @@
-ZONE ONLINE 4.45.0
+ZONE ONLINE 4.46.0
 
 # ZONE ONLINE 4.39.0
 
@@ -180,3 +180,11 @@ ZONE ONLINE 4.45.0
 - Radio tab previews incoming faction transmissions only; the existing receive-only radio rules remain unchanged.
 - Sectors tab lists nearby strategic sectors and opens their map details without leaving the map screen.
 - Added responsive styling for mobile and full-screen map layouts.
+
+## 4.46.0 — BUGFIX & CODE CLEANUP
+
+- Fixed sector visit history and travel statistics: they now update on each confirmed expedition hop, including intermediate sectors.
+- Offline random encounters are scheduled after the expedition reaches its destination, not when the travel order is submitted.
+- Removed four shadowed duplicate map interaction function declarations.
+- Unified cache-busting versions for first-party browser scripts.
+- Added regression coverage for duplicate declarations and expedition arrival bookkeeping.
