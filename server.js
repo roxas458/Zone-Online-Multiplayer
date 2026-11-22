@@ -158,7 +158,7 @@ function recordStalkerKill(player,npc){
 }
 
 function publicNpcRoster(){
-  const fields=['id','name','faction','role','location','x','y','alive','generated','supportSpecialist','icon','personality','mood','action','behavior','duty','guardPost','homeLocation','destination','destinationPoint','route','health','morale','supplies','biography','friends','rivals','squadId','squadName','dialogueVersion','relationships','equipment'];
+  const fields=['id','name','faction','role','location','x','y','alive','generated','supportSpecialist','icon','personality','mood','action','behavior','duty','guardPost','homeLocation','health','morale','supplies','biography','friends','rivals','squadId','squadName','dialogueVersion','relationships','equipment'];
   return Object.fromEntries(Object.entries(world.npcState||{}).map(([id,n])=>[id,Object.fromEntries(fields.filter(k=>n[k]!==undefined).map(k=>[k,n[k]]))]));
 }
 function publicWorldSnapshot(){
