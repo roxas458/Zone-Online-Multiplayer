@@ -19,6 +19,7 @@ const { npcWorldPosition, inRange, INTERACTION_RADIUS, COMBAT_RADIUS } = require
 const { ensureOnlineWorld, appendWorldEvent, buildWorldSync, publicWorldStatus } = require('./src/systems/online-world');
 const { initEcosystem, tickEcosystem, upgradeBase, createClan, joinClan, addEcoEvent } = require('./src/systems/ecosystem');
 const { initSouls, tickSouls } = require('./src/systems/souls');
+const { tickEmission, emissionDamage, publicEmissionState } = require('./src/systems/emissions');
 
 const online = new Map();
 const recentChat = [];
@@ -277,6 +278,7 @@ io.on('connection', socket=>{
       // Acknowledge after registration but BEFORE the world snapshot, so clients
       // receive the small acknowledgement without waiting for a large NPC payload.
       if(typeof ack==='function'){ack({ok:true,accepted:true,persistent:dbReady});console.info(`[socket] player:hello ack sent id=${socket.id}`);}
+      s.state.emission = { ...publicEmissionState(world), active: world.emission.phase === 'active', warning: world.emission.phase === 'warning' };
       socket.emit('player:ready',{id, savedState:s.state, guest:true, world:publicWorldSnapshot(), worldSync:initialWorldSync(Number(payload?.lastRevision)||0), status:publicWorldStatus(world,online.size), chat:recentChat.filter(m=>!m.location||m.location===p.location).slice(-60), players:onlineList(), leaderboard:leaderboardPayload(), position:{x:p.x,y:p.y}, persistent:dbReady});
       for(const entry of (world.events||[])){const offer=entry?.type==='trade'?entry.offer:null;if(offer?.to===id&&offer.status==='pending'&&Number(offer.expiresAt)>Date.now())socket.emit('trade:incoming',offer); }
       console.log(`player:hello completed for ${id} in ${Date.now()-helloStartedAt}ms (dbWait=${dbWaitMs}ms profile=${profileLoadMs}ms state=${stateValidationMs}ms db=${dbReady?'postgres':'memory-fallback'})`);
@@ -292,7 +294,12 @@ io.on('connection', socket=>{
   });
   socket.on('player:save', async input=>{
     const id=socket.data.playerId, p=online.get(id); if(!id||!p)return;
-    const s=safeState(input); const previousLocation=p.location, previousFaction=p.faction; const squad=squadOf(id); const firstCharacter=!p.state?.characterCreated&&s.state?.characterCreated===true; if(p.state?.characterCreated&&!firstCharacter){s.state.faction=p.faction;s.faction=p.faction;} if(firstCharacter){const spawn=SPAWN_BY_FACTION[s.faction]||'cordon';s.state.loc=spawn;s.state.visitedLocations=[...new Set([...(s.state.visitedLocations||[]),spawn])];s.loc=spawn;const spawnPoint=SECTOR_COORDS[spawn]||SECTOR_COORDS.cordon;p.x=spawnPoint[0];p.y=spawnPoint[1];s.state.worldPosition={x:p.x,y:p.y};s.state.mapCoordinateVersion=2;} if(squad&&squad.leader!==id&&s.loc!==squad.location)s.state.loc=squad.location; p.name=s.name;p.faction=s.faction;p.location=squad&&squad.leader!==id?squad.location:s.loc;p.x=Number.isFinite(Number(s.state?.worldPosition?.x))?Math.max(0,Math.min(1000,Math.round(Number(s.state.worldPosition.x)))):p.x;p.y=Number.isFinite(Number(s.state?.worldPosition?.y))?Math.max(0,Math.min(2000,Math.round(Number(s.state.worldPosition.y)))):p.y;p.hp=s.hp;p.xp=s.xp;p.lastSeen=Date.now();p.state=s.state;socket.data.name=s.name; if(previousLocation!==p.location){socket.leave(`location:${previousLocation}`);socket.join(`location:${p.location}`);socket.emit('world:chat:history',recentChat.filter(m=>!m.location||m.location===p.location).slice(-60));} if(previousFaction!==p.faction){socket.leave(`faction:${previousFaction}`);socket.join(`faction:${p.faction}`);}
+    const s=safeState(input);
+    const authoritativeEmission = publicEmissionState(world);
+    s.state.emission = { ...authoritativeEmission, active: authoritativeEmission.phase === 'active', warning: authoritativeEmission.phase === 'warning' };
+    s.state.survival ||= {};
+    s.state.survival.shelterUntil = Math.min(Math.max(0, Number(s.state.survival.shelterUntil) || 0), Date.now() + 10 * 60 * 1000);
+    const previousLocation=p.location, previousFaction=p.faction; const squad=squadOf(id); const firstCharacter=!p.state?.characterCreated&&s.state?.characterCreated===true; if(p.state?.characterCreated&&!firstCharacter){s.state.faction=p.faction;s.faction=p.faction;} if(firstCharacter){const spawn=SPAWN_BY_FACTION[s.faction]||'cordon';s.state.loc=spawn;s.state.visitedLocations=[...new Set([...(s.state.visitedLocations||[]),spawn])];s.loc=spawn;const spawnPoint=SECTOR_COORDS[spawn]||SECTOR_COORDS.cordon;p.x=spawnPoint[0];p.y=spawnPoint[1];s.state.worldPosition={x:p.x,y:p.y};s.state.mapCoordinateVersion=2;} if(squad&&squad.leader!==id&&s.loc!==squad.location)s.state.loc=squad.location; p.name=s.name;p.faction=s.faction;p.location=squad&&squad.leader!==id?squad.location:s.loc;p.x=Number.isFinite(Number(s.state?.worldPosition?.x))?Math.max(0,Math.min(1000,Math.round(Number(s.state.worldPosition.x)))):p.x;p.y=Number.isFinite(Number(s.state?.worldPosition?.y))?Math.max(0,Math.min(2000,Math.round(Number(s.state.worldPosition.y)))):p.y;p.hp=s.hp;p.xp=s.xp;p.lastSeen=Date.now();p.state=s.state;socket.data.name=s.name; if(previousLocation!==p.location){socket.leave(`location:${previousLocation}`);socket.join(`location:${p.location}`);socket.emit('world:chat:history',recentChat.filter(m=>!m.location||m.location===p.location).slice(-60));} if(previousFaction!==p.faction){socket.leave(`faction:${previousFaction}`);socket.join(`faction:${p.faction}`);}
     try{ await persistPlayer(id,s.state); }catch(e){socket.emit('server:error',{message:'Не удалось сохранить профиль на сервере.'});console.error(e);}
     if(previousLocation!==p.location){ world.onlineMetrics ||= {totalJoins:0,totalMoves:0,lastTickAt:0}; world.onlineMetrics.totalMoves+=1; const ev=appendWorldEvent(world,'player_moved',{playerId:id,name:p.name,faction:p.faction,from:previousLocation,to:p.location}); io.to('zone-world').emit('world:event',ev); if(squad&&squad.leader===id)publishSquadMove(squad,previousLocation,p.location,p.name); await persistWorld(); }
     if(firstCharacter)socket.emit('player:spawned',{state:p.state,location:p.location});
@@ -687,6 +694,31 @@ io.on('connection', socket=>{
   });
 });
 
+function applyEmissionExposure(player, emission, now) {
+  if (!player?.state || emission?.phase !== 'active') return false;
+  const state = player.state;
+  state.survival ||= {};
+  const survival = state.survival;
+  if (survival.emissionCycle !== emission.cycle) {
+    survival.emissionCycle = emission.cycle;
+    survival.lastEmissionDamageAt = 0;
+  }
+  if (now - Number(survival.lastEmissionDamageAt || 0) < 55_000) return false;
+  const sheltered = Number(survival.shelterUntil || 0) > now;
+  const suit = (state.items || []).find(item => item?.name === state.equipment?.suit && item.type === 'Броня');
+  const damage = emissionDamage(sheltered, Number(suit?.defense || 0) * 5);
+  const currentHp = Number.isFinite(Number(state.hp)) ? Math.max(0, Number(state.hp)) : 100;
+  if (currentHp <= 0) return false;
+  state.hp = Math.max(1, currentHp - damage.hp);
+  state.radiation = Math.min(100, (Number(state.radiation) || 0) + damage.radiation);
+  state.stamina = Math.max(0, (Number(state.stamina) || 0) - damage.stamina);
+  survival.lastEmissionDamageAt = now;
+  state.emission = { ...publicEmissionState({ emission }), active: true, warning: false };
+  socketSafeEmit(player.id, 'player:survival:update', { state, message: sheltered ? 'Укрытие защитило от основной волны.' : 'Выброс воздействует на организм. Найди укрытие.' });
+  persistPlayer(player.id, state).catch(error => console.error('emission player save:', error.message));
+  return true;
+}
+
 function socketSafeEmit(playerId,event,payload){io.to(playerId).emit(event,payload);}
 let playerMovementTickRunning=false;
 setInterval(async()=>{
@@ -726,6 +758,20 @@ setInterval(async()=>{
   try {
     initSharedWorld(world, NPC_HOME, LOCATIONS, COOP_TEMPLATES);
     const now=Date.now(), events=tickNpcWorld(world,LOCATIONS,Math.random,now);
+    const emissionEvent = tickEmission(world, now);
+    if (emissionEvent) {
+      const syncEvent = appendWorldEvent(world, 'emission_phase', emissionEvent, now);
+      io.emit('world:emission', publicEmissionState(world));
+      io.emit('world:event', syncEvent);
+      io.emit('world:zoneEvent', emissionEvent);
+      systemMessage(`${emissionEvent.title}: ${emissionEvent.body}`);
+    }
+    const emissionState = publicEmissionState(world);
+    for (const player of online.values()) {
+      player.state ||= {};
+      player.state.emission = { ...emissionState, active: emissionState.phase === 'active', warning: emissionState.phase === 'warning' };
+      if (emissionState.phase === 'active') applyEmissionExposure(player, world.emission, now);
+    }
     const leaderboard=buildStalkerLeaderboard();
     if(leaderboard.length&&now-(world.stalkerRumorAt||0)>30*60*1000){const star=leaderboard[0];addStalkerNews(`По стоянкам расходится слух: ${star.name} (${star.faction}) сейчас возглавляет рейтинг Зоны с ${star.score} очками.`,star.name);world.stalkerRumorAt=now;}
     for(const p of online.values()){for(const npc of Object.values(world.npcState||{})){if(!npc.alive||npc.location!==p.location)continue;const near=inRange(p,npcWorldPosition(npc),COMBAT_RADIUS),hostile=isHostileFaction(p.faction,npc.faction,world.diplomacy);if(near&&hostile){npc.playerThreatAt ||= {};if(now-(npc.playerThreatAt[p.id]||0)>45000){npc.playerThreatAt[p.id]=now;io.to(p.id).emit('npc:threat',{npcId:npc.id,name:npc.name,faction:npc.faction,distance:Math.round(Math.hypot(p.x-npcWorldPosition(npc).x,p.y-npcWorldPosition(npc).y))});}}else if(!hostile&&near){npc.lastApproachAt ||= 0;if(now-npc.lastApproachAt>8*60*1000&&Math.random()<.12){npc.lastApproachAt=now;io.to(p.id).emit('npc:approach',{npcId:npc.id,text:`${npc.name} замечает тебя и подходит поговорить. «Эй, сталкер. Есть минутка?»`});}}}}

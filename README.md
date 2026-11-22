@@ -1,4 +1,4 @@
-# ZONE ONLINE 4.33.26
+# ZONE ONLINE 4.33.37
 
 Обновление главного меню: атмосферный стартовый экран, продолжение и загрузка локального сохранения, запуск новой игры с выбором группировки и позывного, переход к сетевой игре и опциям. Адаптивная компоновка для мобильных экранов.
 
@@ -23,3 +23,11 @@
 - Drag to pan, wheel or buttons to zoom, and click anywhere on the map to move or request travel to another sector.
 - Slower walking speed in online and offline play.
 - Original map artwork and existing game content are preserved.
+
+
+## 4.33.37 — Realistic Zone foundation
+
+- Added a persistent server-authoritative emission cycle shared by multiplayer clients.
+- Added warning, active, and residual-radiation phases with predictable durations.
+- Added server-side exposure damage with shelter and suit protection.
+- Preserved legacy save migration and offline emission fallback.

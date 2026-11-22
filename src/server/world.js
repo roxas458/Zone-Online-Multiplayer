@@ -4,6 +4,7 @@ const { createNpcRoster } = require('../systems/npc-ai');
 const { ensureRandomNpcs } = require('../systems/npc-roster');
 const { buildDialogue } = require('../systems/npc-dialogue');
 const { initEcosystem } = require('../systems/ecosystem');
+const { initEmission } = require('../systems/emissions');
 function initSharedWorld(world, NPC_HOME, LOCATIONS, COOP_TEMPLATES) {
   world.npcPositions ||= {};
   world.npcState ||= {};
@@ -26,6 +27,7 @@ function initSharedWorld(world, NPC_HOME, LOCATIONS, COOP_TEMPLATES) {
   world.npcPositions = Object.fromEntries(Object.values(world.npcState).filter(n => n.alive).map(n => [n.id, n.location]));
   world.coOpQuests ||= COOP_TEMPLATES.map(q => ({ ...q, participants: [], done: false }));
   initEcosystem(world);
+  initEmission(world);
 }
 
 function initDiplomacy(world, FACTIONS) {

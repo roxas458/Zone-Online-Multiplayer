@@ -79,6 +79,8 @@ test('world bootstrap creates NPC positions, quests and diplomacy', () => {
   assert.ok(world.diplomacy['Одиночки']['Долг'] !== undefined);
   assert.equal(world.territoryOwners.dump, 'Бандиты');
   assert.equal(world.warOperations.length, 0);
+  assert.equal(world.emission.phase, 'calm');
+  assert.ok(world.emission.nextAt > 0);
   assert.equal(Object.values(world.npcState).filter(n => n.generated).length, 340);
 });
 
