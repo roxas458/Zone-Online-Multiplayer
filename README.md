@@ -1,6 +1,17 @@
-# ZONE ONLINE 4.35.0
+# ZONE ONLINE 4.36.0
 
-## 4.35.0 — Living Dialogue & PDA Identity
+## 4.36.0 — Armory, Contacts & Field Intel
+
+- Removed the generic “Снаряжение” category from the encyclopedia knowledge tree; the encyclopedia now focuses on field reference material.
+- Rebuilt the Armory as a unified catalogue with filters for weapons, armor/suits, helmets, detectors, artifacts and field equipment. The catalogue is informational only: it no longer has an “Equip” action. Equipping remains available from the backpack/inventory.
+- Added catalogue records for protective helmets, detector models and field equipment while preserving existing weapon and armor records.
+- Removed NPC squad summaries from the Characters/Contacts page; squad information remains in the dedicated “Отряды” view above “Задания”. Rescue operations and memorial notices remain in Contacts.
+- Replaced duplicated survival meters and quick-contact widgets in the right sidebar with sector intelligence: local contact counts, allies, neutrals, hostile contacts, discovered points, reputation, weather, emission/mutant status and recent PDA messages.
+- Added responsive styling for the expanded Armory and field-intelligence panels.
+- Preserved the existing inventory equip flow and player save data.
+
+
+## 4.36.0 — Living Dialogue & PDA Identity
 
 - Added original multi-topic signature conversations for Sidorovich, Wolf and Sultan, with legacy quest topics preserved.
 - Added expanded NPC conversations about personal history, life before the Zone, daily work, current local rumors, plans and news from the mainland. Random and ordinary NPC dialogue topics refresh on a 15-minute cycle; the server dialogue generator supports the same signature branches.
@@ -111,7 +122,7 @@
 - Обыск тайника требует подойти к нему, а содержимое выдаётся сервером только один раз.
 
 
-## 4.35.0 — PDA Interface Overhaul
+## 4.36.0 — PDA Interface Overhaul
 
 - Player portrait, callsign, faction, balance, world clock and location are grouped in a right-aligned header dossier.
 - The encyclopedia opens as a full-screen PDA workspace.
