@@ -1,8 +1,8 @@
 {
   "name": "zone-online",
-  "version": "4.38.0",
+  "version": "4.39.0",
   "private": true,
-  "description": "ZONE ONLINE — character creation loadout, Zone reports and restored squad display",
+  "description": "ZONE ONLINE — faction radio, dynamic world events, NPC approach and clickable stash map",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
