@@ -196,3 +196,47 @@ test('full faction war lifecycle deploys, marches, captures, returns, and releas
   assert.ok(squad.lastFactionMissionAt>0);
   assert.ok(world.factionWarHistory.some(entry=>entry.pointId===target&&entry.to==='Долг'));
 });
+
+
+test('Monolith expansion strategy keeps attacking loner positions even with low intelligence reserves',()=>{
+  const world={npcState:{a:{id:'a',name:'Боец',faction:'Монолит',location:'radar',alive:true},b:{id:'b',name:'Разведчик',faction:'Монолит',location:'radar',alive:true}},npcSquads:[{id:'monolith_squad',name:'Северный дозор',faction:'Монолит',location:'radar',members:['a','b'],status:'camped'}],factionResources:{'Монолит':{supplies:100,materials:60,intel:0,artifacts:0}}};
+  initFactionWar(world,1000);
+  const target=world.keyPoints.chaes_1;
+  target.owner='Одиночки';
+  const events=tickFactionWar(world,1_000_000,()=>0.5);
+  assert.equal(world.factionCommand['Монолит'].directive,'capture');
+  assert.ok(events.some(e=>e.type==='faction_squad_deployed'&&e.faction==='Монолит'));
+  assert.equal(world.npcSquads[0].missionType,'faction_war');
+});
+
+test('expansionist squad dispatch is no longer blocked by the old low random chance and seven-minute lockout',()=>{
+  const world={npcState:{a:{id:'a',name:'Боец',faction:'Монолит',location:'radar',alive:true},b:{id:'b',name:'Разведчик',faction:'Монолит',location:'radar',alive:true}},npcSquads:[{id:'monolith_squad',name:'Северный дозор',faction:'Монолит',location:'radar',members:['a','b'],status:'camped',lastFactionMissionAt:1_000_000-4*60_000}]};
+  initFactionWar(world,1_000_000);
+  world.keyPoints.chaes_1.owner='Одиночки';
+  const events=tickFactionWar(world,1_000_000,()=>0.5);
+  assert.ok(events.some(e=>e.type==='faction_squad_deployed'));
+});
+
+test('well-defended objectives can still be captured in a reasonable time',()=>{
+  const npcState={};
+  for(let i=0;i<3;i++)npcState[`attacker${i}`]={id:`attacker${i}`,name:`Атакующий ${i}`,faction:'Долг',location:'wild',alive:true};
+  for(let i=0;i<8;i++)npcState[`defender${i}`]={id:`defender${i}`,name:`Защитник ${i}`,faction:'Наёмники',location:'wild',alive:true,guardPost:true};
+  const world={npcState,npcSquads:[{id:'s1',name:'Северный дозор',faction:'Долг',location:'wild',members:['attacker0','attacker1','attacker2'],status:'holding_objective',missionType:'faction_war',targetPointId:'wild_1',targetLocation:'wild',route:['bar','wild'],routeIndex:1,nextCaptureAt:0}]};
+  initFactionWar(world,1000);
+  world.keyPoints.wild_1.owner='Наёмники';
+  let now=2000;
+  for(let i=0;i<9&&world.keyPoints.wild_1.owner!=='Долг';i++){tickFactionWar(world,now,()=>0.5);now+=30_000;}
+  assert.equal(world.keyPoints.wild_1.owner,'Долг');
+});
+
+
+test('NPC squads never attack a same-sector faction with neutral or friendly diplomacy',()=>{
+  const world={diplomacy:{'Монолит':{'Одиночки':10}},npcState:{a:{id:'a',name:'Боец',faction:'Монолит',location:'radar',alive:true},b:{id:'b',name:'Разведчик',faction:'Монолит',location:'radar',alive:true}},npcSquads:[{id:'monolith_squad',name:'Дозор',faction:'Монолит',location:'radar',members:['a','b'],status:'camped'}]};
+  initFactionWar(world,1000);
+  for(const point of Object.values(world.keyPoints))point.owner='Монолит';
+  world.keyPoints.radar_1.owner='Одиночки';
+  const events=tickFactionWar(world,1_000_000,()=>0);
+  assert.equal(world.npcSquads[0].missionType,undefined);
+  assert.equal(world.keyPoints.radar_1.contestedBySquadId,null);
+  assert.ok(!events.some(e=>e.type==='faction_squad_deployed'));
+});

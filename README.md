@@ -1,6 +1,12 @@
-# ZONE ONLINE 4.57.1
+# ZONE ONLINE 4.57.2
 
-## 4.57.1 — Faction War & Public Data Hotfix
+## 4.57.2 — Faction War Activity & Capture Balance
+
+- Повышена частота стратегических вылазок экспансионистских группировок: шанс отправки отряда 58%, период повторной готовности сокращён до 4 минут.
+- Монолит и Свобода теперь ставят доступные вражеские объекты выше обычной разведки и снабжения, если штаб не занят срочной обороной или запросом игрока.
+- Увеличена скорость захвата укреплённых объектов: влияние гарнизона ограничено, прогресс обновляется каждые 30 секунд.
+- Расширен поиск маршрутов до 5 переходов и добавлен резервный источник стартовой дипломатии.
+- Добавлены регрессионные тесты на наступление Монолита, частоту отправки отрядов и захват укреплённых объектов.
 - Fixed missing sector-coordinate import that crashed strategic faction squad movement.
 - Added initialization for the public NPC position index before squad movement updates.
 - Implemented return-route advancement so completed squads return to camp and can be redeployed.
