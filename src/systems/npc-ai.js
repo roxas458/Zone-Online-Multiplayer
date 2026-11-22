@@ -84,6 +84,8 @@ function tickNpcWorld(world, locations, random = Math.random, now = Date.now()) 
     if(!Number.isFinite(Number(npc.x))||!Number.isFinite(Number(npc.y))){const initial=npcWorldPosition(npc);npc.x=initial.x;npc.y=initial.y;}
     if(npc.destinationPoint){const dx=npc.destinationPoint.x-npc.x,dy=npc.destinationPoint.y-npc.y,dist=Math.hypot(dx,dy),step=Math.min(dist,5+random()*5);if(dist<=step+1){npc.x=npc.destinationPoint.x;npc.y=npc.destinationPoint.y;npc.destinationPoint=null;if(npc.action==='travel')npc.action='patrol';}else{npc.x+=dx/dist*step;npc.y+=dy/dist*step;npc.action='travel';npc.behavior='patrol';}}
     // No unauthorized faction migration: old-save NPCs return to their own nearest friendly sector.
+    const activeSquad=(world.npcSquads||[]).find(s=>s.id===npc.squadId&&['travelling','scavenging','returning'].includes(s.status));
+    if(activeSquad){world.npcPositions[npc.id]=npc.location;continue;}
     const hasOrder=!!npc.missionOrder;
     const occupied=!!npc.occupationGarrison&&owners[npc.location]===npc.faction;
     if(Object.keys(owners).length&&!occupied&&!hasOrder&&!canEnterTerritory(npc.faction,npc.location,owners,world.territoryOrders||{})){

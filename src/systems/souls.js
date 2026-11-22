@@ -1,5 +1,6 @@
 // Persistent social lives for wandering stalkers: biographies, bonds, squads, raids and memorials.
 const { ensureRandomNpcs, generatedName } = require('./npc-roster');
+const { TERRITORY_ADJACENCY } = require('./territories');
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,Number(n)||0));
 const BIOGRAPHY_BITS=[
   'Пришёл в Зону после того, как обычная жизнь стала казаться слишком тесной.',
@@ -35,10 +36,20 @@ function initSouls(world,random=Math.random){
     if(rivals.length&&random()<0.42){const rival=rivals[Math.floor(random()*rivals.length)];npc.rivals.push(rival.id);rival.rivals ||= [];if(!rival.rivals.includes(npc.id))rival.rivals.push(npc.id);}
   }
   if(!world.npcSquads.length){
-    const byFaction={};
-    for(const npc of npcs.filter(n=>n.alive)){(byFaction[npc.faction] ||= []).push(npc);}
-    for(const [faction,members] of Object.entries(byFaction)){
-      for(let i=0;i+1<members.length;i+=3){const group=members.slice(i,i+3);if(group.length<2)continue;const id=`squad_${factionSlug(faction)}_${world.npcSquads.length+1}`;const squad={id,name:`${pick(['Кривой маршрут','Последний болт','Тихая смена','Северный чай'],random)} · ${group[0].name}`,faction,leaderId:group[0].id,members:group.map(n=>n.id),location:group[0].location,status:'camped',createdAt:Date.now(),lastRaidAt:0};world.npcSquads.push(squad);for(const n of group)n.squadId=id;}
+    // Form squads only from people who are physically together; never teleport strangers into a group.
+    const byFactionAndLocation={};
+    for(const npc of npcs.filter(n=>n.alive)){
+      const key=`${npc.faction}::${npc.location}`;
+      (byFactionAndLocation[key] ||= []).push(npc);
+    }
+    for(const members of Object.values(byFactionAndLocation)){
+      const faction=members[0]?.faction;
+      for(let i=0;i+1<members.length;i+=3){
+        const group=members.slice(i,i+3);if(group.length<2)continue;
+        const id=`squad_${factionSlug(faction)}_${world.npcSquads.length+1}`;
+        const squad={id,name:`${pick(['Кривой маршрут','Последний болт','Тихая смена','Северный чай'],random)} · ${group[0].name}`,faction,leaderId:group[0].id,members:group.map(n=>n.id),location:group[0].location,status:'camped',createdAt:Date.now(),lastRaidAt:0};
+        world.npcSquads.push(squad);for(const n of group)n.squadId=id;
+      }
     }
   }
   return world;
@@ -62,12 +73,45 @@ function tickSouls(world,locations,random=Math.random,now=Date.now()){
     }
   }
   for(const squad of world.npcSquads||[]){
-    const living=squad.members.map(id=>npcs[id]).filter(n=>n&&n.alive);
+    let living=squad.members.map(id=>npcs[id]).filter(n=>n&&n.alive);
+    if(!['travelling','scavenging','returning'].includes(squad.status)){
+      const togetherAtBase=living.filter(n=>n.location===squad.location);
+      for(const n of living.filter(n=>n.location!==squad.location)){n.squadId=null;}
+      living=togetherAtBase;squad.members=living.map(n=>n.id);
+    }
     squad.members=living.map(n=>n.id);
     if(!living.length){squad.status='disbanded';continue;}
-    if(random()<0.12){
-      const from=squad.location;const destinations=[...locations].filter(x=>x!==from);if(destinations.length){squad.location=destinations[Math.floor(random()*destinations.length)];squad.status='on_raid';squad.lastRaidAt=now;for(const n of living){n.location=squad.location;n.action='raid';n.history ||= [];n.history.push({action:'raid',location:squad.location,at:now});n.history=n.history.slice(-20);world.npcPositions[n.id]=n.location;}events.push({type:'npc_squad_raid',squadId:squad.id,location:squad.location,text:`Отряд «${squad.name}» отправился в рейд и замечен в секторе ${squad.location}.`,at:now});}
-    }else if(squad.status==='on_raid'&&now-(squad.lastRaidAt||0)>8*60*1000){squad.status='camped';}
+    // Keep a squad together only when its members are actually in the same sector.
+    const together=living.filter(n=>n.location===squad.location);
+    if(squad.status==='travelling'&&now>=(squad.nextMoveAt||0)){
+      const next=squad.route?.[Number(squad.routeIndex||0)+1];
+      if(next){
+        const from=squad.location;squad.routeIndex=(squad.routeIndex||0)+1;squad.location=next;
+        for(const n of together){n.location=next;n.action='travel';n.behavior='squad_raid';n.duty='squad_expedition';n.history ||= [];n.history.push({action:'squad_travel',location:next,at:now});n.history=n.history.slice(-20);world.npcPositions[n.id]=next;}
+        squad.nextMoveAt=now+2*60*1000+Math.floor(random()*2*60*1000);
+        if(squad.routeIndex>=squad.route.length-1){squad.status='scavenging';squad.scavengeUntil=now+3*60*1000;squad.nextMoveAt=squad.scavengeUntil;}
+        events.push({type:'npc_squad_travel',squadId:squad.id,from,location:next,text:`Отряд «${squad.name}» прошёл из ${from} в сектор ${next}.`,at:now});
+      }
+    } else if(squad.status==='scavenging'&&now>=(squad.scavengeUntil||0)){
+      const found=2+Math.floor(random()*5);
+      for(const n of together){n.supplies=clamp((n.supplies||0)+found,0,100);n.action='camp';n.behavior='scavenge';n.duty='supply_search';n.memory ||= [];n.memory.push({type:'found_supplies',amount:found,location:squad.location,at:now});n.memory=n.memory.slice(-30);}
+      squad.status='returning';squad.route=(squad.route||[]).slice(0,(squad.routeIndex||0)+1).reverse();squad.routeIndex=0;squad.nextMoveAt=now+2*60*1000;
+      events.push({type:'npc_squad_scavenge',squadId:squad.id,location:squad.location,text:`Отряд «${squad.name}» нашёл припасы в секторе ${squad.location} и собирается обратно.`,at:now});
+    } else if(squad.status==='returning'&&now>=(squad.nextMoveAt||0)){
+      const next=squad.route?.[Number(squad.routeIndex||0)+1];
+      if(next){const from=squad.location;squad.routeIndex=(squad.routeIndex||0)+1;squad.location=next;for(const n of together){n.location=next;n.action='travel';n.behavior='squad_return';n.duty='return_to_base';world.npcPositions[n.id]=next;}squad.nextMoveAt=now+2*60*1000+Math.floor(random()*2*60*1000);
+        if(squad.routeIndex>=squad.route.length-1){squad.status='camped';squad.lastReturnedAt=now;squad.route=[];squad.routeIndex=0;for(const n of together){n.action='camp';n.behavior='camp';n.duty='rest_at_base';n.nextDecisionAt=now+5*60*1000;}}
+        events.push({type:'npc_squad_return',squadId:squad.id,from,location:next,text:`Отряд «${squad.name}» возвращается через сектор ${next}.`,at:now});}
+      else {squad.status='camped';squad.route=[];}
+    } else if((squad.status==='camped'||!squad.status)&&living.length>=2&&together.length>=2&&now-(squad.lastRaidAt||0)>=20*60*1000&&random()<.08){
+      const origin=squad.location;const reachable=[];const queue=[[origin,[origin]]];const seen=new Set([origin]);
+      while(queue.length){const [sector,path]=queue.shift();if(path.length>=2&&path.length<=4)reachable.push({sector,path});if(path.length>=4)continue;for(const next of TERRITORY_ADJACENCY[sector]||[]){if(!seen.has(next)){seen.add(next);queue.push([next,[...path,next]]);}}}
+      const candidates=reachable.filter(x=>locations.has?locations.has(x.sector):[...locations].includes(x.sector));
+      if(candidates.length){const target=pick(candidates,random);squad.route=target.path;squad.routeIndex=0;squad.status='travelling';squad.lastRaidAt=now;squad.returnLocation=origin;squad.nextMoveAt=now+2*60*1000;
+        for(const n of together){n.action='travel';n.behavior='squad_raid';n.duty='squad_expedition';n.missionOrder=null;n.nextDecisionAt=now+60*60*1000;}
+        events.push({type:'npc_squad_raid',squadId:squad.id,location:origin,target:target.sector,route:target.path,text:`Отряд «${squad.name}» выдвинулся из ${origin} в разведывательный рейд к сектору ${target.sector}.`,at:now});}
+    }
+    squad.size=living.length;
   }
   for(const ev of events){world.npcEvents ||= [];world.npcEvents.push(ev);}world.npcEvents=(world.npcEvents||[]).slice(-100);
   return events;
