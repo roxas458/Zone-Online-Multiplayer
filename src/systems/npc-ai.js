@@ -82,7 +82,7 @@ function tickNpcMovement(world,now=Date.now(),speed=8){
     if(!Number.isFinite(Number(npc.x))||!Number.isFinite(Number(npc.y))){const initial=npcWorldPosition(npc);npc.x=initial.x;npc.y=initial.y;}
     // Ordinary stalkers periodically leave their post for short local patrols.
     // Traders and named commanders remain at their authored positions unless ordered.
-    if(!npc.destinationPoint&&!npc.travelTo&&['camp','guard','patrol'].includes(npc.action)&&!['торговец','командир','главарь'].some(role=>String(npc.role||'').includes(role))){
+    if(!npc.lifeRoutine&&!npc.destinationPoint&&!npc.travelTo&&['camp','guard','patrol'].includes(npc.action)&&!['торговец','командир','главарь'].some(role=>String(npc.role||'').includes(role))){
       npc.nextRoamAt ||= now+15000+(npcSeed(npc.id)%35000);
       if(now>=npc.nextRoamAt){const center=SECTOR_COORDS[npc.location]||SECTOR_COORDS.cordon,seed=(npcSeed(npc.id+'|'+Math.floor(now/45000))>>>0),angle=(seed%10000)/10000*Math.PI*2,radius=28+((seed>>>8)%68);npc.destinationPoint={x:Math.max(4,Math.min(996,center[0]+Math.cos(angle)*radius)),y:Math.max(4,Math.min(1996,center[1]+Math.sin(angle)*radius))};npc.action='patrol';npc.behavior='patrol';npc.duty='sector_patrol';npc.guardPost=false;npc.nextRoamAt=now+45000+(seed%45000);}
     }
@@ -129,6 +129,8 @@ function tickNpcWorld(world, locations, random = Math.random, now = Date.now()) 
     // No unauthorized faction migration: old-save NPCs return to their own nearest friendly sector.
     const activeSquad=(world.npcSquads||[]).find(s=>s.id===npc.squadId&&['travelling','scavenging','returning','war_moving','holding_objective'].includes(s.status));
     if(activeSquad){world.npcPositions[npc.id]=npc.location;continue;}
+    if(npc.lifeRoutine&&!npc.missionOrder){world.npcPositions[npc.id]=npc.location;continue;}
+    if(npc.missionOrder)npc.lifeRoutine=null;
     if(npc.destinationPoint){world.npcPositions[npc.id]=npc.location;continue;}
     const hasOrder=!!npc.missionOrder;
     const occupied=!!npc.occupationGarrison&&owners[npc.location]===npc.faction;

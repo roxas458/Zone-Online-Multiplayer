@@ -26,6 +26,7 @@ const { npcWorldPosition, inRange, INTERACTION_RADIUS, COMBAT_RADIUS } = require
 const { ensureOnlineWorld, appendWorldEvent, buildWorldSync, publicWorldStatus } = require('./src/systems/online-world');
 const { initEcosystem, tickEcosystem, tickMutantMovement, upgradeBase, createClan, joinClan, addEcoEvent } = require('./src/systems/ecosystem');
 const { initSouls, tickSouls } = require('./src/systems/souls');
+const { tickNpcLife } = require('./src/systems/npc-life');
 const { initFactionWar, tickFactionWar, aggregateTerritories } = require('./src/systems/faction-war');
 const { tickNpcAftermath, lootCorpse } = require('./src/systems/npc-aftermath');
 const { tickNpcRescue } = require('./src/systems/npc-rescue');
@@ -894,6 +895,23 @@ setInterval(async()=>{
     if(movedAny)broadcastOnline();
   }catch(e){console.error('Player movement tick:',e.message);}finally{playerMovementTickRunning=false;}
 },1000).unref();
+
+// A-Life routine scheduler: individual NPCs visit camps, traders and search areas.
+// Runs independently of the 60-second strategic faction planner.
+let npcLifeTickRunning=false;
+setInterval(()=>{
+  if(npcLifeTickRunning)return;npcLifeTickRunning=true;
+  try{
+    const now=Date.now();
+    const events=tickNpcLife(world,now,Math.random);
+    for(const event of events){
+      io.emit('world:npc-event',event);
+      if(event.type==='npc_artifact_found'||event.type==='npc_social_encounter'){
+        const synced=appendWorldEvent(world,event.type,event,now);io.emit('world:event',synced);
+      }
+    }
+  }catch(e){console.error('NPC A-Life tick:',e.message);}finally{npcLifeTickRunning=false;}
+},15000).unref();
 
 // Real-time NPC locomotion is deliberately separated from strategic AI decisions.
 // It advances only existing movement targets and broadcasts compact position deltas.
