@@ -1,8 +1,8 @@
 {
   "name": "zone-online",
-  "version": "4.41.0",
+  "version": "4.42.0",
   "private": true,
-  "description": "ZONE ONLINE — NPC faction radio, artifact discovery, detector progression and map signals",
+  "description": "ZONE ONLINE — cooperative artifact expeditions, character identity generator and expanded armor catalogue",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",

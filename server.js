@@ -169,7 +169,7 @@ function publicNpcRoster(){
 function publicWorldSnapshot(){
   // The full world is already included in player:ready. Do not include the
   // event history or NPC roster here: they are synchronized separately.
-  const {npcState,npcEvents,eventLog,stashes,stashIntel,stashSearchCooldown,...snapshot}=world;
+  const {npcState,npcEvents,eventLog,stashes,stashIntel,stashSearchCooldown,pendingArtifactRewards,...snapshot}=world;
   return snapshot;
 }
 function initialWorldSync(sinceRevision){
@@ -180,7 +180,7 @@ function initialWorldSync(sinceRevision){
 function publicWorldSync(sinceRevision){
   const sync=buildWorldSync(world,sinceRevision);
   if(sync.mode==='snapshot'&&sync.snapshot){
-    const {npcState,npcEvents,eventLog,stashes,stashIntel,stashSearchCooldown,...snapshot}=sync.snapshot;
+    const {npcState,npcEvents,eventLog,stashes,stashIntel,stashSearchCooldown,pendingArtifactRewards,...snapshot}=sync.snapshot;
     return {...sync,snapshot};
   }
   return sync;
@@ -283,6 +283,7 @@ io.on('connection', socket=>{
       // receive the small acknowledgement without waiting for a large NPC payload.
       if(typeof ack==='function'){ack({ok:true,accepted:true,persistent:dbReady});console.info(`[socket] player:hello ack sent id=${socket.id}`);}
       s.state.emission = { ...publicEmissionState(world), active: world.emission.phase === 'active', warning: world.emission.phase === 'warning' };
+      world.pendingArtifactRewards ||= {};const pendingRewards=world.pendingArtifactRewards[id]||[];for(const reward of pendingRewards){s.state.items ||= [];const found=s.state.items.find(x=>x.id===reward.id);if(found)found.qty=(Number(found.qty)||0)+1;else s.state.items.push({...reward,qty:1});}if(pendingRewards.length){delete world.pendingArtifactRewards[id];p.state=s.state;await persistPlayer(id,s.state);}
       socket.emit('player:ready',{id, savedState:s.state, guest:true, world:publicWorldSnapshot(), worldSync:initialWorldSync(Number(payload?.lastRevision)||0), status:publicWorldStatus(world,online.size), chat:recentChat.filter(m=>!m.location||m.location===p.location).slice(-60), players:onlineList(), leaderboard:leaderboardPayload(), position:{x:p.x,y:p.y}, persistent:dbReady});
       for(const entry of (world.events||[])){const offer=entry?.type==='trade'?entry.offer:null;if(offer?.to===id&&offer.status==='pending'&&Number(offer.expiresAt)>Date.now())socket.emit('trade:incoming',offer); }
       console.log(`player:hello completed for ${id} in ${Date.now()-helloStartedAt}ms (dbWait=${dbWaitMs}ms profile=${profileLoadMs}ms state=${stateValidationMs}ms db=${dbReady?'postgres':'memory-fallback'})`);
@@ -357,6 +358,35 @@ io.on('connection', socket=>{
     emitNpcState(socket);
   });
   socket.on('radio:state',()=>{const p=online.get(socket.data.playerId);if(!p)return;socket.emit('radio:state',{faction:p.faction,messages:listFactionRadio(world,p.faction)});});
+  const artifactExpeditionSnapshot=(location)=>{const now=Date.now();for(const e of (world.artifactExpeditions||[])){if(e.status==='searching'&&now>=Number(e.readyAt||Infinity))e.status='ready';if(['searching','ready'].includes(e.status)&&now>=Number(e.expiresAt||Infinity))e.status='expired';}return {expeditions:(world.artifactExpeditions||[]).filter(e=>['searching','ready'].includes(e.status)&&(!location||e.location===location)).slice(-30)};};
+  socket.on('artifact-expedition:state',()=>{const p=online.get(socket.data.playerId);if(!p)return;socket.emit('artifact-expedition:state',artifactExpeditionSnapshot(p.location));});
+  socket.on('artifact-expedition:create',async()=>{
+    const p=online.get(socket.data.playerId);if(!p)return;
+    world.artifactExpeditions ||= [];
+    const existing=world.artifactExpeditions.find(e=>e.location===p.location&&['searching','ready'].includes(e.status));
+    if(existing){socket.emit('artifact-expedition:result',{ok:false,message:'В этом секторе уже есть активный общий сигнал.',expeditions:artifactExpeditionSnapshot(p.location).expeditions});return;}
+    const defs=[['artifact_spring','Пружина'],['artifact_battery','Батарейка'],['artifact_shell','Ракушка'],['artifact_bubble','Пузырь'],['artifact_firefly','Светляк'],['artifact_kolobok','Колобок'],['artifact_compass','Компас'],['artifact_medusa','Медуза'],['artifact_flower','Каменный цветок']];
+    const chosen=defs[Math.floor(Math.random()*defs.length)],center=SECTOR_COORDS[p.location]||SECTOR_COORDS.cordon;
+    const expedition={id:crypto.randomUUID(),location:p.location,artifactId:chosen[0],artifactName:chosen[1],x:Math.max(10,Math.min(990,center[0]+Math.round((Math.random()-.5)*110))),y:Math.max(10,Math.min(1990,center[1]+Math.round((Math.random()-.5)*110))),leaderId:p.id,leaderName:p.name,participants:[{id:p.id,name:p.name,faction:p.faction}],status:'searching',createdAt:Date.now(),readyAt:Date.now()+45000,expiresAt:Date.now()+20*60*1000};
+    world.artifactExpeditions.push(expedition);world.artifactExpeditions=world.artifactExpeditions.slice(-80);await persistWorld();io.to(`location:${p.location}`).emit('artifact-expedition:update',{expeditions:artifactExpeditionSnapshot(p.location).expeditions,message:`${p.name} организовал совместный поиск артефакта в секторе ${p.location}.`});const readyTimer=setTimeout(async()=>{if(expedition.status==='searching'){expedition.status='ready';await persistWorld();io.to(`location:${expedition.location}`).emit('artifact-expedition:update',{expeditions:artifactExpeditionSnapshot(expedition.location).expeditions,message:`Сканирование завершено: группа может забрать «${expedition.artifactName}».`});}},45000);readyTimer.unref?.();socket.emit('artifact-expedition:result',{ok:true,message:'Общий сигнал создан. Подожди участников и следи за КПК.',expeditions:artifactExpeditionSnapshot(p.location).expeditions});
+  });
+  socket.on('artifact-expedition:join',async input=>{
+    const p=online.get(socket.data.playerId),id=String(input?.id||'');if(!p)return;
+    const e=(world.artifactExpeditions||[]).find(x=>x.id===id&&x.status==='searching'&&x.location===p.location&&x.expiresAt>Date.now());
+    if(!e){socket.emit('artifact-expedition:result',{ok:false,message:'Экспедиция недоступна или находится в другом секторе.'});return;}
+    if(!e.participants.some(x=>x.id===p.id)){if(e.participants.length>=4){socket.emit('artifact-expedition:result',{ok:false,message:'Группа уже заполнена.'});return;}e.participants.push({id:p.id,name:p.name,faction:p.faction});}
+    await persistWorld();io.to(`location:${p.location}`).emit('artifact-expedition:update',{expeditions:artifactExpeditionSnapshot(p.location).expeditions,message:`${p.name} присоединился к поисковой группе (${e.participants.length}/4).`});socket.emit('artifact-expedition:result',{ok:true,message:'Ты присоединился к совместной экспедиции.',expeditions:artifactExpeditionSnapshot(p.location).expeditions});
+  });
+  socket.on('artifact-expedition:claim',async input=>{
+    const p=online.get(socket.data.playerId),id=String(input?.id||'');if(!p)return;
+    const e=(world.artifactExpeditions||[]).find(x=>x.id===id&&['searching','ready'].includes(x.status));
+    if(!e||e.location!==p.location||!e.participants.some(x=>x.id===p.id)){socket.emit('artifact-expedition:result',{ok:false,message:'Ты не состоишь в этой экспедиции или находишься в другом секторе.'});return;}
+    if(Date.now()<e.readyAt){socket.emit('artifact-expedition:result',{ok:false,message:'Сканирование ещё продолжается. Подожди завершения поиска.'});return;}
+    if(e.status==='claimed'){socket.emit('artifact-expedition:result',{ok:false,message:'Эта находка уже получена.'});return;}
+    e.status='claimed';e.claimedAt=Date.now();const reward={id:e.artifactId,name:e.artifactName,type:'Артефакт',desc:'Общая находка совместной экспедиции.',weight:.6,value:1400,condition:100};world.pendingArtifactRewards ||= {};
+    for(const member of e.participants){const onlineMember=online.get(member.id);if(onlineMember&&onlineMember.location===e.location){const st=safeState(onlineMember.state).state;st.items ||= [];const owned=st.items.find(x=>x.id===reward.id);if(owned)owned.qty=(Number(owned.qty)||0)+1;else st.items.push({...reward,qty:1});onlineMember.state=st;await persistPlayer(member.id,st);io.to(member.id).emit('artifact-expedition:reward',{state:st,message:`Совместная экспедиция завершена: получен артефакт «${e.artifactName}».`});}else{world.pendingArtifactRewards[member.id] ||= [];world.pendingArtifactRewards[member.id].push(reward);}}
+    await persistWorld();io.to(`location:${p.location}`).emit('artifact-expedition:update',{expeditions:artifactExpeditionSnapshot(p.location).expeditions,message:`Экспедиция завершена. Группа обнаружила «${e.artifactName}».`});socket.emit('artifact-expedition:result',{ok:true,message:`Группа получила артефакт «${e.artifactName}».`,expeditions:artifactExpeditionSnapshot(p.location).expeditions});
+  });
   socket.on('world:chat:send', async input=>{
     if(!socket.data.playerId)return;
     const text=clean(input?.text,240);if(!text)return;
