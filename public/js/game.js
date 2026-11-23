@@ -1326,6 +1326,9 @@ const spawnNames={cordon:'Кордон',bar:'Бар',army:'Военные скл
 let onlinePlayers=[], serverWorld=null, serverChat=[], incomingTrades=[], activePlayerSquad=null, activePlayerTradeTarget=null;
 let serverLeaderboard=[], selectedRankId='', rankRecentEvents=[];
 let applyingServerState=false;
+// Prevent the previous server profile from overwriting a deliberately started new character setup.
+let pendingNewCharacterSetup=false;
+let awaitingNewCharacterSaveName="";
 
 render();
 const realClockTimer=setInterval(()=>{
@@ -1527,7 +1530,7 @@ function confirmCharacter(){
  if(setupBackground==='medic')g.items.push({id:'med-background',name:'Дополнительная аптечка',type:'Медицина',desc:'Бонус предыстории полевого медика.',weight:.4,value:100,qty:1,condition:100});if(setupBackground==='technician')g.items.push({id:'scrap-background',name:'Запас деталей',type:'Материал',desc:'Бонус предыстории техника.',weight:.8,value:30,qty:2,condition:100});if(setupBackground==='researcher'){g.rep=(g.rep||0)+3;g.scienceTrust=(g.scienceTrust||0)+3;}if(setupBackground==='wanderer')g.rep=(g.rep||0)+3;g.startingSupplyPoints={spent,budget:STARTER_BUDGET};
  g.news.unshift({day:realClock().day,hour:realClock().time,title:'Регистрация завершена',body:`Сталкер ${name} зарегистрирован в КПК. Группировка: ${setupFaction}. Стартовый комплект: ${spent}/${STARTER_BUDGET} очков снабжения.`});
  g.log.unshift(`Позывной: ${name}. Группировка: ${setupFaction}. Начальная база: ${spawnNames[spawn]||spawn}. Стартовый комплект: ${spent}/${STARTER_BUDGET} очков.`);
- $('characterSetup').classList.remove('show');document.body.classList.remove('title-screen-active');save();mpSyncLocation();renderInventory();
+ $('characterSetup').classList.remove('show');document.body.classList.remove('title-screen-active');pendingNewCharacterSetup=false;awaitingNewCharacterSaveName=name;if(zoneSocket?.connected&&zonePlayerId){localStorage.setItem('zoneExpandedSave',JSON.stringify(g));render();zoneSocket.emit('player:new-game',g);}else save();mpSyncLocation();renderInventory();
 }
 // Turn-based fictional combat. It uses abstract game stats, not real-world tactics.
 let battle=null;
@@ -1851,20 +1854,21 @@ async function connectZone(){
  zoneSocket.on('disconnect',(reason,details)=>{console.warn('ZONE ONLINE socket disconnected:',reason,details?.message||'',details?.description||'',{active:zoneSocket?.active,connected:zoneSocket?.connected,target:zoneSocketTarget});zonePlayerReady=false;if(zoneHelloReadyTimer){clearTimeout(zoneHelloReadyTimer);zoneHelloReadyTimer=null;}if(reason!=='io client disconnect')setOnlineConnectionState('offline',`Соединение с сервером потеряно (${reason||'неизвестная причина'}). Клиент автоматически попробует подключиться снова.`);renderOnlinePlayers();renderOnlineWorldStatus();});
  zoneSocket.io.on('reconnect_attempt',()=>setOnlineConnectionState('connecting','Повторное подключение к серверу…'));
  zoneSocket.on('player:hello:error',data=>setOnlineConnectionState('offline',data?.message||'Не удалось завершить вход.'));
+ zoneSocket.on('player:new-game:error',data=>{awaitingNewCharacterSaveName='';g.characterCreated=false;pendingNewCharacterSetup=true;localStorage.removeItem('zoneExpandedSave');document.body.classList.remove('title-screen-active');openCharacterSetup();alert(data?.message||'Не удалось создать нового персонажа на сервере.');});
  zoneSocket.on('server:error',e=>{console.warn(e.message);setOnlineConnectionState('offline',e?.message||'Ошибка сервера.');});
- zoneSocket.on('player:save:ack',data=>{if(!data?.state)return;const protectedFields=['money','items','hp','xp','rep','quests','careerStats','faction','characterCreated','visitedLocations','equipment','weaponSlots','armor','artifacts','skills','rank','reputation','stash','stashItems','tradeHistory','level','perks','achievements'];for(const key of protectedFields){if(Object.prototype.hasOwnProperty.call(data.state,key))g[key]=data.state[key];}if(data.position&&Number.isFinite(Number(data.position.x))&&Number.isFinite(Number(data.position.y)))g.worldPosition={x:Number(data.position.x),y:Number(data.position.y)};localStorage.setItem('zoneExpandedSave',JSON.stringify(g));renderInventory();});
+ zoneSocket.on('player:save:ack',data=>{if(pendingNewCharacterSetup||!data?.state)return;if(awaitingNewCharacterSaveName&&data.state.name!==awaitingNewCharacterSaveName)return;if(awaitingNewCharacterSaveName)awaitingNewCharacterSaveName='';const protectedFields=['money','items','hp','xp','rep','quests','careerStats','faction','characterCreated','visitedLocations','equipment','weaponSlots','armor','artifacts','skills','rank','reputation','stash','stashItems','tradeHistory','level','perks','achievements'];for(const key of protectedFields){if(Object.prototype.hasOwnProperty.call(data.state,key))g[key]=data.state[key];}if(data.position&&Number.isFinite(Number(data.position.x))&&Number.isFinite(Number(data.position.y)))g.worldPosition={x:Number(data.position.x),y:Number(data.position.y)};localStorage.setItem('zoneExpandedSave',JSON.stringify(g));renderInventory();});
  zoneSocket.on('player:ready',data=>{
   zonePlayerReady=true;
   if(zoneHelloReadyTimer){clearTimeout(zoneHelloReadyTimer);zoneHelloReadyTimer=null;}
   setOnlineConnectionState('online',data.persistent?'Гостевой мультиплеер подключён. Мир сохраняется на сервере.':'Гостевой мультиплеер подключён. Сервер работает без постоянной базы.');
   zonePlayerId=data.id;localStorage.setItem('zoneOnlinePlayerId',zonePlayerId);if(data.sessionToken)localStorage.setItem('zoneGuestSessionToken',data.sessionToken);if(data?.world?.playerSquads){const squad=Object.values(data.world.playerSquads).find(q=>q.members?.some(m=>m.id===zonePlayerId));renderPlayerSquad({squad:squad||null});}renderPlayerFriends(data?.world?.playerFriends?.[zonePlayerId]||[]);
-  if(data.savedState&&typeof data.savedState==='object'){applyingServerState=true;g=data.savedState;if(g.dead||Number(g.hp)<=0){applyingServerState=false;playerDeath(g.deathCause||'погиб в Зоне');return;}if(g.characterCreated===undefined)g.characterCreated=true;migrateWorld();localStorage.setItem('zoneExpandedSave',JSON.stringify(g));applyingServerState=false;render();if(g.characterCreated)$('characterSetup')?.classList.remove('show');else if(!$('characterSetup')?.classList.contains('show'))openCharacterSetup();}
+  if(!pendingNewCharacterSetup&&data.savedState&&typeof data.savedState==='object'&&(!awaitingNewCharacterSaveName||data.savedState.name===awaitingNewCharacterSaveName)){applyingServerState=true;g=data.savedState;if(g.dead||Number(g.hp)<=0){applyingServerState=false;playerDeath(g.deathCause||'погиб в Зоне');return;}if(g.characterCreated===undefined)g.characterCreated=true;migrateWorld();localStorage.setItem('zoneExpandedSave',JSON.stringify(g));applyingServerState=false;render();if(g.characterCreated)$('characterSetup')?.classList.remove('show');else if(!$('characterSetup')?.classList.contains('show'))openCharacterSetup();}
   if(data.position&&Number.isFinite(Number(data.position.x))&&Number.isFinite(Number(data.position.y))){g.worldPosition={x:Number(data.position.x),y:Number(data.position.y)};g.mapCoordinateVersion=2;localStorage.setItem('zoneExpandedSave',JSON.stringify(g));}
   serverWorld=data.world||null;if(serverWorld?.emission){g.emission={...serverWorld.emission,active:serverWorld.emission.phase==='active',warning:serverWorld.emission.phase==='warning'};localStorage.setItem('zoneExpandedSave',JSON.stringify(g));}syncNpcRosterToClient();applyWorldSync(data.worldSync);if(serverWorld?.discoveredPoints)applySharedDiscoveredPoints(serverWorld.discoveredPoints);renderWar();renderOnlineWorldStatus(data.status);if(serverWorld?.diplomacy){g.diplomacy=serverWorld.diplomacy;renderDiplomacy();}if(serverWorld?.npcPositions)applySharedNpcPositions(serverWorld.npcPositions);renderCoopQuests(serverWorld?.coOpQuests||[]);
   applyLeaderboard(data.leaderboard||[]);onlinePlayers=data.players||[];serverChat=(data.chat||[]).filter(m=>!m.location||m.location===g.loc);renderOnlinePlayers();renderServerChat();
   if($('mpName'))$('mpName').value=g.name;if($('localChatHeading'))$('localChatHeading').textContent=`Локальный канал КПК · ${locationName(g.loc)}`;
   $('mpStatusText').textContent=data.persistent?'Гостевой режим · профиль и общий мир сохраняются на сервере.':'Гостевой режим · данные сервера хранятся в памяти и сбросятся после перезапуска.';
-  if(!data.savedState)zoneSocket.emit('player:save',g);
+  if(!data.savedState&&!pendingNewCharacterSetup)zoneSocket.emit('player:save',g);
   renderPlayerTrade();renderIncomingTrades();mpSyncLocation();zoneSocket.emit('stash:state');renderStashes();
  });
  zoneSocket.on('radio:state',data=>{factionRadioMessages=data?.messages||[];renderFactionRadio();});
@@ -1988,7 +1992,9 @@ function continueZoneGame(){
  $('characterSetup')?.classList.remove('show');render();renderOnlineWorldStatus?.();
 }
 function beginNewZoneGame(){
- if(g.characterCreated&&!confirm('Начать новую игру? Текущее локальное сохранение будет заменено.'))return;
+ if(g.characterCreated&&!confirm('Начать новую игру? Текущее сохранение персонажа будет заменено после подтверждения создания нового.'))return;
+ // Keep the existing server profile intact until the player confirms the new character.
+ pendingNewCharacterSetup=true;
  localStorage.removeItem('zoneExpandedSave');
  g=clone(base);g.characterCreated=false;setupFaction='Одиночки';selectedSetupPortrait='stalker-01.webp';setupBackground='wanderer';
  document.body.classList.remove('title-screen-active');
