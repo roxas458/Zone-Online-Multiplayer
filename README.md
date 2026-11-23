@@ -1,4 +1,14 @@
-# ZONE ONLINE 4.58.0
+# ZONE ONLINE 4.59.0
+
+## 4.59.0 — Faction ranks, contracts, equipment and smoother NPC movement
+
+- Expanded character creation primary-weapon choices from three weapons to a broader progression-friendly selection.
+- Replaced fire/muzzle-flash combat markers with restrained crossed-blade tactical signals.
+- Added six Clear Sky-inspired ranks shared by players and NPCs, with insignia labels.
+- NPC rank tiers now influence faction-specific armor and weapon loadouts; elite NPCs can carry heavy armor and exoskeletons.
+- Added faction-specific quest boards for all ten factions and filtered unrelated story-giver quests out of other factions' journals.
+- NPC map positions now interpolate smoothly between authoritative movement updates to reduce visible snapping.
+- Added additional high-tier armor to starter and trader equipment choices.
 
 ## 4.58.0 — Visible NPC Battles & Tactical Battle Reports
 

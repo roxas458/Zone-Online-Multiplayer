@@ -101,7 +101,7 @@ const { canComplete } = require('../src/systems/contracts');
 test('Living Zone relationship and rank systems have bounded progression', () => {
   assert.equal(changeRelationship(98, 10), 100);
   assert.equal(relationshipLabel(-50), 'Враждебность');
-  assert.equal(rankForXp(500).name, 'Старший боец');
+  assert.equal(rankForXp(500).name, 'Ветеран');
 });
 
 test('territory influence transfers control only at full influence', () => {

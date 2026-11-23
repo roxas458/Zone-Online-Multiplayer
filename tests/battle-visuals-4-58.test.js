@@ -7,15 +7,15 @@ const game = fs.readFileSync(path.join(root, 'public/js/game.js'), 'utf8');
 const ai = fs.readFileSync(path.join(root, 'src/systems/npc-ai.js'), 'utf8');
 const css = fs.readFileSync(path.join(root, 'public/css/game.css'), 'utf8');
 
-test('4.58 NPCs in combat are visibly marked with animated fire and muzzle flashes', () => {
+test('4.59 NPCs in combat use subdued tactical crossed-blade signals instead of fire', () => {
   assert.match(game, /marker-in-combat/);
-  assert.match(game, /combat-flame/);
-  assert.match(game, /combat-muzzle-flash/);
-  assert.match(css, /zoneFireFlicker/);
-  assert.match(css, /zoneMuzzleFlash/);
+  assert.match(game, /combat-crossed-blades/);
+  assert.match(css, /combat-signal-ring/);
+  assert.doesNotMatch(game, /combat-flame|combat-muzzle-flash|🔥/);
+  assert.doesNotMatch(css, /zoneFireFlicker|zoneMuzzleFlash|combat-flame/);
 });
 
-test('4.58 active battlefronts are clickable map hotspots with battle details', () => {
+test('4.59 active battlefronts are clickable map hotspots with battle details', () => {
   assert.match(game, /const activeBattles=/);
   assert.match(game, /showMapBattle\('\$\{esc\(battle\.id\)\}'\)/);
   assert.match(game, /function showMapBattle\(id\)/);
@@ -23,13 +23,13 @@ test('4.58 active battlefronts are clickable map hotspots with battle details', 
   assert.match(game, /БОЕВОЕ СТОЛКНОВЕНИЕ/);
 });
 
-test('4.58 battlefronts retain a bounded list of NPC participants for tactical reports', () => {
+test('4.59 battlefronts retain a bounded list of NPC participants for tactical reports', () => {
   assert.match(ai, /engagement\.participants \|\|= \[\]/);
   assert.match(ai, /engagement\.participants\.push\(participant\)/);
   assert.match(ai, /engagement\.participants=engagement\.participants\.slice\(-24\)/);
 });
 
-test('4.58 weapon catalogue contains 67 entries, including melee weapons', () => {
+test('4.59 weapon catalogue contains 67 entries, including melee weapons', () => {
   const match = game.match(/const weaponCatalogue=\[([\s\S]*?)\n\];/);
   assert.ok(match, 'weapon catalogue exists');
   assert.equal((match[1].match(/\["[a-z0-9_]+"/g) || []).length, 67);

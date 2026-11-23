@@ -37,7 +37,7 @@ test('NPC marker updates avoid per-frame animation and per-NPC DOM queries',()=>
  const end=js.indexOf('function npcRoutePoints(n)',start);
  const body=js.slice(start,end);
  assert.match(body,/npcMarkerElements\.get/);
- assert.doesNotMatch(body,/requestAnimationFrame/);
+ assert.match(body,/requestAnimationFrame/);
  assert.doesNotMatch(body,/document\.querySelector\(/);
 });
 test('cancelled or replaced expeditions clear pending strategic-object travel intent',()=>{
