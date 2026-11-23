@@ -1,6 +1,6 @@
-# ZONE ONLINE 4.59.0
+# ZONE ONLINE 4.59.1
 
-## 4.59.0 — Faction ranks, contracts, equipment and smoother NPC movement
+## 4.59.1 — Faction ranks, contracts, equipment and smoother NPC movement
 
 - Expanded character creation primary-weapon choices from three weapons to a broader progression-friendly selection.
 - Replaced fire/muzzle-flash combat markers with restrained crossed-blade tactical signals.

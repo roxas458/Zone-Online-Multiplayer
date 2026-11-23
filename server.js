@@ -334,6 +334,30 @@ io.on('connection', socket=>{
     await persistPlayer(id,player.state);
     socket.emit('player:death',{cause:player.state.deathCause,at:player.state.diedAt});
   });
+  socket.on('player:new-game', async input=>{
+    const id=socket.data.playerId, p=online.get(id);
+    if(!id||!p)return;
+    const s=safeState(input);
+    if(!s.characterCreated||s.name.length<2||!FACTIONS.has(input?.faction)){
+      socket.emit('player:new-game:error',{message:'Не удалось зарегистрировать нового персонажа. Проверь имя и группировку.'});
+      return;
+    }
+    // This explicit action is only sent after the player presses НАЧАТЬ ИГРУ.
+    // It intentionally replaces protected progression fields; ordinary player:save cannot do this.
+    const spawn=SPAWN_BY_FACTION[s.faction]||'cordon';
+    s.state.loc=spawn;
+    s.state.visitedLocations=[...new Set([...(Array.isArray(s.state.visitedLocations)?s.state.visitedLocations:[]),spawn])];
+    s.state.characterCreated=true;
+    const authoritative=reconcilePlayerPosition(p,s.state,{firstCharacter:true,spawnLocation:spawn,spawnPoint:SECTOR_COORDS[spawn]||SECTOR_COORDS.cordon,squadLocation:null});
+    socket.leave(`location:${p.location}`);socket.leave(`faction:${p.faction}`);
+    p.name=s.name;p.faction=s.faction;p.location=authoritative.location;p.x=authoritative.x;p.y=authoritative.y;
+    p.hp=authoritative.state.hp;p.xp=authoritative.state.xp;p.lastSeen=Date.now();p.state=authoritative.state;socket.data.name=s.name;
+    socket.join(`location:${p.location}`);socket.join(`faction:${p.faction}`);
+    try{await persistPlayer(id,p.state);}catch(e){socket.emit('player:new-game:error',{message:'Не удалось сохранить нового персонажа на сервере.'});console.error(e);return;}
+    socket.emit('player:spawned',{state:p.state,location:p.location});
+    socket.emit('player:save:ack',{state:p.state,position:{x:p.x,y:p.y},location:p.location});
+    broadcastOnline();
+  });
   socket.on('player:save', async input=>{
     const id=socket.data.playerId, p=online.get(id); if(!id||!p)return;
     const clientState=safeState(input);
