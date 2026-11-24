@@ -74,10 +74,12 @@ function evaluateFactionCommand(world,faction,now){
   let directive='patrol',text='Патрулировать подконтрольные маршруты и поддерживать связь между стоянками.',target=null,hqRelocated=false;
   const hqSecure=points.some(p=>p.location===command.headquarters&&p.owner===faction);
   if(!hqSecure){const byLocation={};for(const point of owned)byLocation[point.location]=(byLocation[point.location]||0)+1;const replacement=Object.entries(byLocation).sort((a,b)=>b[1]-a[1])[0]?.[0];if(replacement&&replacement!==command.headquarters){const old=command.headquarters;command.previousHeadquarters=old;command.headquarters=replacement;directive='guard';target=owned.filter(p=>p.location===replacement).sort((a,b)=>b.production-a.production)[0]||null;text=`Штаб в секторе ${old} потерял опорные объекты. Командование перенесено в ${replacement}; усилить новый узел.`;hqRelocated=true;}}
+  const recovery=prioritizeRecoveryTargets(world,faction,points,now);
   const requests=(world.factionCommandRequests?.[faction]||[]).filter(r=>Number(r.expiresAt)>now).sort((a,b)=>(Number(b.trust)||0)-(Number(a.trust)||0)||b.at-a.at);
   const request=requests.find(r=>points.some(p=>p.id===r.pointId&&p.owner!==faction&&!p.contestedBySquadId));
   const requested=request?points.find(p=>p.id===request.pointId):null;
   if(hqRelocated){}
+  else if(recovery){directive='recovery';text=`Вернуть потерянный объект «${recovery.name}» в секторе ${recovery.location}. Штаб направляет резервы на восстановление прежних рубежей.`;target=points.find(p=>p.id===recovery.pointId)||null;}
   else if(pressured){directive='guard';text=`Усилить охрану объекта «${pressured.name}»: зафиксировано давление на периметр.`;target=pressured;}
   else if(requested){directive='capture';text=`По запросу сталкера ${request.playerName} штаб рассматривает операцию за объект «${requested.name}». Уровень доверия: ${request.trust}.`;target=requested;request.acceptedAt=now;}
   else if(goal.posture==='expansionist'){const hostile=points.filter(p=>p.owner!==faction&&!p.contestedBySquadId&&Number(world.diplomacy?.[faction]?.[p.owner]??DEFAULT_DIPLOMACY[faction]?.[p.owner]??0)<=-15&&routeBetween(command.headquarters,p.location,5)).sort((a,b)=>pointScore(b,faction)-pointScore(a,faction))[0];if(hostile){directive='capture';text=`Наступление: подготовить операцию за объект «${hostile.name}» в секторе ${hostile.location}.`;target=hostile;}else if(Number(resources.supplies)<45||owned.filter(p=>p.type==='supply').length<2){directive='supply';text='Восстановить запасы и обеспечить бесперебойное снабжение подразделений.';target=owned.filter(p=>p.type==='supply').sort((a,b)=>b.production-a.production)[0]||null;}else if(Number(resources.intel)<35){directive='recon';text='Проверить соседние районы и обновить разведывательную картину.';target=points.filter(p=>p.owner!==faction&&['research','relay','anomaly'].includes(p.type)).sort((a,b)=>pointScore(b,faction)-pointScore(a,faction))[0]||null;}}
@@ -88,9 +90,9 @@ function evaluateFactionCommand(world,faction,now){
   const squads=(world.npcSquads||[]).filter(s=>s.faction===faction&&s.status==='camped'&&!s.missionType);
   for(const [index,squad] of squads.entries()){
     let type=directive;
-    if(directive==='capture'&&index>0)type=['recon','patrol','supply'][index%3];
+    if((directive==='capture'||directive==='recovery')&&index>0)type=['recon','patrol','supply'][index%3];
     if(directive==='guard'&&index>0)type=index%2?'patrol':'supply';
-    squad.commandOrder={type,targetPointId:type==='capture'?target?.id:type==='guard'?target?.id:null,targetLocation:target?.location||command.headquarters,issuedAt:now,expiresAt:now+COMMAND_INTERVAL*2,commander:command.leaderName};
+    squad.commandOrder={type,targetPointId:type==='capture'||type==='recovery'?target?.id:type==='guard'?target?.id:null,targetLocation:target?.location||command.headquarters,issuedAt:now,expiresAt:now+COMMAND_INTERVAL*2,commander:command.leaderName};
     squad.commandRole=type;
     const members=(squad.members||[]).map(id=>world.npcState?.[id]).filter(n=>n&&n.alive!==false&&n.location===squad.location);
     for(const npc of members){npc.commandRole=type;npc.commander=command.leaderName;if(type==='guard'){npc.duty='base_guard';npc.behavior='guard';npc.guardPost=true;}else if(type==='recon'){npc.duty='recon_assignment';npc.behavior='recon';}else if(type==='supply'){npc.duty='supply_assignment';npc.behavior='supply_run';}else if(type==='capture'){npc.duty='faction_assignment';}else{npc.duty='patrol_assignment';npc.behavior='patrol';}}
@@ -112,7 +114,7 @@ function initFactionWar(world, now=Date.now()){
       const [name,type,production]=defs[i],id=`${location}_${i+1}`;
       const owner=world.territoryOwners[location]||TERRITORY_START[location]?.owner||'Одиночки';
       const existing=world.keyPoints[id];
-      world.keyPoints[id]={id,location,name,type,production,owner:existing?.owner||owner,control:clamp(existing?.control??(world.territoryControl[location]??60),0,100),captureProgress:clamp(existing?.captureProgress??0,0,100),garrison:Math.max(0,Math.floor(Number(existing?.garrison)||0)),contestedBySquadId:existing?.contestedBySquadId||null,updatedAt:Number(existing?.updatedAt)||now};
+      world.keyPoints[id]={id,location,name,type,production,owner:existing?.owner||owner,control:clamp(existing?.control??(world.territoryControl[location]??60),0,100),captureProgress:clamp(existing?.captureProgress??0,0,100),garrison:Math.max(0,Math.floor(Number(existing?.garrison)||0)),garrisonState:{troops:Math.max(0,Math.floor(Number(existing?.garrisonState?.troops??existing?.garrison)||0)),fortification:clamp(existing?.garrisonState?.fortification??(type==='base'||type==='checkpoint'?2:1),0,5),alert:existing?.garrisonState?.alert||'normal',lastReinforcedAt:Number(existing?.garrisonState?.lastReinforcedAt)||0},supplyStatus:existing?.supplyStatus||'supplied',contestedBySquadId:existing?.contestedBySquadId||null,updatedAt:Number(existing?.updatedAt)||now};
     }
   }
   world.factionObjectives ||= {};
@@ -121,7 +123,12 @@ function initFactionWar(world, now=Date.now()){
     world.factionObjectives[faction] ||= {...def,faction,updatedAt:now};
   }
   world.factionResources ||= {};
-  for(const faction of FACTIONS)world.factionResources[faction] ||= {supplies:100,materials:60,intel:30,artifacts:0};
+  for(const faction of FACTIONS)world.factionResources[faction] ||= {supplies:100,materials:60,intel:30,artifacts:0,morale:70};
+  for(const faction of FACTIONS){world.factionResources[faction].morale=clamp(world.factionResources[faction].morale??70,0,100);}
+  world.factionPacts ||= [];
+  world.factionReinforcementAt ||= 0;
+  world.factionRecovery ||= {};
+  for(const point of Object.values(world.keyPoints)){point.garrisonState ||= {troops:Math.max(0,Number(point.garrison)||0),fortification:point.type==='base'||point.type==='checkpoint'?2:1,alert:'normal',lastReinforcedAt:0};point.garrisonState.troops=Math.max(0,Math.floor(Number(point.garrisonState.troops)||0));point.garrison=point.garrisonState.troops;point.supplyStatus ||= 'supplied';}
   world.factionCommand ||= {};
   for(const faction of FACTIONS)factionCommandState(world,faction,now);
   world.factionWarHistory ||= [];
@@ -180,11 +187,12 @@ function dispatchFactionSquads(world,now,random){
     const eligible=candidates.filter(point=>{
       if(point.owner===faction)return false;
       const relation=Number(world.diplomacy?.[faction]?.[point.owner]??DEFAULT_DIPLOMACY[faction]?.[point.owner]??0);
-      return relation<=-15;
+      return relation<=-15&&!isProtectedByPact(world,faction,point.owner,now);
     });
     if(!eligible.length)continue;
     const order=squad.commandOrder;
-    eligible.sort((a,b)=>((b.id===order?.targetPointId?500:0)+pointScore(b,faction))-((a.id===order?.targetPointId?500:0)+pointScore(a,faction)));
+    const recovery=prioritizeRecoveryTargets(world,faction,eligible,now);
+    eligible.sort((a,b)=>((b.id===recovery?.pointId?900:0)+(b.id===order?.targetPointId?500:0)+pointScore(b,faction))-((a.id===recovery?.pointId?900:0)+(a.id===order?.targetPointId?500:0)+pointScore(a,faction)));
 
     const shortlist=eligible.slice(0,Math.min(4,eligible.length));
     const target=shortlist[Math.floor(random()*shortlist.length)],route=routeBetween(squad.location,target.location,5);
@@ -209,10 +217,95 @@ function finishFactionMission(world,squad,now,events,success){
   for(const npc of members){npc.missionOrder=null;npc.action=reverse.length>1?'travel':'guard';npc.behavior=reverse.length>1?'squad_return':'guard';npc.duty=reverse.length>1?'return_to_base':'base_guard';npc.guardPost=reverse.length<=1;}
 }
 
+
+function activePact(world,a,b,now=Date.now()){
+  return (world.factionPacts||[]).find(p=>p.status==='active'&&p.expiresAt>now&&((p.a===a&&p.b===b)||(p.a===b&&p.b===a)))||null;
+}
+function isProtectedByPact(world,a,b,now=Date.now()){
+  const pact=activePact(world,a,b,now);return !!pact;
+}
+function logFactionWar(world,event){
+  world.factionWarHistory ||= [];world.factionWarHistory.unshift({id:`${event.type}_${event.at}_${Math.random().toString(36).slice(2,7)}`,...event});world.factionWarHistory=world.factionWarHistory.slice(0,100);
+}
+function updateGarrisons(world,now,events,random){
+  const points=Object.values(world.keyPoints||{});
+  for(const point of points){
+    const gs=point.garrisonState ||= {troops:Math.max(0,Number(point.garrison)||0),fortification:1,alert:'normal',lastReinforcedAt:0};
+    const guards=Object.values(world.npcState||{}).filter(n=>n&&n.alive!==false&&n.faction===point.owner&&n.location===point.location&&n.guardPost).length;
+    const ownedAtLocation= Math.max(1,points.filter(p=>p.location===point.location&&p.owner===point.owner).length);
+    gs.troops=Math.max(gs.troops,Math.min(6,Math.floor(guards/ownedAtLocation)));
+    if(point.owner!==point.previousOwner)gs.alert='high';
+    const resource=world.factionResources?.[point.owner];
+    point.supplyStatus=resource&&resource.supplies<15?'cut':resource&&resource.supplies<40?'strained':'supplied';
+    if(point.supplyStatus==='cut')gs.alert='high';else if(gs.alert==='high'&&point.captureProgress===0)gs.alert='normal';
+    if(['base','checkpoint'].includes(point.type)&&now-(Number(gs.lastFortifiedAt)||0)>=5*60_000&&Number(resource?.materials)>=2&&Number(resource?.supplies)>=1&&gs.fortification<5){gs.fortification++;gs.lastFortifiedAt=now;resource.materials-=2;resource.supplies-=1;}
+    point.garrison=gs.troops;
+  }
+  // Transfer abstract reserve troops along connected sectors to the most pressured friendly position.
+  if(now-(Number(world.factionReinforcementAt)||0)>=90_000){
+    for(const faction of FACTIONS){
+      const resource=world.factionResources[faction];if(!resource||resource.supplies<8)continue;
+      const owned=points.filter(p=>p.owner===faction);
+      const target=owned.filter(p=>p.captureProgress>0||p.garrisonState?.alert==='high').sort((a,b)=>(b.captureProgress-a.captureProgress)||(a.garrison-b.garrison))[0];
+      if(!target)continue;
+      const source=owned.filter(p=>p.id!==target.id&&p.garrison>=3&&routeBetween(p.location,target.location,3)).sort((a,b)=>b.garrison-a.garrison)[0];
+      if(!source)continue;
+      const amount=Math.min(3,source.garrison-1,Math.max(1,4-target.garrison));if(amount<=0)continue;
+      source.garrison-=amount;source.garrisonState.troops=source.garrison;
+      target.garrison+=amount;target.garrisonState.troops=target.garrison;target.garrisonState.lastReinforcedAt=now;
+      resource.supplies=Math.max(0,resource.supplies-amount*2);
+      events.push({type:'faction_reinforcements',faction,from:source.location,to:target.location,pointId:target.id,count:amount,text:`Штаб «${faction}» перебросил ${amount} бойца(ов) из сектора ${source.location} к объекту «${target.name}».`,at:now});
+    }
+    world.factionReinforcementAt=now;
+  }
+}
+function applyCaptureConsequences(world,point,previous,faction,now,events){
+  const oldResources=world.factionResources[previous] ||= {supplies:50,morale:70};
+  const newResources=world.factionResources[faction] ||= {supplies:50,morale:70};
+  if(point.type==='supply'){
+    const loss=Math.min(Number(oldResources.supplies)||0,Math.max(12,point.production*12));
+    oldResources.supplies=Math.max(0,(Number(oldResources.supplies)||0)-loss);
+    events.push({type:'faction_supply_disrupted',faction:previous,location:point.location,pointId:point.id,text:`Потерян склад «${point.name}». Запасы группировки «${previous}» сократились на ${loss}.`,at:now});
+  }
+  oldResources.morale=clamp((Number(oldResources.morale)||70)-12,0,100);
+  newResources.morale=clamp((Number(newResources.morale)||70)+5,0,100);
+  world.factionRecovery[previous] ||= {};
+  world.factionRecovery[previous][point.id]={pointId:point.id,location:point.location,name:point.name,lostAt:now,recoverBefore:now+45*60*1000,from:faction};
+  const owned=Object.values(world.keyPoints).filter(p=>p.owner===previous).length;
+  const command=world.factionCommand?.[previous];
+  if(command){command.lastDefeatAt=now;command.defeats=(Number(command.defeats)||0)+1;command.directive='recovery';command.directiveText=owned===0?'Критическое положение: восстановить штаб и вернуть хотя бы один опорный объект.':`Потерян объект «${point.name}». Штаб объявил сбор резервов и подготовку операции по возвращению территории.`;command.targetPointId=point.id;command.issuedAt=now;command.nextDecisionAt=now+5*60*1000;}
+  events.push({type:'faction_headquarters_reaction',faction:previous,pointId:point.id,text:`Штаб «${previous}» отреагировал на поражение: объявлена мобилизация резервов и операция по возвращению объекта «${point.name}».`,at:now});
+}
+function tickFactionDiplomacy(world,now,random,events){
+  for(const pact of world.factionPacts||[])if(pact.status==='active'&&pact.expiresAt<=now){pact.status='expired';events.push({type:'faction_pact_expired',factions:[pact.a,pact.b],text:`Срок соглашения между «${pact.a}» и «${pact.b}» истёк.`,at:now});}
+  world.factionPacts=(world.factionPacts||[]).filter(p=>p.status!=='expired'||now-p.expiresAt<24*60*60*1000);
+  if(now-(Number(world.factionDiplomacyTickAt)||0)<5*60_000)return;
+  const pairs=[];
+  for(let i=0;i<FACTIONS.length;i++)for(let j=i+1;j<FACTIONS.length;j++){
+    const a=FACTIONS[i],b=FACTIONS[j],relation=Number(world.diplomacy?.[a]?.[b]??0);
+    if(activePact(world,a,b,now))continue;
+    if(a==='Монолит'||b==='Монолит'||relation<35||random()>.08)continue;
+    pairs.push({a,b,relation});
+  }
+  if(pairs.length){
+    const pair=pairs[Math.floor(random()*pairs.length)];
+    const kind=pair.relation>=65?'alliance':'truce',duration=kind==='alliance'?30*60_000:12*60_000;
+    world.factionPacts.push({id:`pact_${pair.a}_${pair.b}_${now}`,a:pair.a,b:pair.b,type:kind,status:'active',createdAt:now,expiresAt:now+duration});
+    events.push({type:kind==='alliance'?'faction_alliance_formed':'faction_truce_formed',factions:[pair.a,pair.b],text:kind==='alliance'?`«${pair.a}» и «${pair.b}» заключили военный союз. Их отряды не атакуют друг друга и могут поддерживать общую оборону.`:`«${pair.a}» и «${pair.b}» объявили временное перемирие.`,at:now});
+  }
+  world.factionDiplomacyTickAt=now;
+}
+function prioritizeRecoveryTargets(world,faction,points,now){
+  const recovery=world.factionRecovery?.[faction]||{};
+  return Object.values(recovery).filter(r=>r.recoverBefore>now&&points.some(p=>p.id===r.pointId&&p.owner!==faction&&!p.contestedBySquadId)).sort((a,b)=>b.lostAt-a.lostAt)[0]||null;
+}
+
 function tickFactionWar(world,now=Date.now(),random=Math.random){
   initFactionWar(world,now);
   const events=[];
   tickFactionCommand(world,now,events);
+  tickFactionDiplomacy(world,now,random,events);
+  updateGarrisons(world,now,events,random);
   // Advance strategic squad routes independently from ordinary NPC roaming.
   for(const squad of world.npcSquads||[]){
     // Both outbound and return legs must advance. Previously returning squads
@@ -233,11 +326,19 @@ function tickFactionWar(world,now=Date.now(),random=Math.random){
       const point=world.keyPoints?.[squad.targetPointId];
       if(!point||point.owner===squad.faction){finishFactionMission(world,squad,now,events,!!point);continue;}
       const members=(squad.members||[]).map(id=>world.npcState?.[id]).filter(n=>n&&n.alive!==false&&n.location===squad.location);
-      const defenders=Object.values(world.npcState||{}).filter(n=>n.alive!==false&&n.location===point.location&&n.faction===point.owner&&n.guardPost).length;
+      const defenders=Object.values(world.npcState||{}).filter(n=>n.alive!==false&&n.location===point.location&&n.guardPost&&(n.faction===point.owner||(activePact(world,n.faction,point.owner,now)?.type==='alliance'))).length;
       const effectiveDefenders=Math.min(defenders,8);
-      const gain=clamp(10+members.length*5-effectiveDefenders*1.25,6,30);
-      point.captureProgress=clamp(point.captureProgress+gain,0,100);point.control=clamp(100-point.captureProgress,0,100);point.updatedAt=now;squad.nextCaptureAt=now+30_000;
-      if(point.captureProgress>=100){const previous=point.owner;point.owner=squad.faction;point.control=55;point.captureProgress=0;point.garrison=members.length;point.updatedAt=now;
+      const garrison=Math.max(0,Number(point.garrisonState?.troops??point.garrison)||0);
+      const fortification=Math.max(0,Number(point.garrisonState?.fortification)||0);
+      const resource=world.factionResources[squad.faction]||{};
+      const supplyFactor=Number(resource.supplies)<15?.55:Number(resource.supplies)<40?.8:1;
+      const attackPower=members.length*5*supplyFactor;
+      const defensePower=effectiveDefenders*1+garrison*1.2+fortification+(point.supplyStatus==='cut'?0:2);
+      const gain=clamp(attackPower-defensePower+20,2,24);
+      point.captureProgress=clamp(point.captureProgress+gain,0,100);point.control=clamp(100-point.captureProgress,0,100);
+      if(point.captureProgress>0){point.garrisonState ||= {};point.garrisonState.alert='high';}point.updatedAt=now;squad.nextCaptureAt=now+30_000;
+      if(point.captureProgress>=100){const previous=point.owner;point.owner=squad.faction;point.control=55;point.captureProgress=0;point.garrison=members.length;point.garrisonState={troops:members.length,fortification:Math.max(1,Number(point.garrisonState?.fortification)||1),alert:'normal',lastReinforcedAt:now};point.supplyStatus='supplied';point.previousOwner=previous;point.updatedAt=now;
+        applyCaptureConsequences(world,point,previous,squad.faction,now,events);
         aggregateTerritories(world);
         const resource=world.factionResources[squad.faction];resource.supplies=clamp(resource.supplies+point.production*4,0,10000);resource.materials=clamp(resource.materials+(point.type==='industry'?point.production*5:point.production*2),0,10000);if(point.type==='research'||point.type==='anomaly')resource.intel=clamp(resource.intel+point.production*3,0,10000);
         world.factionWarHistory.unshift({id:`capture_${point.id}_${now}`,pointId:point.id,location:point.location,name:point.name,from:previous,to:squad.faction,at:now});world.factionWarHistory=world.factionWarHistory.slice(0,60);
@@ -249,7 +350,7 @@ function tickFactionWar(world,now=Date.now(),random=Math.random){
   if(now-(Number(world.factionWarLastDispatchAt)||0)>=60_000){events.push(...dispatchFactionSquads(world,now,random));world.factionWarLastDispatchAt=now;}
   // Every controlled point contributes a small, capped flow of strategic resources.
   if(now-(Number(world.factionResourceTickAt)||0)>=5*60_000){
-    for(const point of Object.values(world.keyPoints||{})){const r=world.factionResources[point.owner];if(!r)continue;r.supplies=clamp(r.supplies+point.production,0,10000);if(point.type==='industry')r.materials=clamp(r.materials+point.production,0,10000);if(['research','anomaly','relay'].includes(point.type))r.intel=clamp(r.intel+Math.max(1,Math.floor(point.production/2)),0,10000);}
+    for(const point of Object.values(world.keyPoints||{})){const r=world.factionResources[point.owner];if(!r)continue;const supplied=Number(r.supplies)>=15?1:.45;r.supplies=clamp(r.supplies+(point.type==='supply'?point.production*1.5:point.production*.35),0,10000);if(point.type==='industry')r.materials=clamp(r.materials+point.production*supplied,0,10000);if(['research','anomaly','relay'].includes(point.type))r.intel=clamp(r.intel+Math.max(1,Math.floor(point.production/2))*supplied,0,10000);if(point.type==='base'||point.type==='checkpoint'){point.garrisonState ||= {troops:0,fortification:1};if(r.supplies>=10&&point.garrison<8){point.garrison++;point.garrisonState.troops=point.garrison;}}}
     for(const squad of world.npcSquads||[]){const order=squad.commandOrder;if(!order||Number(order.expiresAt)<now)continue;const r=world.factionResources[squad.faction];if(!r)continue;if(order.type==='supply')r.supplies=clamp(r.supplies+3,0,10000);else if(order.type==='recon')r.intel=clamp(r.intel+2,0,10000);else if(order.type==='guard'){const point=world.keyPoints?.[order.targetPointId];if(point)point.garrison=clamp(point.garrison+1,0,999);}}
     world.factionResourceTickAt=now;
   }
@@ -258,4 +359,4 @@ function tickFactionWar(world,now=Date.now(),random=Math.random){
   return events;
 }
 
-module.exports={FACTION_OBJECTIVES,POINT_DEFS,COMMAND_HEADQUARTERS,COMMAND_LEADER_IDS,initFactionWar,tickFactionWar,tickFactionCommand,evaluateFactionCommand,aggregateTerritories,routeBetween};
+module.exports={FACTION_OBJECTIVES,POINT_DEFS,COMMAND_HEADQUARTERS,COMMAND_LEADER_IDS,initFactionWar,tickFactionWar,tickFactionCommand,evaluateFactionCommand,aggregateTerritories,routeBetween,activePact,isProtectedByPact,updateGarrisons,applyCaptureConsequences,tickFactionDiplomacy};
