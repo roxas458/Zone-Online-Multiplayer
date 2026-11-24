@@ -11,6 +11,9 @@ const { clean, validId, createSafeState } = require('./src/server/validation');
 const { reconcilePlayerPosition } = require('./src/server/player-authority');
 const { mergeClientSaveState } = require('./src/server/player-save');
 const { createGuestAuth } = require('./src/server/guest-auth');
+const { verifyLegacyProfileClaim } = require('./src/server/legacy-claim');
+const { createSocketRateLimiter } = require('./src/server/rate-limit');
+const ZoneSurvival = require('./public/js/survival.js');
 const { applyPlayerTrade } = require('./src/server/player-trade');
 const safeState = createSafeState(FACTIONS, LOCATIONS);
 const guestSessionSecret = process.env.ZONE_SESSION_SECRET || crypto.randomBytes(48).toString('hex');
@@ -110,6 +113,7 @@ io.engine.on('connection', rawSocket=>{
 });
 io.engine.on('connection_error', error=>console.error(`[engine] connection_error code=${error.code} message=${error.message} context=${JSON.stringify(error.context||{})}`));
 const PORT = process.env.PORT || 3000;
+const allowSocketEvent = createSocketRateLimiter();
 const SERVER_PROCESS_STARTED_AT = Date.now();
 const SECTOR_COORDS = Object.freeze({chaes:[503,104],zaton:[561,405],pripyat:[676,649],jupiter:[391,703],limansk:[128,838],red:[311,903],radar:[675,897],army:[502,1046],wild:[347,1212],bar:[441,1215],yantar:[174,1302],dump:[466,1470],agro:[243,1528],dark:[787,1418],cordon:[463,1753],swamps:[185,1788],darkhollow:[793,1742]});
 app.use(express.json({limit:'64kb'}));
@@ -253,6 +257,15 @@ function publishSquadMove(q,from,to,leader){
 }
 
 io.on('connection', socket=>{
+  socket.use((packet, next)=>{
+    const eventName=String(packet?.[0]||'');
+    if(!allowSocketEvent(socket.id,eventName)){
+      const error=new Error('Слишком много запросов. Подожди немного и повтори действие.');
+      error.data={code:'RATE_LIMITED',event:eventName};
+      return next(error);
+    }
+    next();
+  });
   console.info(`[socket] connected id=${socket.id} transport=${socket.conn.transport.name} origin=${clean(socket.handshake.headers.origin||'unknown',180)}`);
   socket.conn.on('upgrade', transport=>console.info(`[socket] upgraded id=${socket.id} transport=${transport.name}`));
   socket.on('error', error=>console.warn(`[socket] error id=${socket.id}:`,clean(error?.message||error,240)));
@@ -279,9 +292,13 @@ io.on('connection', socket=>{
         return;
       }
       if(saved && Number(saved.guestSessionVersion||0)<1){
-        // One-time compatibility migration for profiles created before signed sessions.
-        if(payload?.state && saved.characterCreated!==true && payload.state.characterCreated===true){
-          saved=mergeClientSaveState(saved,safeState(payload.state).state,{allowCharacterCreation:true});
+        // Legacy profiles predate signed sessions. Require proof of possession
+        // of the old local save before assigning the first signed token.
+        if(!verifyLegacyProfileClaim(saved,payload?.state)){
+          const message='Старый профиль требует подтверждения сохранением с этого устройства. Импортируй прежнее локальное сохранение и повтори вход.';
+          socket.emit('player:hello:error',{message,code:'LEGACY_PROFILE_CLAIM_REQUIRED'});
+          if(typeof ack==='function')ack({ok:false,message,code:'LEGACY_PROFILE_CLAIM_REQUIRED'});
+          return;
         }
         saved.guestSessionVersion=1;
       } else if(!saved){
@@ -292,11 +309,19 @@ io.on('connection', socket=>{
       const profileLoadMs=Date.now()-profileLoadStartedAt;
       const stateValidationStartedAt=Date.now();
       const s=safeState(saved);
+      // Server-owned offline survival catch-up, capped to the same three-hour
+      // window as the client simulation. Never trust a client-provided delta.
+      const previousTick=Number(s.state.survivalServerAt)||Number(s.state.survival?.lastTickAt)||Date.now();
+      const offlineElapsed=Math.max(0,Math.min(3*60*60*1000,Date.now()-previousTick));
+      if(offlineElapsed>=60000){ZoneSurvival.advanceNeeds(s.state,offlineElapsed,s.state.atmosphereState?.weather||'overcast');s.state.survival ||= {};s.state.survival.lastTickAt=Date.now();}
+      s.state.survivalServerAt=Date.now();
+      if(!Number.isFinite(Number(s.state.serverShelterUntil)))s.state.serverShelterUntil=Math.max(0,Number(s.state.survival?.shelterUntil)||0);
+      s.state.survival ||= {};s.state.survival.shelterUntil=s.state.serverShelterUntil;
       s.state.guestSessionVersion=1;
       // Never reattach an unvalidated database record after normalizing it.
       await persistPlayer(id,s.state);
       const stateValidationMs=Date.now()-stateValidationStartedAt;
-      const spawnPoint=SECTOR_COORDS[s.loc]||SECTOR_COORDS.cordon;const savedPos=s.state?.worldPosition;const p={ id, name:s.name, faction:s.faction, location:s.loc, x:Number.isFinite(Number(savedPos?.x))?Math.max(0,Math.min(1000,Number(savedPos.x))):spawnPoint[0], y:Number.isFinite(Number(savedPos?.y))?Math.max(0,Math.min(2000,Number(savedPos.y))):spawnPoint[1], hp:s.hp, xp:s.xp, joinedAt:Date.now(), lastSeen:Date.now(), state:s.state, moveOrder:null, travelEncounter:null };
+      const spawnPoint=SECTOR_COORDS[s.loc]||SECTOR_COORDS.cordon;const savedPos=s.state?.worldPosition;const p={ id, name:s.name, faction:s.faction, location:s.loc, x:Number.isFinite(Number(savedPos?.x))?Math.max(0,Math.min(1000,Number(savedPos.x))):spawnPoint[0], y:Number.isFinite(Number(savedPos?.y))?Math.max(0,Math.min(2000,Number(savedPos.y))):spawnPoint[1], hp:s.hp, xp:s.xp, joinedAt:Date.now(), lastSeen:Date.now(), lastSurvivalAt:Date.now(), state:s.state, moveOrder:null, travelEncounter:null };
       // Publish the new owner before closing an older tab/session. The old
       // disconnect handler checks socketId and must never remove the new session.
       const previous=online.get(id);
@@ -334,16 +359,107 @@ io.on('connection', socket=>{
     await persistPlayer(id,player.state);
     socket.emit('player:death',{cause:player.state.deathCause,at:player.state.diedAt});
   });
+  socket.on('player:rest', async()=>{
+    const id=socket.data.playerId,p=id&&online.get(id);if(!p)return;
+    const st=safeState(p.state).state;const gain=Number(st.hunger)>85||Number(st.thirst)>85?12:35;
+    st.stamina=Math.min(100,(Number(st.stamina)||0)+gain);st.hp=Math.min(100,(Number(st.hp)||0)+5);
+    p.state=st;p.hp=st.hp;p.lastSurvivalAt=Date.now();st.survivalServerAt=p.lastSurvivalAt;await persistPlayer(id,st);
+    socket.emit('player:survival:result',{ok:true,state:st,message:'Ты отдохнул. Сервер сохранил восстановление сил.'});
+  });
+  socket.on('player:survival:camp', async()=>{
+    const id=socket.data.playerId,p=id&&online.get(id);if(!p)return;
+    const st=safeState(p.state).state;st.items=Array.isArray(st.items)?st.items:[];st.survival ||= {};
+    const now=Date.now();if(Number(st.serverShelterUntil)>now){socket.emit('player:survival:result',{ok:false,message:'Ты уже находишься в укрытии.'});return;}
+    const supply=st.items.find(x=>['tea','water'].includes(x.id)&&Number(x.qty)>0);
+    if(!supply){socket.emit('player:survival:result',{ok:false,message:'Для привала нужен термос чая или бутылка воды.'});return;}
+    supply.qty=Number(supply.qty)-1;if(supply.qty<=0)st.items=st.items.filter(x=>x!==supply);
+    st.stamina=Math.min(100,(Number(st.stamina)||0)+28);st.hunger=Math.max(0,(Number(st.hunger)||0)-7);st.thirst=Math.max(0,(Number(st.thirst)||0)-16);
+    st.serverShelterUntil=now+5*60000;st.survival.shelterUntil=st.serverShelterUntil;
+    p.state=st;p.hp=st.hp;p.lastSurvivalAt=now;st.survivalServerAt=now;await persistPlayer(id,st);
+    socket.emit('player:survival:result',{ok:true,state:st,message:'Полевой привал сохранён сервером.'});
+  });
+  socket.on('player:contract:accept', async input=>{
+    const id=socket.data.playerId,p=id&&online.get(id);if(!p)return;
+    const st=safeState(p.state).state;st.contracts=Array.isArray(st.contracts)?st.contracts:[];
+    const c=st.contracts.find(x=>x.id===String(input?.contractId||''));
+    if(!c||c.done){socket.emit('player:contract:result',{ok:false,message:'Контракт недоступен.'});return;}
+    c.accepted=true;p.state=st;await persistPlayer(id,st);socket.emit('player:contract:result',{ok:true,state:st,message:'Контракт принят.'});
+  });
+  socket.on('player:contract:complete', async input=>{
+    const id=socket.data.playerId,p=id&&online.get(id);if(!p)return;
+    const st=safeState(p.state).state;st.contracts=Array.isArray(st.contracts)?st.contracts:[];st.items=Array.isArray(st.items)?st.items:[];
+    const c=st.contracts.find(x=>x.id===String(input?.contractId||''));
+    if(!c||!c.accepted||c.done){socket.emit('player:contract:result',{ok:false,message:'Контракт не принят или уже завершён.'});return;}
+    if(p.location!==c.loc){socket.emit('player:contract:result',{ok:false,message:'Вернись в сектор, указанный в контракте.'});return;}
+    if(c.item){const item=st.items.find(x=>x.id===c.item);if(!item||Number(item.qty)<Math.max(1,Number(c.qty)||1)){socket.emit('player:contract:result',{ok:false,message:'Не хватает предметов для сдачи контракта.'});return;}
+      item.qty=Number(item.qty)-Math.max(1,Number(c.qty)||1);st.items=st.items.filter(x=>Number(x.qty)>0);}
+    c.done=true;st.money=Math.min(99999999,st.money+Math.max(0,Math.min(1000000,Number(c.reward)||0)));st.xp=Math.min(1e7,st.xp+Math.max(0,Math.min(100000,Number(c.xp)||0)));st.rep=Math.max(-1000,Math.min(1000,st.rep+Math.max(-100,Math.min(100,Number(c.rep)||0))));
+    p.state=st;p.money=st.money;p.xp=st.xp;p.hp=st.hp;await persistPlayer(id,st);socket.emit('player:contract:result',{ok:true,state:st,message:'Контракт выполнен. Награда начислена сервером.'});
+  });
+  socket.on('player:quest:accept', async input=>{
+    const id=socket.data.playerId,p=id&&online.get(id);if(!p)return;
+    const st=safeState(p.state).state;const questId=String(input?.questId||'').slice(0,80);
+    const q=(st.quests||[]).find(x=>x.id===questId);
+    if(!q||q.done||(q.faction||'Одиночки')!==(p.faction||'Одиночки')){socket.emit('player:quest:result',{ok:false,message:'Задание недоступно.'});return;}
+    q.accepted=true;p.state=st;await persistPlayer(id,st);socket.emit('player:quest:result',{ok:true,state:st,message:'Задание принято.'});
+  });
+  socket.on('player:quest:turnin', async input=>{
+    const id=socket.data.playerId,p=id&&online.get(id);if(!p)return;
+    const st=safeState(p.state).state;st.items=Array.isArray(st.items)?st.items:[];st.quests=Array.isArray(st.quests)?st.quests:[];
+    const questId=String(input?.questId||'').slice(0,80),q=st.quests.find(x=>x.id===questId);
+    if(!q||!q.accepted||q.done||(q.faction||'Одиночки')!==(p.faction||'Одиночки')){socket.emit('player:quest:result',{ok:false,message:'Задание не принято или уже завершено.'});return;}
+    const countItem=itemId=>st.items.filter(x=>x.id===itemId).reduce((n,x)=>n+Math.max(0,Number(x.qty)||0),0);
+    const hasPoint=(loc,point)=>!!st.keyPoints?.[loc]?.some(x=>x.id===point&&x.discovered);
+    const storyFlags=st.storyFlags||{},flags=st.flags||{};let ok=false;
+    const storyChecks={story_swamp_signal:()=>storyFlags.metLebedev&&hasPoint('swamps','swamps_extra_0'),story_swamp_relay:()=>storyFlags.metNovikov&&hasPoint('swamps','swamps_extra_3'),story_yantar_echo:()=>storyFlags.metSakharov&&hasPoint('yantar','yantar_extra_0'),story_north_route:()=>storyFlags.metBeard&&hasPoint('jupiter','jupiter_extra_3')&&hasPoint('radar','radar_extra_1'),story_pripyat_archive:()=>storyFlags.metArchivist&&hasPoint('pripyat','pripyat_extra_3')};
+    if(storyChecks[questId])ok=storyChecks[questId]();
+    if(q.requiredLocation){const required=q.requiredItemType?st.items.filter(x=>x.type===q.requiredItemType).reduce((n,x)=>n+Math.max(0,Number(x.qty)||0),0):countItem(q.requiredItem);ok=p.location===q.requiredLocation&&(!q.requiredItem&&!q.requiredItemType||required>=Math.max(1,Number(q.requiredQty)||1));}
+    if(questId==='intro')ok=!!flags.metWolf;if(questId==='scrap')ok=countItem('scrap')>=3;if(questId==='bread')ok=countItem('bread')>=2;if(questId==='rumors')ok=!!(flags.metWolf&&flags.heardBar&&flags.metScout&&flags.metProf);if(questId==='research')ok=!!flags.foundArtifact;
+    if(!ok){socket.emit('player:quest:result',{ok:false,message:'Условия задания ещё не выполнены.'});return;}
+    const consume=(itemId,amount)=>{let left=amount;for(const item of st.items.filter(x=>x.id===itemId)){const n=Math.min(left,Math.max(0,Number(item.qty)||0));item.qty-=n;left-=n;if(left<=0)break;}st.items=st.items.filter(x=>Number(x.qty)>0);};
+    if(questId==='scrap')consume('scrap',3);if(questId==='bread')consume('bread',2);if(q.requiredItem)consume(q.requiredItem,Math.max(1,Number(q.requiredQty)||1));
+    if(q.requiredItemType){let left=Math.max(1,Number(q.requiredQty)||1);for(const item of st.items.filter(x=>x.type===q.requiredItemType)){const n=Math.min(left,Math.max(0,Number(item.qty)||0));item.qty-=n;left-=n;if(left<=0)break;}st.items=st.items.filter(x=>Number(x.qty)>0);}
+    q.done=true;st.money=Math.min(99999999,st.money+Math.max(0,Math.min(1000000,Number(q.reward)||0)));st.xp=Math.min(1e7,st.xp+Math.max(0,Math.min(100000,Number(q.xp)||0)));st.rep=Math.max(-1000,Math.min(1000,st.rep+Math.max(-100,Math.min(100,Number(q.rep)||0))));st.completed=Math.min(1e6,(Number(st.completed)||0)+1);
+    p.state=st;p.money=st.money;p.xp=st.xp;p.hp=st.hp;await persistPlayer(id,st);socket.emit('player:quest:result',{ok:true,state:st,message:'Задание выполнено. Награда начислена сервером.'});
+  });
+  socket.on('player:item:use', async input=>{
+    const id=socket.data.playerId,p=id&&online.get(id);if(!p)return;
+    const itemId=String(input?.itemId||'').slice(0,48);
+    const st=safeState(p.state).state;st.items=Array.isArray(st.items)?st.items:[];
+    const actionNow=Date.now(),actionElapsed=Math.max(0,Math.min(180*60000,actionNow-(Number(p.lastSurvivalAt)||Number(p.state?.survivalServerAt)||actionNow)));
+    if(actionElapsed>=60000)ZoneSurvival.advanceNeeds(st,actionElapsed,p.state?.atmosphereState?.weather||'overcast');
+    p.lastSurvivalAt=actionNow;st.survivalServerAt=actionNow;
+    const item=st.items.find(x=>x.id===itemId&&Number(x.qty)>0);
+    if(!item){socket.emit('player:item:result',{ok:false,message:'Предмет отсутствует в рюкзаке.'});return;}
+    const foods={bread:[18,0,4],canned:[34,2,0],sausage:[24,0,2],condensed:[20,0,12],water:[0,42,2],tea:[2,30,8],ration:[42,8,5],energy_drink:[4,18,22],chocolate:[14,0,18],nuts:[22,0,10],smoked_meat:[38,0,3]};
+    let used=false;
+    if(foods[itemId]){const [satiety,hydration,stamina]=foods[itemId];st.hunger=Math.max(0,Number(st.hunger)||0);st.thirst=Math.max(0,Number(st.thirst)||0);st.stamina=Math.min(100,(Number(st.stamina)||0)+stamina);st.hunger=Math.max(0,st.hunger-satiety);st.thirst=Math.max(0,st.thirst-hydration);used=true;}
+    else if(itemId==='med'&&Number(st.hp)<100){st.hp=Math.min(100,(Number(st.hp)||0)+35);used=true;}
+    else if(itemId==='bandage'&&Number(st.hp)<100){st.hp=Math.min(100,(Number(st.hp)||0)+15);used=true;}
+    else if(itemId==='trauma_kit'&&Number(st.hp)<100){st.hp=Math.min(100,(Number(st.hp)||0)+55);st.stamina=Math.max(0,(Number(st.stamina)||0)-5);used=true;}
+    else if(itemId==='painkillers'&&Number(st.stamina)<100){st.stamina=Math.min(100,(Number(st.stamina)||0)+25);st.needs||={};st.needs.stress=Math.max(0,(Number(st.needs.stress)||0)-8);used=true;}
+    else if(itemId==='anti_rad'&&Number(st.radiation)>0){st.radiation=Math.max(0,(Number(st.radiation)||0)-65);st.radiationProtectionUntil=Date.now()+12*60*1000;used=true;}
+    if(!used){socket.emit('player:item:result',{ok:false,message:'Сейчас этот предмет нельзя использовать.'});return;}
+    item.qty=Number(item.qty)-1;if(item.qty<=0)st.items=st.items.filter(x=>x!==item);
+    p.state=st;p.hp=st.hp;p.xp=st.xp;p.money=st.money;await persistPlayer(id,st);
+    socket.emit('player:item:result',{ok:true,state:st,itemId});
+  });
   socket.on('player:save', async input=>{
     const id=socket.data.playerId, p=online.get(id); if(!id||!p)return;
     const clientState=safeState(input);
     const allowCharacterCreation=p.state?.characterCreated!==true&&clientState.state?.characterCreated===true;
     const mergedState=mergeClientSaveState(p.state,clientState.state,{allowCharacterCreation});
+    const now=Date.now();
+    const elapsed=Math.max(0,Math.min(180*60000,now-(Number(p.lastSurvivalAt)||Number(p.state?.survivalServerAt)||now)));
+    mergedState.survivalServerAt=now;
+    if(p.state?.characterCreated&&elapsed>=60000){ZoneSurvival.advanceNeeds(mergedState,elapsed,p.state.atmosphereState?.weather||'overcast');mergedState.survival ||= {};mergedState.survival.lastTickAt=now;}
+    p.lastSurvivalAt=now;
     const s=safeState(mergedState);
     const authoritativeEmission = publicEmissionState(world);
     s.state.emission = { ...authoritativeEmission, active: authoritativeEmission.phase === 'active', warning: authoritativeEmission.phase === 'warning' };
     s.state.survival ||= {};
-    s.state.survival.shelterUntil = Math.min(Math.max(0, Number(s.state.survival.shelterUntil) || 0), Date.now() + 10 * 60 * 1000);
+    s.state.serverShelterUntil = Math.max(0, Number(p.state?.serverShelterUntil)||0);
+    s.state.survival ||= {};s.state.survival.shelterUntil=s.state.serverShelterUntil;
     const previousLocation=p.location, previousFaction=p.faction; const squad=squadOf(id); const firstCharacter=!p.state?.characterCreated&&s.state?.characterCreated===true;
     if(p.state?.characterCreated&&!firstCharacter){s.state.faction=p.faction;s.faction=p.faction;}
     const requestedSpawn=s.state?.startingLocation||s.state?.loc;const spawn=firstCharacter?resolveFactionSpawn(s.faction,requestedSpawn).location:null;
@@ -662,15 +778,18 @@ io.on('connection', socket=>{
     const q=(world.coOpQuests||[]).find(x=>x.id===String(input?.questId||''));
     if(!q||q.done||!q.participants.includes(p.id)||p.location!==q.location){socket.emit('coop:result',{ok:false,message:'Нужно вступить в группу и прибыть в указанный сектор.'});return;}
     q.arrivals ||= [];if(!q.arrivals.includes(p.id))q.arrivals.push(p.id);
-    if(q.arrivals.length>=q.required){
-      q.done=true; const winners=q.arrivals.slice();
+    if(q.arrivals.length>=q.required&&!q.done&&!q.completing){
+      q.completing=true; const winners=q.arrivals.slice();
       if(pool){
         const client=await pool.connect();
+        const updated=[];
         try{await client.query('BEGIN');const rows=await client.query('SELECT id,state FROM zone_players WHERE id = ANY($1::text[]) FOR UPDATE',[winners]);
-          for(const row of rows.rows){const st=safeState(row.state);st.state.money=Math.min(99999999,st.money+q.reward);st.state.xp=Math.min(1e7,st.xp+q.xp);await client.query('UPDATE zone_players SET state=$2,updated_at=NOW() WHERE id=$1',[row.id,st.state]);const pl=online.get(row.id);if(pl)pl.state=st.state;}
+          for(const row of rows.rows){const st=safeState(row.state);st.state.money=Math.min(99999999,st.money+Math.max(0,Number(q.reward)||0));st.state.xp=Math.min(1e7,st.xp+Math.max(0,Number(q.xp)||0));await client.query('UPDATE zone_players SET state=$2,updated_at=NOW() WHERE id=$1',[row.id,st.state]);updated.push({id:row.id,state:st.state});}
           await client.query('COMMIT');
-        }catch(err){await client.query('ROLLBACK');q.done=false;throw err;}finally{client.release();}
-      }else{for(const id of winners){const pl=online.get(id);if(pl){const st=safeState(pl.state);st.state.money+=q.reward;st.state.xp+=q.xp;pl.state=st.state;}}}
+          for(const item of updated){const pl=online.get(item.id);if(pl){pl.state=item.state;pl.money=item.state.money;pl.xp=item.state.xp;pl.hp=item.state.hp;}}
+        }catch(err){await client.query('ROLLBACK');q.completing=false;throw err;}finally{client.release();}
+      }else{for(const id of winners){const pl=online.get(id);if(pl){const st=safeState(pl.state);st.state.money=Math.min(99999999,st.state.money+q.reward);st.state.xp=Math.min(1e7,st.state.xp+Math.max(0,Number(q.xp)||0));pl.state=st.state;pl.money=st.state.money;pl.xp=st.state.xp;pl.hp=st.state.hp;await persistPlayer(id,st.state);}}}
+      q.done=true;q.completing=false;q.rewardedPlayers=winners.slice();
       for(const id of winners){const pl=online.get(id);if(pl)io.to(id).emit('coop:reward',{questId:q.id,reward:q.reward,xp:q.xp,state:pl.state});}
       systemMessage(`Совместное задание «${q.title}» выполнено.`);
     }
@@ -681,7 +800,7 @@ io.on('connection', socket=>{
     const location=String(input?.location||'');const id=clean(input?.id,80);const name=clean(input?.name,80);
     if(!LOCATIONS.has(location)||p.location!==location||!new RegExp('^'+location+'_poi_[0-9]+$').test(id))return;
     world.discoveredPoints ||= {};world.discoveredPoints[location] ||= [];
-    if(!world.discoveredPoints[location].includes(id)){world.discoveredPoints[location].push(id);const syncEvent=appendWorldEvent(world,'poi_discovered',{playerId:p.id,location,id,name});await persistWorld();io.emit('world:event',syncEvent);io.emit('world:poi',world.discoveredPoints);systemMessage(`${p.name} обнаружил новую точку интереса: ${name} (${location}).`);}
+    if(!world.discoveredPoints[location].includes(id)){world.discoveredPoints[location].push(id);const st=safeState(p.state).state;st.xp=Math.min(1e7,st.xp+12);st.stamina=Math.max(0,(Number(st.stamina)||0)-5);st.careerStats ||= {};st.careerStats.discoveries=(Number(st.careerStats.discoveries)||0)+1;p.state=st;p.xp=st.xp;await persistPlayer(p.id,st);const syncEvent=appendWorldEvent(world,'poi_discovered',{playerId:p.id,location,id,name});await persistWorld();io.emit('world:event',syncEvent);io.emit('world:poi',world.discoveredPoints);socket.emit('player:progression:result',{state:st,message:`Точка обнаружена: +12 опыта.`});systemMessage(`${p.name} обнаружил новую точку интереса: ${name} (${location}).`);}
   });
   socket.on('war:operation:create', async input=>{
     const p=online.get(socket.data.playerId); if(!p)return;
@@ -753,20 +872,55 @@ io.on('connection', socket=>{
     io.emit('world:npc-state',{npcs:publicNpcRoster(),events:(world.npcEvents||[]).slice(-20),squads:world.npcSquads||[],memorial:world.npcMemorial||[],corpses:(world.npcCorpses||[]).map(({loot,...c})=>c),factionNotices:(world.factionNotices||[]).slice(0,30),rescueOperations:(world.rescueOperations||[]).slice(0,20),battlefronts:world.battlefronts||[],convoys:world.convoys||[],factionBases:world.factionBases||[],frontlineOrders:world.frontlineOrders||[],keyPoints:world.keyPoints||{},factionObjectives:world.factionObjectives||{},factionResources:world.factionResources||{},factionCommand:world.factionCommand||{},factionWarHistory:(world.factionWarHistory||[]).slice(0,30)});
     socket.emit('npc:corpse:loot:result',{ok:true,message,state:p.state,money:result.money,items:result.items});
   });
-  socket.on('npc:combat:kill', async input=>{
+  socket.on('npc:combat:start', input=>{
     const p=online.get(socket.data.playerId);if(!p)return;
     const npcId=String(input?.npcId||'').slice(0,48),npc=world.npcState?.[npcId];
     if(!npc||npc.alive===false||npc.location!==p.location||!isHostileFaction(p.faction,npc.faction,world.diplomacy)||!inRange(p,npcWorldPosition(npc),COMBAT_RADIUS)){
-      socket.emit('npc:combat:result',{ok:false,message:'Цель вне радиуса боя (18 м), недоступна или не является противником.'});return;
+      socket.emit('npc:combat:result',{ok:false,message:'Нельзя начать бой: цель недоступна или находится вне радиуса.'});return;
     }
-    npc.alive=false;npc.health=0;npc.action='dead';npc.deathCause=`погиб в столкновении со сталкером ${p.name}`;npc.diedAt=Date.now();
-    world.npcMemorial||=[];world.npcMemorial.unshift({id:`mem_${npc.id}_${npc.diedAt}`,name:npc.name,faction:npc.faction,role:npc.role,location:npc.location,cause:npc.deathCause,diedAt:npc.diedAt});world.npcMemorial=world.npcMemorial.slice(0,100);
-    world.npcPositions[npc.id]=npc.location;
-    const ev=appendWorldEvent(world,'npc_killed',{npcId:npc.id,name:npc.name,faction:npc.faction,playerId:p.id,playerName:p.name,location:p.location});
-    recordStalkerKill(p,npc);
-    const leaderboard=leaderboardPayload();
-    await persistWorld();io.emit('world:event',ev);io.emit('world:leaderboard',leaderboard);emitNpcState();socket.emit('npc:combat:result',{ok:true,npcId:npc.id,leaderboard});
+    socket.data.activeCombat={npcId,startedAt:Date.now(),lastActionAt:0,playerId:p.id,guard:false};
+    socket.emit('npc:combat:started',{npcId,startedAt:socket.data.activeCombat.startedAt,enemyHp:Math.max(35,Number(npc.health)||80),playerHp:Number(p.state?.hp)||100});
   });
+  socket.on('npc:combat:action', async input=>{
+    const p=online.get(socket.data.playerId),combat=socket.data.activeCombat;if(!p||!combat||combat.playerId!==p.id)return;
+    const npc=world.npcState?.[combat.npcId],action=String(input?.action||'');
+    if(!['attack','guard','med','retreat'].includes(action)||!npc||npc.alive===false||npc.location!==p.location||!isHostileFaction(p.faction,npc.faction,world.diplomacy)||!inRange(p,npcWorldPosition(npc),COMBAT_RADIUS)){
+      socket.emit('npc:combat:result',{ok:false,message:'Боевой контакт недействителен.'});socket.data.activeCombat=null;return;
+    }
+    const now=Date.now();if(now-combat.startedAt<400||now-combat.lastActionAt<650){socket.emit('npc:combat:result',{ok:false,message:'Слишком быстрое действие. Дождись следующего хода.'});return;}combat.lastActionAt=now;
+    const st=safeState(p.state).state;st.items=Array.isArray(st.items)?st.items:[];let playerMessage='';
+    if(action==='retreat'){
+      if(Math.random()<.68){st.stamina=Math.max(0,(Number(st.stamina)||0)-8);p.state=st;socket.data.activeCombat=null;await persistPlayer(p.id,st);socket.emit('npc:combat:result',{ok:true,outcome:'escaped',state:st,npcId:npc.id,message:'Отступление удалось.'});return;}
+      playerMessage='Отступление не удалось.';
+    } else if(action==='guard'){
+      combat.guard=true;playerMessage='Ты занял защитную позицию.';
+    } else if(action==='med'){
+      const med=st.items.find(x=>['med','bandage','trauma_kit'].includes(x.id)&&Number(x.qty)>0);
+      if(!med||Number(st.hp)>=100){socket.emit('npc:combat:result',{ok:false,message:'Нет подходящего лекарства или здоровье уже полное.'});return;}
+      const restore=med.id==='trauma_kit'?50:med.id==='bandage'?12:32;st.hp=Math.min(100,(Number(st.hp)||0)+restore);med.qty=Number(med.qty)-1;if(med.qty<=0)st.items=st.items.filter(x=>x!==med);playerMessage=`Использовано средство: ${med.name}.`;
+    } else {
+      const weapon=st.items.find(x=>x.type==='Оружие'&&x.name===st.equipment?.weapon)||st.items.find(x=>x.type==='Оружие'&&Number(x.qty)>0);
+      let power=Math.max(8,Number(weapon?.power)||12);if(weapon){power=Math.round(power*Math.max(25,Number(weapon.condition??75))/100);if(weapon.condition!=null)weapon.condition=Math.max(0,Number(weapon.condition)-1);}
+      const damage=Math.max(4,power+Math.floor(Math.random()*9)-3);npc.health=Math.max(0,(Number(npc.health)||80)-damage);playerMessage=`Атака подтверждена сервером: противник потерял ${damage} здоровья.`;
+    }
+    if(npc.health<=0){
+      npc.alive=false;npc.health=0;npc.action='dead';npc.deathCause=`погиб в столкновении со сталкером ${p.name}`;npc.diedAt=now;socket.data.activeCombat=null;
+      world.npcMemorial||=[];world.npcMemorial.unshift({id:`mem_${npc.id}_${npc.diedAt}`,name:npc.name,faction:npc.faction,role:npc.role,location:npc.location,cause:npc.deathCause,diedAt:npc.diedAt});world.npcMemorial=world.npcMemorial.slice(0,100);
+      world.npcPositions[npc.id]=npc.location;const ev=appendWorldEvent(world,'npc_killed',{npcId:npc.id,name:npc.name,faction:npc.faction,playerId:p.id,playerName:p.name,location:p.location});recordStalkerKill(p,npc);
+      st.money=Math.min(99999999,(Number(st.money)||0)+60+Math.floor(Math.random()*100));st.xp=Math.min(1e7,(Number(st.xp)||0)+18+Math.floor(Math.random()*16));st.careerStats||={};st.careerStats.kills=(Number(st.careerStats.kills)||0)+1;
+      p.state=st;p.money=st.money;p.xp=st.xp;p.hp=st.hp;await persistPlayer(p.id,st);await persistWorld();io.emit('world:event',ev);io.emit('world:leaderboard',leaderboardPayload());emitNpcState();socket.emit('npc:combat:result',{ok:true,outcome:'win',npcId:npc.id,state:st,message:`Победа над ${npc.name}. Награда начислена сервером.`});return;
+    }
+    const armor=st.items.find(x=>x.name===st.equipment?.suit&&x.type==='Броня'),helmet=st.items.find(x=>x.name===st.equipment?.helmet&&x.type==='Шлем');
+    const defense=(armor?Math.round((Number(armor.condition??70)/100)*(Number(armor.defense)||4)):0)+(helmet?Math.round((Number(helmet.condition??100)/100)*(Number(helmet.defense)||1)):0);
+    const baseDamage=8+Math.floor(Math.random()*6),damage=Math.max(2,baseDamage-defense-(combat.guard?Math.round(baseDamage*.65):0));combat.guard=false;st.hp=Math.max(0,(Number(st.hp)||0)-damage);
+    if(armor)armor.condition=Math.max(0,Number(armor.condition??100)-Math.max(1,Math.ceil(damage/12)));if(helmet)helmet.condition=Math.max(0,Number(helmet.condition??100)-Math.max(1,Math.ceil(damage/28)));
+    p.state=st;p.hp=st.hp;p.xp=st.xp;p.money=st.money;await persistPlayer(p.id,st);
+    if(st.hp<=0){st.dead=true;st.characterCreated=false;st.deathCause=`погиб в бою с ${npc.name}`;st.diedAt=now;socket.data.activeCombat=null;await persistPlayer(p.id,st);socket.emit('npc:combat:result',{ok:true,outcome:'defeat',state:st,npcId:npc.id,message:'Персонаж погиб в бою.'});return;}
+    await persistWorld();emitNpcState();socket.emit('npc:combat:turn',{npcId:npc.id,enemyHp:npc.health,playerHp:st.hp,state:st,message:playerMessage||`Противник наносит ${damage} урона.`});
+  });
+  // Direct client kill requests are deliberately disabled. NPC deaths are
+  // committed only by the server-side combat action resolver above.
+  socket.on('npc:combat:kill', ()=>socket.emit('npc:combat:result',{ok:false,message:'Прямая фиксация победы отключена. Заверши бой через боевые ходы.'}));
   socket.on('npc:specialist', async input=>{
     const p=online.get(socket.data.playerId);if(!p)return;
     const npc=world.npcState?.[String(input?.npcId||'').slice(0,48)];
@@ -834,6 +988,7 @@ io.on('connection', socket=>{
   });
   socket.on('disconnect',(reason)=>{
     console.info(`[socket] disconnected id=${socket.id} player=${socket.data.playerId||'unidentified'} reason=${reason}${socket.data.supersededBy?` supersededBy=${socket.data.supersededBy}`:''}`);
+    allowSocketEvent.clear(socket.id);
     const id=socket.data.playerId,p=online.get(id);if(!p||p.socketId!==socket.id)return;
     // Persist the last authoritative state on a real disconnect as well as on
     // explicit client saves. Superseded sockets are filtered by the socketId guard above.
@@ -852,7 +1007,7 @@ function applyEmissionExposure(player, emission, now) {
     survival.lastEmissionDamageAt = 0;
   }
   if (now - Number(survival.lastEmissionDamageAt || 0) < 55_000) return false;
-  const sheltered = Number(survival.shelterUntil || 0) > now;
+  const sheltered = Number(state.serverShelterUntil || 0) > now;
   const suit = (state.items || []).find(item => item?.name === state.equipment?.suit && item.type === 'Броня');
   const artifact = (state.items || []).find(item => item?.name === state.equipment?.artifact && item.type === 'Артефакт');
   const artifactProtection = Math.max(0, Math.min(0.3, Number(artifact?.effects?.radiationProtection || 0)));
