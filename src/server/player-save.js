@@ -4,9 +4,10 @@
 // The client may still save presentation, preferences and other non-economic
 // state, but a generic player:save packet cannot mint progression or inventory.
 const SERVER_AUTHORITY_FIELDS = Object.freeze([
-  'money', 'items', 'hp', 'xp', 'rep', 'quests', 'careerStats', 'faction', 'characterCreated', 'visitedLocations',
+  'money', 'items', 'hp', 'xp', 'rep', 'quests', 'contracts', 'careerStats', 'faction', 'characterCreated', 'visitedLocations',
   'equipment', 'weaponSlots', 'armor', 'artifacts', 'skills', 'rank',
-  'reputation', 'stash', 'stashItems', 'tradeHistory', 'level', 'perks', 'achievements', 'guestSessionVersion'
+  'reputation', 'stash', 'stashItems', 'tradeHistory', 'level', 'perks', 'achievements', 'guestSessionVersion',
+  'hunger', 'thirst', 'stamina', 'radiation', 'radiationProtectionUntil', 'survivalServerAt', 'serverShelterUntil'
 ]);
 
 function mergeClientSaveState(currentState, incomingState, options = {}) {
